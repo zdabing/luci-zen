@@ -37,7 +37,8 @@ pub unsafe fn refresh(d: &mut Daemon) -> usize {
     count += insert(d, true, &fe80, 10);
 
     // 2) UCI/CLI 追加
-    for cidr in &d.cfg.extra_prefixes {
+    let extra = d.cfg.extra_prefixes.clone();
+    for cidr in &extra {
         if let Some((v6, bytes, mask)) = parse_cidr(cidr) {
             count += insert(d, v6, &bytes, mask);
         }

@@ -163,11 +163,12 @@ impl Netlink {
         if fd < 0 {
             return Err(io::Error::last_os_error());
         }
+        // libc 新版 nl_pad 为 Padding<u16>（不可直接字面量构造），zeroed 基底补齐
         let sa: libc::sockaddr_nl = libc::sockaddr_nl {
             nl_family: libc::AF_NETLINK as u16,
-            nl_pad: 0,
             nl_pid: 0,
             nl_groups: 0,
+            ..unsafe { std::mem::zeroed() }
         };
         let rc = unsafe {
             libc::bind(
@@ -196,11 +197,12 @@ impl Netlink {
         req[6..8].copy_from_slice(&(NLM_F_REQUEST | NLM_F_ACK | NLM_F_DUMP | NLM_F_MULTI).to_ne_bytes());
         req[16..16 + payload.len()].copy_from_slice(payload);
 
+        // libc 新版 nl_pad 为 Padding<u16>（不可直接字面量构造），zeroed 基底补齐
         let sa: libc::sockaddr_nl = libc::sockaddr_nl {
             nl_family: libc::AF_NETLINK as u16,
-            nl_pad: 0,
             nl_pid: 0,
             nl_groups: 0,
+            ..unsafe { std::mem::zeroed() }
         };
         let rc = unsafe {
             libc::sendto(
@@ -438,11 +440,12 @@ impl Netlink {
         req[6..8].copy_from_slice(&(NLM_F_REQUEST | NLM_F_ACK).to_ne_bytes());
         req[16..16 + payload.len()].copy_from_slice(payload);
 
+        // libc 新版 nl_pad 为 Padding<u16>（不可直接字面量构造），zeroed 基底补齐
         let sa: libc::sockaddr_nl = libc::sockaddr_nl {
             nl_family: libc::AF_NETLINK as u16,
-            nl_pad: 0,
             nl_pid: 0,
             nl_groups: 0,
+            ..unsafe { std::mem::zeroed() }
         };
         let rc = unsafe {
             libc::sendto(

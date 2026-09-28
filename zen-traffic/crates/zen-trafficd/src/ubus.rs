@@ -162,7 +162,7 @@ unsafe extern "C" fn handle_get_devices(
                 if s.is_dormant(now_epoch(), crate::state::DORMANT_DAYS) {
                     continue;
                 }
-                let mac = mac_str(&s.mac);
+                let mac = mac_str(&s.mac.b);
                 let t = ubus::blobmsg_open_table(&mut b, std::ptr::null());
                 add_str(&mut b, b"mac\0", &mac);
                 add_opt_str(&mut b, b"ip4\0", &s.ip4);
@@ -228,7 +228,7 @@ fn sum_day(d: &Daemon, date: &str) -> (u64, u64) {
         .map(|rows| {
             rows.iter()
                 .fold((0u64, 0u64), |(a, b), (_, dl, ul)| {
-                    (a + dl.max(0) as u64, b + ul.max(0) as u64)
+                    (a + (*dl).max(0) as u64, b + (*ul).max(0) as u64)
                 })
         })
         .unwrap_or((0, 0))
@@ -240,7 +240,7 @@ fn sum_month(d: &Daemon, month: &str) -> (u64, u64) {
         .map(|rows| {
             rows.iter()
                 .fold((0u64, 0u64), |(a, b), (_, dl, ul)| {
-                    (a + dl.max(0) as u64, b + ul.max(0) as u64)
+                    (a + (*dl).max(0) as u64, b + (*ul).max(0) as u64)
                 })
         })
         .unwrap_or((0, 0))
@@ -377,7 +377,7 @@ unsafe extern "C" fn handle_set_hostname(
         return ubus::UBUS_STATUS_INVALID_ARGUMENT;
     }
 
-    match with_daemon(|d| {
+    match with_daemon(|d| -> Result<(), String> {
         d.db.set_hostname(&mac_l, &host)?;
         if let Some(m) = parse_mac(&mac_l) {
             if let Some(s) = d.devs.get_mut(&m) {
@@ -426,7 +426,7 @@ unsafe extern "C" fn handle_reset_device(
         return ubus::UBUS_STATUS_INVALID_ARGUMENT;
     };
 
-    match with_daemon(|d| {
+    match with_daemon(|d| -> Result<(), String> {
         d.db.reset_device(&mac_l)?;
         if let Some(s) = d.devs.get_mut(&m) {
             s.rx_today = 0;
@@ -458,7 +458,7 @@ fn zen_bpf_zero_device(bpf: &mut aya::Ebpf, mac: &zen_bpf::MacKey) {
     use zen_bpf::DevStats;
     let Some(map) = bpf.map_mut("devices") else { return };
     if let Ok(mut devs) = aya::maps::HashMap::<_, zen_bpf::MacKey, DevStats>::try_from(map) {
-        let _ = devs.insert(mac, DevStats::default(), aya::maps::MapFlags::ANY);
+        let _ = devs.insert(mac, DevStats::default(), 0);
     }
 }
 
@@ -486,7 +486,7 @@ unsafe extern "C" fn handle_reload_prefixes(
 
 unsafe fn add_str(b: &mut ubus::blob_buf, name: &[u8], val: &str) {
     let cname = CString_of(val);
-    ubus::blobmsg_add_string(b, cs(name), cname.as_ptr());
+    ubus::blobmsg_add_string(b, name.as_ptr().cast(), cname.as_ptr());
 }
 
 unsafe fn add_opt_str(b: &mut ubus::blob_buf, name: &[u8], val: &Option<String>) {

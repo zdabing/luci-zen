@@ -9,6 +9,9 @@
 //!   zen-trafficd -b <zen_traffic.bpf.o> [-i iface]... [-t ms] [-o sec]
 //!                [-c sec] [-d db] [-P cidr]... [-q]
 
+// 手写 FFI/C 回调边界：unsafe fn 体内直接操作裸指针属预期（edition 2024 默认 warn）
+#![allow(unsafe_op_in_unsafe_fn)]
+
 mod accounting;
 mod daemon;
 mod device;
@@ -69,9 +72,9 @@ fn main() {
     println!(
         "[zen-trafficd] running: ifaces={:?} db={} interval={}ms checkpoint={}s",
         ubus::with_daemon(|d| d.cfg.ifaces.clone()),
-        ubus::with_daemon(|d| d.cfg.db_path.clone()),
-        ubus::with_daemon(|d| d.cfg.interval_ms),
-        ubus::with_daemon(|d| d.cfg.checkpoint_secs),
+        ubus::with_daemon(|d| d.cfg.db_path.clone().unwrap_or_default()),
+        ubus::with_daemon(|d| d.cfg.interval_ms.unwrap_or(0)),
+        ubus::with_daemon(|d| d.cfg.checkpoint_secs.unwrap_or(0)),
     );
 
     // 2) 事件循环（SIGTERM 置 uloop_cancelled，≤1s 退出）

@@ -189,6 +189,7 @@ impl Db {
             .map_err(|e| e.to_string())?;
         self.conn
             .execute("DELETE FROM monthly_usage WHERE month < ?1", params![before_month])
+            .map(|_| ())
             .map_err(|e| e.to_string())
     }
 
@@ -200,6 +201,7 @@ impl Db {
                  ON CONFLICT(mac) DO UPDATE SET hostname = ?2, hostname_src = 1",
                 params![mac, host],
             )
+            .map(|_| ())
             .map_err(|e| e.to_string())
     }
 
@@ -213,6 +215,7 @@ impl Db {
             .map_err(|e| e.to_string())?;
         self.conn
             .execute("DELETE FROM monthly_usage WHERE mac = ?1", params![mac])
+            .map(|_| ())
             .map_err(|e| e.to_string())
     }
 

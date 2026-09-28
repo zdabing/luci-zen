@@ -308,6 +308,13 @@ pub unsafe fn blobmsg_open_table(buf: *mut blob_buf, name: *const c_char) -> *mu
     blobmsg_open_nested(buf, name, false)
 }
 
+/// 等价 blobmsg_open_array（inline → blobmsg_open_nested(.., true)）
+/// # Safety
+/// buf 指针必须有效。
+pub unsafe fn blobmsg_open_array(buf: *mut blob_buf, name: *const c_char) -> *mut c_void {
+    blobmsg_open_nested(buf, name, true)
+}
+
 /// 等价 blobmsg_close_table（blob.h inline：`buf->head = cookie`）
 /// # Safety
 /// cookie 必须来自同 buf 的 open。
@@ -454,6 +461,10 @@ pub struct ubus_method {
     pub policy: *const blobmsg_policy,
     pub n_policy: c_int,
 }
+
+// Safety：ubus_method 实例只指向 'static 字符串/policy 表与纯 C 回调，
+// 注册后由 libubus 只读访问；跨线程共享（static 方法表）是安全的。
+unsafe impl Sync for ubus_method {}
 
 /// `struct ubus_object_type`（name, id, methods, n_methods）
 #[repr(C)]

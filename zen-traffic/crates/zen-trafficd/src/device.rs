@@ -26,8 +26,6 @@ pub struct AttrSources {
 }
 
 pub fn refresh(sources: &AttrSources, devs: &mut HashMap<zen_bpf::MacKey, DevState>) {
-    use zen_bpf::MacKey;
-
     let mut own_macs: Vec<[u8; 6]> = Vec::new();
     for l in &sources.links {
         own_macs.push(l.mac);
