@@ -25,6 +25,8 @@
 //! unsafe 面：本 crate 提供 raw 声明与最小安全封装；上层封装在 zen-trafficd。
 
 #![allow(non_camel_case_types, non_snake_case, non_upper_case_globals)]
+// 手写 FFI 层：unsafe fn 体内直接操作裸指针属预期行为（edition 2024 默认 warn）
+#![allow(unsafe_op_in_unsafe_fn)]
 
 use std::os::raw::{c_char, c_int, c_ulong, c_uint, c_void};
 
@@ -236,7 +238,7 @@ impl blob_buf {
     }
 }
 
-extern "C" {
+unsafe extern "C" {
     // blob.c（导出符号）
     pub fn blob_buf_init(buf: *mut blob_buf, id: c_int) -> c_int;
     pub fn blob_buf_free(buf: *mut blob_buf);
@@ -402,7 +404,7 @@ pub struct uloop_timeout {
     pub time: timeval,
 }
 
-extern "C" {
+unsafe extern "C" {
     pub fn uloop_init() -> c_int;
     pub fn uloop_run_timeout(timeout: c_int) -> c_int;
     pub fn uloop_done();
@@ -495,7 +497,7 @@ pub struct ubus_context {
     pub _tail: [u8; 512],
 }
 
-extern "C" {
+unsafe extern "C" {
     pub fn ubus_connect(path: *const c_char) -> *mut ubus_context;
     pub fn ubus_free(ctx: *mut ubus_context);
     pub fn ubus_add_object(ctx: *mut ubus_context, obj: *mut ubus_object) -> c_int;
@@ -523,7 +525,7 @@ pub type ubus_object_handler_t =
 pub type ubus_complete_handler_t =
     Option<unsafe extern "C" fn(req: *mut ubus_request, ret: c_int)>;
 
-extern "C" {
+unsafe extern "C" {
     /// 枚举 ubus 对象树（hostapd.* 发现用）；cb 对每个对象回调
     pub fn ubus_lookup(
         ctx: *mut ubus_context,
