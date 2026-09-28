@@ -152,6 +152,14 @@ fn nlmsg_iter(buf: &[u8]) -> Vec<(u16, &[u8])> {
 }
 
 impl Netlink {
+    fn sockaddr_nl() -> libc::sockaddr_nl {
+        // nl_pad is private in recent libc versions, so initialize the C
+        // structure first and then assign its public fields.
+        let mut sa: libc::sockaddr_nl = unsafe { std::mem::zeroed() };
+        sa.nl_family = libc::AF_NETLINK as u16;
+        sa
+    }
+
     pub fn open() -> io::Result<Netlink> {
         let fd = unsafe {
             libc::socket(
@@ -163,13 +171,7 @@ impl Netlink {
         if fd < 0 {
             return Err(io::Error::last_os_error());
         }
-        // libc 新版 nl_pad 为 Padding<u16>（不可直接字面量构造），zeroed 基底补齐
-        let sa: libc::sockaddr_nl = libc::sockaddr_nl {
-            nl_family: libc::AF_NETLINK as u16,
-            nl_pid: 0,
-            nl_groups: 0,
-            ..unsafe { std::mem::zeroed() }
-        };
+        let sa = Self::sockaddr_nl();
         let rc = unsafe {
             libc::bind(
                 fd,
@@ -197,13 +199,7 @@ impl Netlink {
         req[6..8].copy_from_slice(&(NLM_F_REQUEST | NLM_F_ACK | NLM_F_DUMP | NLM_F_MULTI).to_ne_bytes());
         req[16..16 + payload.len()].copy_from_slice(payload);
 
-        // libc 新版 nl_pad 为 Padding<u16>（不可直接字面量构造），zeroed 基底补齐
-        let sa: libc::sockaddr_nl = libc::sockaddr_nl {
-            nl_family: libc::AF_NETLINK as u16,
-            nl_pid: 0,
-            nl_groups: 0,
-            ..unsafe { std::mem::zeroed() }
-        };
+        let sa = Self::sockaddr_nl();
         let rc = unsafe {
             libc::sendto(
                 self.fd,
@@ -440,13 +436,7 @@ impl Netlink {
         req[6..8].copy_from_slice(&(NLM_F_REQUEST | NLM_F_ACK).to_ne_bytes());
         req[16..16 + payload.len()].copy_from_slice(payload);
 
-        // libc 新版 nl_pad 为 Padding<u16>（不可直接字面量构造），zeroed 基底补齐
-        let sa: libc::sockaddr_nl = libc::sockaddr_nl {
-            nl_family: libc::AF_NETLINK as u16,
-            nl_pid: 0,
-            nl_groups: 0,
-            ..unsafe { std::mem::zeroed() }
-        };
+        let sa = Self::sockaddr_nl();
         let rc = unsafe {
             libc::sendto(
                 self.fd,

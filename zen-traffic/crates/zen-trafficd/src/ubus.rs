@@ -544,26 +544,28 @@ pub unsafe fn start() -> Result<*mut ubus::ubus_context, String> {
         return Err("ubus_connect 失败（rpcd/ubusd 未运行？）".into());
     }
 
-    OBJ_TYPE.write(ubus::ubus_object_type {
+    let obj_type = std::ptr::addr_of_mut!(OBJ_TYPE).cast::<ubus::ubus_object_type>();
+    obj_type.write(ubus::ubus_object_type {
         name: cs(b"zen.traffic\0"),
         id: 0,
         methods: METHODS.as_ptr(),
         n_methods: METHODS.len() as c_int,
     });
 
-    OBJ.write(ubus::ubus_object {
+    let obj = std::ptr::addr_of_mut!(OBJ).cast::<ubus::ubus_object>();
+    obj.write(ubus::ubus_object {
         avl: std::mem::zeroed(),
         name: cs(b"zen.traffic\0"),
         id: 0,
         path: std::ptr::null(),
-        obj_type: OBJ_TYPE.as_mut_ptr(),
+        obj_type,
         subscribe_cb: None,
         has_subscribers: false,
         methods: METHODS.as_ptr(),
         n_methods: METHODS.len() as c_int,
     });
 
-    let rc = ubus::ubus_add_object(ctx, OBJ.as_mut_ptr());
+    let rc = ubus::ubus_add_object(ctx, obj);
     if rc != ubus::UBUS_STATUS_OK {
         let err = format!("ubus_add_object 失败 rc={rc}");
         ubus::ubus_free(ctx);
@@ -572,13 +574,14 @@ pub unsafe fn start() -> Result<*mut ubus::ubus_context, String> {
 
     ubus::ubus_add_uloop(ctx);
 
-    TICK.write(ubus::uloop_timeout {
+    let tick = std::ptr::addr_of_mut!(TICK).cast::<ubus::uloop_timeout>();
+    tick.write(ubus::uloop_timeout {
         list: std::mem::zeroed(),
         pending: false,
         cb: Some(tick_cb),
         time: std::mem::zeroed(),
     });
-    ubus::uloop_timeout_set(TICK.as_mut_ptr(), TICK_MS);
+    ubus::uloop_timeout_set(tick, TICK_MS);
 
     Ok(ctx)
 }
@@ -598,13 +601,14 @@ pub unsafe fn arm_tick_only() {
     if ubus::uloop_init() != 0 {
         return;
     }
-    TICK.write(ubus::uloop_timeout {
+    let tick = std::ptr::addr_of_mut!(TICK).cast::<ubus::uloop_timeout>();
+    tick.write(ubus::uloop_timeout {
         list: std::mem::zeroed(),
         pending: false,
         cb: Some(tick_cb),
         time: std::mem::zeroed(),
     });
-    ubus::uloop_timeout_set(TICK.as_mut_ptr(), TICK_MS);
+    ubus::uloop_timeout_set(tick, TICK_MS);
 }
 
 /// 信号处理（SIGTERM/SIGINT）：置位 + 写 uloop 取消标志（spike Step 5 同款）
