@@ -1,0 +1,17 @@
+[package]
+name = "zen-trafficd"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "zen-traffic 正式守护进程：Aya BPF 采集 + ubus 发布 + SQLite 日/月累计持久化"
+
+[[bin]]
+name = "zen-trafficd"
+path = "src/main.rs"
+
+[dependencies]
+aya = { version = "0.13", features = ["tc"] }
+libc = "0.2"
+rusqlite = { version = "0.31", features = ["bundled"] }
+zen-bpf = { path = "../zen-bpf" }
+zen-ubus-sys = { path = "../zen-ubus-sys" }

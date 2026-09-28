@@ -1,0 +1,15 @@
+{
+	"luci-app-zen-traffic": {
+		"description": "Grant ubus access for luci-app-zen-traffic",
+		"read": {
+			"ubus": {
+				"zen.traffic": [ "getStatus", "getDevices", "getTotal", "getHistory" ]
+			}
+		},
+		"write": {
+			"ubus": {
+				"zen.traffic": [ "setHostname", "resetDevice" ]
+			}
+		}
+	}
+}

@@ -1,0 +1,201 @@
+# luci-theme-zen simplified Chinese translations.
+msgid ""
+msgstr ""
+"Project-Id-Version: luci-theme-zen\n"
+"Language: zh_Hans\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "All"
+msgstr "全部"
+
+msgid "Authorization Required"
+msgstr "需要授权"
+
+msgid "Collecting data..."
+msgstr "正在收集数据..."
+
+msgid "Connected"
+msgstr "已连接"
+
+msgid "Connected devices"
+msgstr "在线设备"
+
+msgid "DHCP leases"
+msgstr "DHCP 租约"
+
+msgid "Dark mode"
+msgstr "深色模式"
+
+msgid "Device Traffic"
+msgstr "设备流量"
+
+msgid "Device traffic requires the zen-traffic service (not detected). Everything else keeps working."
+msgstr "设备流量需要 zen-traffic 服务（未检测到）。其余功能不受影响。"
+
+msgid "Down"
+msgstr "已断开"
+
+msgid "Download"
+msgstr "下载"
+
+msgid "Go to firmware upgrade..."
+msgstr "前往固件升级..."
+
+msgid "Go to password configuration..."
+msgstr "前往密码配置..."
+
+msgid "High load"
+msgstr "高负载"
+
+msgid "Interface"
+msgstr "接口"
+
+msgid "Invalid username and/or password! Please try again."
+msgstr "用户名或密码错误，请重试。"
+
+msgid "IP"
+msgstr "IP"
+
+msgid "JavaScript required!"
+msgstr "需要启用 JavaScript！"
+
+msgid "LAN IP"
+msgstr "LAN IP"
+
+msgid "Light mode"
+msgstr "浅色模式"
+
+msgid "Load"
+msgstr "系统负载"
+
+msgid "Loading view…"
+msgstr "正在加载视图…"
+
+msgid "Log in"
+msgstr "登录"
+
+msgid "Logging in…"
+msgstr "正在登录…"
+
+msgid "Logout"
+msgstr "登出"
+
+msgid "Lua compatibility mode active"
+msgstr "Lua 兼容模式已启用"
+
+msgid "MAC"
+msgstr "MAC"
+
+msgid "Menu failed to load. Please refresh the page to retry."
+msgstr "菜单加载失败，请刷新页面重试。"
+
+msgid "Month"
+msgstr "本月"
+
+msgid "Network"
+msgstr "网络状态"
+
+msgid ""
+"No changes to settings will be stored and are lost after rebooting. This "
+"mode should only be used to install a firmware upgrade"
+msgstr ""
+"任何设置更改都不会被保存，且重启后将丢失。此模式仅应用于安装固件升级"
+
+msgid "No devices yet"
+msgstr "暂无设备"
+
+msgid "No password set!"
+msgstr "未设置密码！"
+
+msgid "Normal load"
+msgstr "正常负载"
+
+msgid "Password"
+msgstr "密码"
+
+msgid "Realtime Traffic"
+msgstr "实时流量"
+
+msgid "Router"
+msgstr "路由器"
+
+msgid "Running smoothly"
+msgstr "运行流畅"
+
+msgid "Storage"
+msgstr "存储"
+
+msgid "Show all"
+msgstr "显示全部"
+
+msgid "Show less"
+msgstr "收起"
+
+msgid "Switch to dark mode"
+msgstr "切换到深色模式"
+
+msgid "Switch to light mode"
+msgstr "切换到浅色模式"
+
+msgid "System running in recovery (initramfs) mode."
+msgstr "系统正在恢复（initramfs）模式中运行。"
+
+msgid ""
+"There is no password set on this router. Please configure a root password "
+"to protect the web interface."
+msgstr ""
+"此路由器尚未设置 root 密码，请配置 root 密码以保护 Web 界面。"
+
+msgid "Today"
+msgstr "今日"
+
+msgid "Toggle light/dark mode"
+msgstr "切换浅色/深色模式"
+
+msgid "Toggle menu"
+msgstr "切换菜单"
+
+msgid "Total"
+msgstr "总计"
+
+msgid "Total received"
+msgstr "累计下载"
+
+msgid "Total sent"
+msgstr "累计上传"
+
+msgid "Upload"
+msgstr "上传"
+
+msgid "Username"
+msgstr "用户名"
+
+msgid "WAN IPv4"
+msgstr "WAN IPv4"
+
+msgid "WAN IPv6"
+msgstr "WAN IPv6"
+
+msgid "WAN status"
+msgstr "WAN 状态"
+
+msgid "Wi-Fi"
+msgstr "Wi-Fi"
+
+msgid "Wired"
+msgstr "有线"
+
+msgid "You must enable JavaScript in your browser or LuCI will not work properly."
+msgstr "必须在浏览器中启用 JavaScript，否则 LuCI 无法正常工作。"
+
+msgid "active leases"
+msgstr "个租约"
+
+msgid "cores"
+msgstr "核心"
+
+msgid "wireless clients"
+msgstr "个无线客户端"

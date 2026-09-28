@@ -1,0 +1,8 @@
+#!/bin/sh
+# luci-app-zen-traffic 安装收尾：清 LuCI 菜单缓存（视图/菜单均由包内文件提供）
+
+[ -n "${IPKG_INSTROOT}" ] || {
+	rm -f /tmp/luci-indexcache* /tmp/luci-modulecache/* 2>/dev/null
+}
+
+exit 0

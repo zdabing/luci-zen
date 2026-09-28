@@ -1,0 +1,18 @@
+{
+	"luci-theme-zen": {
+		"description": "Grant dashboard stats for luci-theme-zen",
+		"read": {
+			"ubus": {
+				"file": [ "read" ],
+				"system": [ "info" ],
+				"luci": [ "getMountPoints" ],
+				"luci-rpc": [ "getDHCPLeases", "getNetworkDevices", "getHostHints" ],
+				"network.device": [ "status" ],
+				"zen.traffic": [ "getStatus", "getDevices", "getTotal", "getHistory" ]
+			},
+			"file": {
+				"/proc/stat": [ "read" ]
+			}
+		}
+	}
+}

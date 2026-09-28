@@ -1,0 +1,10 @@
+[package]
+name = "zen-bpf"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Aya 封装：zen_traffic.bpf.o 加载、TC attach/detach、devices map 读取、local_prefixes LPM 写入"
+
+[dependencies]
+aya = { version = "0.13", features = ["tc"] }
+libc = "0.2"

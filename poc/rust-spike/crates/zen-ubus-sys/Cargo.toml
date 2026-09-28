@@ -1,0 +1,11 @@
+[package]
+name = "zen-ubus-sys"
+version = "0.1.0"
+edition = "2021"
+build = "build.rs"
+links = "ubus"
+description = "最小 libubus/libubox/uloop FFI（spike 用，正式包将独立成 crate）"
+
+# 无 build-dependencies：不使用 bindgen（避免 SDK 内 libclang 依赖），
+# 结构体布局按 openwrt/ubus 与 openwrt/libubox master 头文件手工转写，
+# 关键偏移见 src/lib.rs 注释与运行时 layout_report()。

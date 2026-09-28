@@ -1,0 +1,72 @@
+# CI：push / PR 时跑 Rust 检查 + eBPF 对象编译 + .po 校验。
+# SDK 正式编译见 build.yml（tag / release / 手动触发）。
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rust-check:
+    name: Rust check (zen-traffic)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: zen-traffic
+
+      - name: cargo check
+        working-directory: zen-traffic
+        run: cargo check --workspace
+
+  ebpf-compile:
+    name: eBPF compile
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install clang / libbpf headers
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang llvm libbpf-dev
+
+      # 正式数据面（zen-traffic/Makefile 内 bpf.mk 同参数：-O2 -g -target bpf）
+      - name: Compile zen_traffic.bpf.c (zen-traffic)
+        run: |
+          clang -O2 -g -target bpf \
+            -c zen-traffic/bpf/zen_traffic.bpf.c \
+            -o zen_traffic.bpf.o
+          file zen_traffic.bpf.o
+
+      # PoC 数据面与正式包同源，保持可编译
+      - name: Compile poc/bpf/zen_traffic.bpf.c
+        run: |
+          clang -O2 -g -target bpf \
+            -c poc/bpf/zen_traffic.bpf.c \
+            -o poc_zen_traffic.bpf.o
+          file poc_zen_traffic.bpf.o
+
+  po-check:
+    name: i18n .po check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run check-po.js
+        run: node tools/check-po.js luci-theme-zen

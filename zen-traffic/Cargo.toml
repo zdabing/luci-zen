@@ -1,0 +1,20 @@
+# luci-zen · zen-traffic 正式包 workspace
+# 架构见 docs/ARCHITECTURE.md §3/§4/§8；spike 验证结论见 poc/rust-spike/README.md。
+[workspace]
+resolver = "2"
+members = [
+    "crates/zen-ubus-sys",
+    "crates/zen-bpf",
+    "crates/zen-trafficd",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "GPL-2.0"
+
+[profile.release]
+strip = true
+codegen-units = 1
+lto = true
+panic = "abort"

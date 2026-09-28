@@ -1,0 +1,47 @@
+#!/bin/sh
+
+changed_luci=0
+changed_uhttpd=0
+
+set_opt() {
+	local key=$1
+	local val=$2
+
+	if ! uci -q get "luci.$key" 2>/dev/null; then
+		uci set "luci.$key=$val"
+		changed_luci=1
+	fi
+}
+
+set_opt themes.Zen /luci-static/zen
+
+if [ "$PKG_UPGRADE" != 1 ] && [ $changed_luci = 1 ]; then
+	set_opt main.mediaurlbase /luci-static/zen
+fi
+
+if [ $changed_luci = 1 ]; then
+	uci commit luci
+fi
+
+# register ucode cache handler for theme static assets (idempotent)
+H=/usr/share/ucode/luci-zen/zen-cache.uc
+
+add_prefix() {
+	grep -qF "$1=$2" /etc/config/uhttpd 2>/dev/null || {
+		uci -q add_list uhttpd.main.ucode_prefix="$1=$2"
+		changed_uhttpd=1
+	}
+}
+
+add_prefix /luci-static/zen "$H"
+add_prefix /luci-static/resources/menu-zen.js "$H"
+add_prefix /luci-static/resources/view/zen "$H"
+
+# only restart uhttpd when its own config changed; a luci-only change
+# must not drop existing web connections
+if [ $changed_uhttpd = 1 ]; then
+	uci commit uhttpd
+	/etc/init.d/uhttpd restart
+fi
+
+exit 0

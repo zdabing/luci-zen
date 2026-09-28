@@ -1,0 +1,15 @@
+{
+	"zen-traffic": {
+		"description": "zen-traffic daemon ubus access",
+		"read": {
+			"ubus": {
+				"zen.traffic": [ "getStatus", "getDevices", "getTotal", "getHistory" ]
+			}
+		},
+		"write": {
+			"ubus": {
+				"zen.traffic": [ "setHostname", "resetDevice", "reloadPrefixes" ]
+			}
+		}
+	}
+}

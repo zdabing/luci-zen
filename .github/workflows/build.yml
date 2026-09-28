@@ -1,0 +1,181 @@
+# OpenWrt 25 SDK 正式编译：tag（v*）/ release / 手动触发。
+# 上传 .apk artifacts；release 事件同时附加到 GitHub Release。
+#
+# 只打 .apk 包（OpenWrt 25 默认 apk 包管理器）。必须走 SDK 交叉编译（rust-package.mk 导出 target cargo/linker、
+# bpf.mk 走 llvm-bpf 工具链），不允许用普通 Linux binary 代替。
+#
+# 当前仅 x86_64（x86/64）一个目标；跑通后按需增加 matrix。
+name: SDK Build
+
+on:
+  push:
+    tags: ['v*']
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      sdk_version:
+        description: 'OpenWrt release version'
+        default: '25.12.5'
+      sdk_target:
+        description: 'SDK target/subtarget (download path segment)'
+        default: 'x86/64'
+
+permissions:
+  contents: write
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  luci-theme-zen:
+    name: "SDK build luci-theme-zen (arch: all)"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      SDK_VERSION: ${{ inputs.sdk_version || '25.12.5' }}
+      SDK_TARGET: ${{ inputs.sdk_target || 'x86/64' }}
+      SDK_BASE: https://downloads.openwrt.org/releases
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential clang flex bison g++ gawk gcc-multilib g++-multilib \
+            gettext git libncurses-dev libssl-dev python3 rsync unzip \
+            zlib1g-dev file zstd curl ca-certificates
+
+      - name: Download & verify SDK
+        run: |
+          BASE="$SDK_BASE/$SDK_VERSION/targets/$SDK_TARGET"
+          curl -sfL --retry 3 "$BASE/sha256sums" -o sha256sums
+          SDK_FILE=$(grep -oE 'openwrt-sdk-[^ ]+\.tar\.zst' sha256sums | head -n1)
+          [ -n "$SDK_FILE" ] || { echo "SDK tarball not found in sha256sums"; exit 1; }
+          grep "$SDK_FILE" sha256sums > wanted.sha
+          curl -sfL --retry 3 "$BASE/$SDK_FILE" -O
+          sha256sum -c wanted.sha
+          tar --zstd -xf "$SDK_FILE"
+          SDK_DIR=$(find . -maxdepth 1 -type d -name 'openwrt-sdk-*' | head -n1)
+          [ -n "$SDK_DIR" ] || { echo "SDK directory not found"; exit 1; }
+          echo "SDK_DIR=$SDK_DIR" >> "$GITHUB_ENV"
+
+      - name: Prepare feeds
+        working-directory: ${{ env.SDK_DIR }}
+        run: |
+          ./scripts/feeds update -a
+          ./scripts/feeds install luci-base
+
+      - name: Install package & configure
+        working-directory: ${{ env.SDK_DIR }}
+        run: |
+          cp -r "$GITHUB_WORKSPACE/luci-theme-zen" package/
+          echo 'CONFIG_PACKAGE_luci-theme-zen=m' >> .config
+          make defconfig
+
+      - name: Build
+        working-directory: ${{ env.SDK_DIR }}
+        run: make package/luci-theme-zen/compile V=s -j"$(nproc)"
+
+      - name: Collect artifacts
+        working-directory: ${{ env.SDK_DIR }}
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/out"
+          find bin/packages -type f -name '*.apk' \
+            -exec cp {} "$GITHUB_WORKSPACE/out/" \;
+          ls -la "$GITHUB_WORKSPACE/out"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: luci-theme-zen-apk
+          path: out/
+
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: out/*
+
+  zen-traffic:
+    name: "SDK build zen-traffic + luci-app-zen-traffic"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      SDK_VERSION: ${{ inputs.sdk_version || '25.12.5' }}
+      SDK_TARGET: ${{ inputs.sdk_target || 'x86/64' }}
+      SDK_BASE: https://downloads.openwrt.org/releases
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential clang flex bison g++ gawk gcc-multilib g++-multilib \
+            gettext git libncurses-dev libssl-dev python3 rsync unzip \
+            zlib1g-dev file zstd curl ca-certificates
+
+      - name: Download & verify SDK
+        run: |
+          BASE="$SDK_BASE/$SDK_VERSION/targets/$SDK_TARGET"
+          curl -sfL --retry 3 "$BASE/sha256sums" -o sha256sums
+          SDK_FILE=$(grep -oE 'openwrt-sdk-[^ ]+\.tar\.zst' sha256sums | head -n1)
+          [ -n "$SDK_FILE" ] || { echo "SDK tarball not found in sha256sums"; exit 1; }
+          grep "$SDK_FILE" sha256sums > wanted.sha
+          curl -sfL --retry 3 "$BASE/$SDK_FILE" -O
+          sha256sum -c wanted.sha
+          tar --zstd -xf "$SDK_FILE"
+          SDK_DIR=$(find . -maxdepth 1 -type d -name 'openwrt-sdk-*' | head -n1)
+          [ -n "$SDK_DIR" ] || { echo "SDK directory not found"; exit 1; }
+          echo "SDK_DIR=$SDK_DIR" >> "$GITHUB_ENV"
+
+      - name: Download & unpack llvm-bpf toolchain
+        run: |
+          BASE="$SDK_BASE/$SDK_VERSION/targets/$SDK_TARGET"
+          LLVM_FILE=$(grep -oE 'llvm-bpf-[^ ]+\.tar\.zst' sha256sums | head -n1)
+          [ -n "$LLVM_FILE" ] || { echo "llvm-bpf tarball not found in sha256sums"; exit 1; }
+          grep "$LLVM_FILE" sha256sums > wanted-llvm.sha
+          curl -sfL --retry 3 "$BASE/$LLVM_FILE" -O
+          sha256sum -c wanted-llvm.sha
+          # 解压进 SDK 根目录（含 staging_dir/host/llvm-bpf-*，bpf.mk 所用）
+          tar --zstd -xf "$LLVM_FILE" -C "$SDK_DIR"
+
+      - name: Prepare feeds
+        working-directory: ${{ env.SDK_DIR }}
+        run: |
+          ./scripts/feeds update -a
+          ./scripts/feeds install rust libubus libubox clang bpf-headers luci-base
+
+      - name: Install packages & configure
+        working-directory: ${{ env.SDK_DIR }}
+        run: |
+          cp -r "$GITHUB_WORKSPACE/zen-traffic" package/
+          cp -r "$GITHUB_WORKSPACE/luci-app-zen-traffic" package/
+          echo 'CONFIG_PACKAGE_zen-traffic=m' >> .config
+          echo 'CONFIG_PACKAGE_luci-app-zen-traffic=m' >> .config
+          make defconfig
+
+      - name: Build
+        working-directory: ${{ env.SDK_DIR }}
+        run: make package/zen-traffic/compile package/luci-app-zen-traffic/compile V=s -j"$(nproc)"
+
+      - name: Collect artifacts
+        working-directory: ${{ env.SDK_DIR }}
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/out"
+          find bin/packages -type f -name '*.apk' \
+            -exec cp {} "$GITHUB_WORKSPACE/out/" \;
+          ls -la "$GITHUB_WORKSPACE/out"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zen-traffic-apk
+          path: out/
+
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: out/*

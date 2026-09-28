@@ -1,0 +1,143 @@
+'use strict';
+'require baseclass';
+
+/*
+ * view.zen.zen-icons — 统一 SVG 图标集 + 设备类型推断（无识别数据库）。
+ *
+ * 图标 = 内联 <symbol> sprite（一次注入 body），行内 <svg><use> 引用，
+ * stroke 1.8 / currentColor，随主题色变化。类型推断只用 hostname/conn 关键词，
+ * 无法识别返回 unknown。
+ */
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+/* 9 类设备 + 连接方式 + 界面符号；24 viewBox，stroke 风格统一 */
+const SYMBOLS = {
+	'zen-i-desktop': '<rect x="2" y="3.5" width="20" height="13" rx="2.5"/><path d="M8 20.5h8M12 16.5v4"/>',
+	'zen-i-laptop': '<rect x="4" y="4" width="16" height="11.5" rx="2"/><path d="M2 19.5h20"/>',
+	'zen-i-phone': '<rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M10.5 18.5h3"/>',
+	'zen-i-tablet': '<rect x="4" y="2.5" width="16" height="19" rx="2.5"/><path d="M10.5 18.5h3"/>',
+	'zen-i-nas': '<rect x="3" y="3" width="18" height="5.4" rx="1.6"/><rect x="3" y="9.3" width="18" height="5.4" rx="1.6"/><rect x="3" y="15.6" width="18" height="5.4" rx="1.6"/><path d="M6.4 5.7h.01M6.4 12h.01M6.4 18.3h.01"/>',
+	'zen-i-tv': '<rect x="2.5" y="6.5" width="19" height="13" rx="2.5"/><path d="M8 2.8 12 6.5l4-3.7"/>',
+	'zen-i-router': '<rect x="2" y="14" width="20" height="7" rx="2"/><path d="M6.01 17.5h-.01M10.01 17.5h-.01M15 13.5v-2M17.8 8.2a5 5 0 0 0-7 0M20.4 5.6a8.5 8.5 0 0 0-12 0"/>',
+	'zen-i-iot': '<rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9.5 2.5v3.5M14.5 2.5v3.5M9.5 18v3.5M14.5 18v3.5M2.5 9.5H6M2.5 14.5H6M18 9.5h3.5M18 14.5h3.5"/>',
+	'zen-i-unknown': '<rect x="4" y="4" width="16" height="16" rx="3.5"/><circle cx="12" cy="12" r="3.2"/>',
+	'zen-i-wifi': '<path d="M12 19.5h.01M8.6 16a5 5 0 0 1 6.8 0M5.2 12.5a10 10 0 0 1 13.6 0M2 9a15 15 0 0 1 20 0"/>',
+	'zen-i-eth': '<path d="m15 20 3-3h2a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h2l3 3z"/><path d="M6 8v1M10 8v1M14 8v1M18 8v1"/>',
+	'zen-i-chev': '<path d="m9 6 6 6-6 6"/>'
+};
+
+let injected = false;
+
+function mountSymbols() {
+	if (injected || !document.body)
+		return;
+
+	const svg = document.createElementNS(SVG_NS, 'svg');
+	svg.setAttribute('xmlns', SVG_NS);
+	svg.style.display = 'none';
+	svg.setAttribute('aria-hidden', 'true');
+
+	for (const id in SYMBOLS) {
+		const sym = document.createElementNS(SVG_NS, 'symbol');
+		sym.setAttribute('id', id);
+		sym.setAttribute('viewBox', '0 0 24 24');
+		sym.setAttribute('fill', 'none');
+		sym.setAttribute('stroke', 'currentColor');
+		sym.setAttribute('stroke-width', '1.8');
+		sym.setAttribute('stroke-linecap', 'round');
+		sym.setAttribute('stroke-linejoin', 'round');
+		try {
+			sym.innerHTML = SYMBOLS[id];
+		} catch (e) {
+			/* 极老环境无 innerHTML on SVG：降级为不渲染该符号 */
+			continue;
+		}
+		svg.appendChild(sym);
+	}
+
+	document.body.appendChild(svg);
+	injected = true;
+}
+
+function icon(id, size) {
+	if (!SYMBOLS[id])
+		id = 'zen-i-unknown';
+
+	const s = document.createElementNS(SVG_NS, 'svg');
+	s.setAttribute('width', size || 16);
+	s.setAttribute('height', size || 16);
+	s.setAttribute('aria-hidden', 'true');
+	const u = document.createElementNS(SVG_NS, 'use');
+	u.setAttribute('href', '#' + id);
+	s.appendChild(u);
+	return s;
+}
+
+/* 设备类型推断：hostname 关键词 → conn 兜底 → unknown（与 ARCHITECTURE.md §7 一致） */
+const HOST_RULES = [
+	[/iphone|android|redmi|xiaomi|pixel|oneplus|oppo|vivo|honor|huawei|harmony|phone/i, 'phone'],
+	[/ipad|tablet|kindle|tab[-_ ]?\d/i, 'tablet'],
+	[/macbook|laptop|thinkpad|notebook|xps|ideapad/i, 'laptop'],
+	[/nas|ugreen|synology|qnap|diskstation|truenas|unraid|storage/i, 'nas'],
+	[/\btv\b|atv|apple\s?tv|firetv|mi-?box|projector|tivo|box$/i, 'tv'],
+	[/router|repeater|openwrt|mikrotik|^ap[-_ ]?/i, 'router'],
+	[/watch|plug|bulb|lamp|sensor|cam|thermostat|vacuum|roborock|echo|homepod|switchbot/i, 'iot'],
+	[/desktop|^pc\b|win\d|-pc$|desk/i, 'desktop']
+];
+
+function inferType(host, conn) {
+	const h = String(host || '');
+	for (let i = 0; i < HOST_RULES.length; i++)
+		if (HOST_RULES[i][0].test(h))
+			return HOST_RULES[i][1];
+	if (conn === 'router')
+		return 'router';
+	return 'unknown';
+}
+
+const ICON_BY_TYPE = {
+	desktop: 'zen-i-desktop',
+	laptop: 'zen-i-laptop',
+	phone: 'zen-i-phone',
+	tablet: 'zen-i-tablet',
+	nas: 'zen-i-nas',
+	tv: 'zen-i-tv',
+	router: 'zen-i-router',
+	iot: 'zen-i-iot',
+	unknown: 'zen-i-unknown'
+};
+
+function typeIcon(type, size) {
+	return icon(ICON_BY_TYPE[type] || ICON_BY_TYPE.unknown, size);
+}
+
+/* 连接方式展示：wifi→频段（由频道号推断），router→下级路由，其余→有线 */
+function bandOf(ch) {
+	const c = Number(ch) || 0;
+	if (c < 1)
+		return null;
+	if (c <= 14)
+		return '2.4GHz';
+	if (c <= 165)
+		return '5GHz';
+	return '6GHz';
+}
+
+function connGlyph(conn, ch) {
+	if (conn === 'wifi')
+		return { icon: 'zen-i-wifi', band: bandOf(ch) };
+	if (conn === 'router')
+		return { icon: 'zen-i-router', band: null };
+	return { icon: 'zen-i-eth', band: null };
+}
+
+return baseclass.extend({
+	mountSymbols: mountSymbols,
+	icon: icon,
+	inferType: inferType,
+	typeIcon: typeIcon,
+	connGlyph: connGlyph,
+	bandOf: bandOf,
+	ICON_BY_TYPE: ICON_BY_TYPE
+});

@@ -1,0 +1,14 @@
+[package]
+name = "zen-trafficd-spike"
+version = "0.1.0"
+edition = "2021"
+description = "zen-traffic daemon feasibility spike: Aya(TC attach/map read) + 直接 ubus 发布(uloop)"
+
+[dependencies]
+aya = { version = "0.13", features = ["tc"] }
+libc = "0.2"
+zen-ubus-sys = { path = "../zen-ubus-sys" }
+
+[profile.release]
+strip = true
+codegen-units = 1

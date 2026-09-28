@@ -1,0 +1,17 @@
+# zen-traffic UCI 配置（daemon 参数由 init.d 转换为命令行）
+#
+# enabled          总开关
+# interface        采集挂载的 LAN 桥设备（list，可多个；默认 br-lan）
+# interval         BPF map 轮询周期 ms（默认 1000，最小 100）
+# offline_timeout  设备离线判定秒数（默认 600）
+# checkpoint_secs  SQLite 批量落盘周期秒（默认 300；日切/月切/退出立即写）
+# db_path          SQLite 数据库路径（默认 /etc/zen-traffic/traffic.db）
+# extra_prefix     追加本地前缀 CIDR（list；用于多网段/特殊拓扑）
+
+config traffic 'traffic'
+	option enabled '1'
+	list interface 'br-lan'
+	option interval '1000'
+	option offline_timeout '600'
+	option checkpoint_secs '300'
+	option db_path '/etc/zen-traffic/traffic.db'

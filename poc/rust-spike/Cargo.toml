@@ -1,0 +1,8 @@
+# luci-zen · Rust feasibility spike workspace
+# 见 README.md（Step 1–5 验证手册）
+[workspace]
+resolver = "2"
+members = [
+    "crates/zen-ubus-sys",
+    "crates/zen-trafficd-spike",
+]
