@@ -97,11 +97,14 @@ pub fn describe(bpf: &Ebpf) {
     }
 }
 
-/// 确保 clsact 存在；返回是否为本进程新建（决定退出时是否删除）。
+/// 确保 clsact 存在；返回是否为本进程新建。
+/// aya 0.14 起返回 TcError（不再是 io::Error）：已挂载是显式 variant。
 pub fn qdisc_ensure(iface: &str) -> Result<bool, String> {
+    use aya::programs::TcError;
     match aya::programs::tc::qdisc_add_clsact(iface) {
         Ok(()) => Ok(true),
-        Err(e) if e.raw_os_error() == Some(libc::EEXIST) => Ok(false),
+        Err(TcError::AlreadyAttached) => Ok(false),
+        Err(TcError::IoError(e)) if e.kind() == std::io::ErrorKind::AlreadyExists => Ok(false),
         Err(e) => Err(format!("{iface}: 创建 clsact 失败: {e}")),
     }
 }
@@ -166,7 +169,7 @@ pub fn read_devices(bpf: &mut Ebpf) -> Result<Vec<DeviceRow>, String> {
     let map = bpf
         .map_mut("devices")
         .ok_or_else(|| "devices map 未找到".to_string())?;
-    let mut devs: HashMap<_, MacKey, DevStats> =
+    let devs: HashMap<_, MacKey, DevStats> =
         HashMap::try_from(map).map_err(|e| format!("devices map 类型不匹配: {e}"))?;
 
     let mut out = Vec::new();
