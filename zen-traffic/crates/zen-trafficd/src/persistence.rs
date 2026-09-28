@@ -128,7 +128,7 @@ impl Db {
         devs: &[&DevState],
         date: &str,
         month: &str,
-        now_epoch: i64,
+        _now_epoch: i64,
     ) -> Result<(), String> {
         let tx = self.conn.unchecked_transaction().map_err(|e| e.to_string())?;
         for d in devs {

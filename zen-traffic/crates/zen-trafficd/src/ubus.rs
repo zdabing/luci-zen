@@ -312,7 +312,7 @@ unsafe extern "C" fn handle_get_history(
             ubus::blobmsg_add_string(
                 &mut b,
                 cs(b"agg\0"),
-                if agg == "month" { b"month\0" } else { b"day\0" }.as_ptr() as *const c_char,
+                { if agg == "month" { &b"month\0"[..] } else { &b"day\0"[..] } }.as_ptr() as *const c_char,
             );
             ubus::blobmsg_add_string(
                 &mut b,

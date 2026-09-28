@@ -315,6 +315,13 @@ pub unsafe fn blobmsg_open_array(buf: *mut blob_buf, name: *const c_char) -> *mu
     blobmsg_open_nested(buf, name, true)
 }
 
+/// 等价 blobmsg_close_array（blob.h inline 同 close_table：`buf->head = cookie`）
+/// # Safety
+/// cookie 必须来自同 buf 的 open。
+pub unsafe fn blobmsg_close_array(buf: *mut blob_buf, cookie: *mut c_void) {
+    (*buf).head = cookie as *mut blob_attr;
+}
+
 /// 等价 blobmsg_close_table（blob.h inline：`buf->head = cookie`）
 /// # Safety
 /// cookie 必须来自同 buf 的 open。

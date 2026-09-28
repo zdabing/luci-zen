@@ -70,11 +70,11 @@ fn main() {
     ubus::with_daemon(|d| d.ubus_ctx = ubus_ctx);
 
     println!(
-        "[zen-trafficd] running: ifaces={:?} db={} interval={}ms checkpoint={}s",
+        "[zen-trafficd] running: ifaces={:?} db={:?} interval={:?}ms checkpoint={:?}s",
         ubus::with_daemon(|d| d.cfg.ifaces.clone()),
-        ubus::with_daemon(|d| d.cfg.db_path.clone().unwrap_or_default()),
-        ubus::with_daemon(|d| d.cfg.interval_ms.unwrap_or(0)),
-        ubus::with_daemon(|d| d.cfg.checkpoint_secs.unwrap_or(0)),
+        ubus::with_daemon(|d| d.cfg.db_path.clone()),
+        ubus::with_daemon(|d| d.cfg.interval_ms),
+        ubus::with_daemon(|d| d.cfg.checkpoint_secs),
     );
 
     // 2) 事件循环（SIGTERM 置 uloop_cancelled，≤1s 退出）
