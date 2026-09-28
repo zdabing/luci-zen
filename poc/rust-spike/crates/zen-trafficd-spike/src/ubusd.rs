@@ -5,14 +5,14 @@
 //! 无 HTTP、无 TCP 端口、无 shell rpcd 桥。
 //!
 //! ubus handler 由 uloop 主线程回调执行：
-//!   - Bpf/map 访问全部发生在主线程，无跨线程 Send 问题；
-//!   - Bpf 放入全局 Mutex<Option<Bpf>>（aya::Bpf: Send），tick 与 stats 共享。
+//!   - Ebpf/map 访问全部发生在主线程，无跨线程 Send 问题；
+//!   - Ebpf 放入全局 Mutex<Option<Ebpf>>（aya::Ebpf: Send），tick 与 stats 共享。
 
 use std::os::raw::{c_char, c_int};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Mutex, MutexGuard};
 
-use aya::Bpf;
+use aya::Ebpf;
 use zen_ubus_sys as ubus;
 
 use crate::bpf;
@@ -24,7 +24,7 @@ pub const TICK_MS: c_int = 1000;
 // 全局共享状态（uloop 单线程回调模型，Mutex 仅防逃逸借用）
 // ---------------------------------------------------------------------------
 
-pub(crate) static BPF: Mutex<Option<Bpf>> = Mutex::new(None);
+pub(crate) static BPF: Mutex<Option<Ebpf>> = Mutex::new(None);
 
 #[derive(Clone, Copy, Default)]
 pub struct Snapshot {
@@ -52,11 +52,11 @@ pub(crate) static SNAP: Mutex<Snapshot> = Mutex::new(Snapshot {
 static SHUTDOWN: AtomicBool = AtomicBool::new(false);
 static TICKS: AtomicU64 = AtomicU64::new(0);
 
-pub(crate) fn bpf_slot() -> MutexGuard<'static, Option<Bpf>> {
+pub(crate) fn bpf_slot() -> MutexGuard<'static, Option<Ebpf>> {
     BPF.lock().expect("BPF lock")
 }
 
-pub(crate) fn take_bpf() -> Option<Bpf> {
+pub(crate) fn take_bpf() -> Option<Ebpf> {
     bpf_slot().take()
 }
 

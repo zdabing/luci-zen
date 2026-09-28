@@ -1,7 +1,7 @@
 //! zen-bpf — zen_traffic.bpf.o 的 Aya 封装。
 //!
 //! 自 poc/rust-spike 的 bpf.rs / tc.rs 演进（spike Step 2/3 已验证的 API 面）：
-//!   - load：BpfLoader::new().load_file()（BTF-defined maps 随对象自带，license=GPL 由 ELF 读取）；
+//!   - load：EbpfLoader::new().load_file()（BTF-defined maps 随对象自带，license=GPL 由 ELF 读取）；
 //!   - attach/detach：clsact qdisc + SchedClassifier ingress/egress，Aya 自管 Link；
 //!   - read_devices：全量遍历 devices HASH（key=MAC，value=dev_stats）；
 //!   - prefix_insert：local_prefixes LPM 写入（IPv4 以 v4-mapped 归一化，单表双栈）。
@@ -16,10 +16,10 @@
 
 use std::path::Path;
 
-use aya::maps::lpm_trie::LpmTrieKey;
+use aya::maps::lpm_trie::Key as LpmTrieKey;
 use aya::maps::{HashMap, LpmTrie, Map};
 use aya::programs::{SchedClassifier, TcAttachType};
-use aya::{Bpf, BpfLoader, Pod};
+use aya::{Ebpf, EbpfLoader, Pod};
 
 /// 与 bpf/zen_traffic.bpf.c 中 `struct mac_key` 严格一致
 #[repr(C)]
@@ -71,14 +71,14 @@ impl MacKey {
 }
 
 /// 加载 .bpf.o
-pub fn load(path: &Path) -> Result<Bpf, String> {
-    BpfLoader::new()
+pub fn load(path: &Path) -> Result<Ebpf, String> {
+    EbpfLoader::new()
         .load_file(path)
         .map_err(|e| format!("加载 {path:?} 失败: {e}"))
 }
 
 /// 启动日志：识别对象内的程序与 map（期望 zen_ingress/zen_egress + devices/local_prefixes）
-pub fn describe(bpf: &Bpf) {
+pub fn describe(bpf: &Ebpf) {
     for (name, prog) in bpf.programs() {
         let kind = if matches!(prog, aya::programs::Program::SchedClassifier(_)) {
             "SchedClassifier(tc)"
@@ -108,11 +108,11 @@ pub fn qdisc_ensure(iface: &str) -> Result<bool, String> {
 
 /// 挂载单个 TC 程序（name = .bpf.o 内的 ELF 符号名），返回 LinkId 供显式 detach。
 pub fn attach(
-    bpf: &mut Bpf,
+    bpf: &mut Ebpf,
     prog_name: &str,
     iface: &str,
     ty: TcAttachType,
-) -> Result<aya::programs::links::TcLinkId, String> {
+) -> Result<aya::programs::tc::SchedClassifierLinkId, String> {
     let prog: &mut SchedClassifier = bpf
         .program_mut(prog_name)
         .ok_or_else(|| format!("program {prog_name} 未找到"))?
@@ -126,11 +126,11 @@ pub fn attach(
         .map_err(|e| format!("{prog_name} attach {iface}/{ty:?} 失败: {e}"))
 }
 
-/// 显式 detach（drop(Bpf) 亦会自动完成同一动作）。
+/// 显式 detach（drop(Ebpf) 亦会自动完成同一动作）。
 pub fn detach(
-    bpf: &mut Bpf,
+    bpf: &mut Ebpf,
     prog_name: &str,
-    link: aya::programs::links::TcLinkId,
+    link: aya::programs::tc::SchedClassifierLinkId,
 ) -> Result<(), String> {
     let prog: &mut SchedClassifier = bpf
         .program_mut(prog_name)
@@ -141,11 +141,17 @@ pub fn detach(
         .map_err(|e| format!("{prog_name} detach 失败: {e}"))
 }
 
-/// 退出清理：仅当 clsact 为本进程创建时删除（与 C 版"只删自己创建的 clsact"一致）。
+/// 退出清理：按名字卸载本项目 filter（与 daemon 启动时的 netlink 清理同一目标）。
+/// aya 0.14 无 qdisc_remove_clsact：空 clsact qdisc 本体保留在接口上，无副作用。
 pub fn qdisc_cleanup(iface: &str, created_by_us: bool) {
-    if created_by_us {
-        if let Err(e) = aya::programs::tc::qdisc_remove_clsact(iface) {
-            eprintln!("[zen-bpf] {iface}: 移除 clsact 失败: {e}");
+    let _ = created_by_us;
+    for (ty, name) in [
+        (TcAttachType::Ingress, "zen_ingress"),
+        (TcAttachType::Egress, "zen_egress"),
+    ] {
+        if let Err(e) = aya::programs::tc::qdisc_detach_program(iface, ty, name) {
+            // NotFound = 接口上无本项目残留 filter，属正常
+            eprintln!("[zen-bpf] {iface}: 卸载 {name} 未执行: {e}");
         }
     }
 }
@@ -156,7 +162,7 @@ pub struct DeviceRow {
 }
 
 /// 全量遍历 devices map（每 tick 一次；≤4096 条，实测设备远小于此）
-pub fn read_devices(bpf: &mut Bpf) -> Result<Vec<DeviceRow>, String> {
+pub fn read_devices(bpf: &mut Ebpf) -> Result<Vec<DeviceRow>, String> {
     let map = bpf
         .map_mut("devices")
         .ok_or_else(|| "devices map 未找到".to_string())?;
@@ -173,7 +179,7 @@ pub fn read_devices(bpf: &mut Bpf) -> Result<Vec<DeviceRow>, String> {
 
 /// 向 local_prefixes LPM 写入一条本地前缀。
 /// IPv4：`::ffff:a.b.c.d`（prefixlen = 96 + mask）；IPv6：原生（prefixlen = mask）。
-pub fn prefix_insert(bpf: &mut Bpf, family: i32, bytes: &[u8], mask: u32) -> Result<(), String> {
+pub fn prefix_insert(bpf: &mut Ebpf, family: i32, bytes: &[u8], mask: u32) -> Result<(), String> {
     let map = bpf
         .map_mut("local_prefixes")
         .ok_or_else(|| "local_prefixes map 未找到".to_string())?;
@@ -200,7 +206,7 @@ pub fn prefix_insert(bpf: &mut Bpf, family: i32, bytes: &[u8], mask: u32) -> Res
         return Err("非法地址族".into());
     }
 
-    trie.insert(LpmTrieKey::new(data, prefix_len), 1)
+    trie.insert(&LpmTrieKey::new(prefix_len, data), 1, 0)
         .map_err(|e| format!("LPM 插入失败: {e}"))?;
     Ok(())
 }

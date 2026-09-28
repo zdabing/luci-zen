@@ -5,7 +5,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use aya::Bpf;
+use aya::Ebpf;
 use zen_bpf::{DevStats, MacKey};
 use zen_ubus_sys as ubus;
 
@@ -18,7 +18,7 @@ use crate::{accounting, totals};
 
 pub struct Daemon {
     pub cfg: Config,
-    pub bpf: Bpf,
+    pub bpf: Ebpf,
     pub devs: HashMap<MacKey, DevState>,
     pub db: Db,
     pub nl: Netlink,

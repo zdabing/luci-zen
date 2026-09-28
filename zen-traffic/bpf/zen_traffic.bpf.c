@@ -27,6 +27,14 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
 
+/* 部分 UAPI 头不导出 struct vlan_hdr（CI 实测），BPF 程序本地自带定义 */
+#ifndef VLAN_VID_MASK
+struct vlan_hdr {
+	__be16 h_vlan_TCI;
+	__be16 h_vlan_encapsulated_proto;
+};
+#endif
+
 #define MAX_DEVICES		4096
 #define MAX_PREFIXES		256
 

@@ -454,7 +454,7 @@ unsafe extern "C" fn handle_reset_device(
 }
 
 /// BPF map 单设备计数清零（aya HashMap 语义：不存在则忽略）
-fn zen_bpf_zero_device(bpf: &mut aya::Bpf, mac: &zen_bpf::MacKey) {
+fn zen_bpf_zero_device(bpf: &mut aya::Ebpf, mac: &zen_bpf::MacKey) {
     use zen_bpf::DevStats;
     let Some(map) = bpf.map_mut("devices") else { return };
     if let Ok(mut devs) = aya::maps::HashMap::<_, zen_bpf::MacKey, DevStats>::try_from(map) {

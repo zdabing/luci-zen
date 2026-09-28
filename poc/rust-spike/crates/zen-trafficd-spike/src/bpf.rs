@@ -4,7 +4,7 @@
 use std::path::Path;
 
 use aya::maps::{HashMap, Map};
-use aya::{Bpf, BpfLoader, Pod};
+use aya::{Ebpf, EbpfLoader, Pod};
 
 /// 与 poc/bpf/zen_traffic.bpf.c 中 `struct mac_key` 严格一致
 #[repr(C)]
@@ -33,14 +33,14 @@ unsafe impl Pod for MacKey {}
 unsafe impl Pod for DevStats {}
 
 /// Step 2：加载 .bpf.o（BTF-defined maps 随对象自带；license=GPL 由 ELF 段读取）
-pub fn load_object(path: &Path) -> Result<Bpf, String> {
-    BpfLoader::new()
+pub fn load_object(path: &Path) -> Result<Ebpf, String> {
+    EbpfLoader::new()
         .load_file(path)
         .map_err(|e| format!("加载 {path:?} 失败: {e}"))
 }
 
 /// Step 2 验证输出：识别对象内的程序与 map（期望 zen_ingress/zen_egress + devices/local_prefixes）
-pub fn describe(bpf: &Bpf) {
+pub fn describe(bpf: &Ebpf) {
     println!("[spike] == BPF 对象清单 ==");
     for (name, prog) in bpf.programs() {
         let kind = if matches!(prog, aya::programs::Program::SchedClassifier(_)) {
@@ -70,7 +70,7 @@ pub struct DeviceTotals {
 }
 
 /// Step 3（读侧）：全量遍历 devices map（与 C daemon 1s 轮询同一读法）
-pub fn read_devices(bpf: &mut Bpf) -> Result<DeviceTotals, String> {
+pub fn read_devices(bpf: &mut Ebpf) -> Result<DeviceTotals, String> {
     let map = bpf
         .map_mut("devices")
         .ok_or_else(|| "devices map 未找到".to_string())?;

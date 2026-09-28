@@ -5,7 +5,7 @@ edition = "2021"
 description = "zen-traffic daemon feasibility spike: Aya(TC attach/map read) + 直接 ubus 发布(uloop)"
 
 [dependencies]
-aya = { version = "0.13", features = ["tc"] }
+aya = "0.14"
 libc = "0.2"
 zen-ubus-sys = { path = "../zen-ubus-sys" }
 

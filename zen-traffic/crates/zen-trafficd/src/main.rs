@@ -77,7 +77,7 @@ fn main() {
     // 2) 事件循环（SIGTERM 置 uloop_cancelled，≤1s 退出）
     unsafe { zen_ubus_sys::uloop_run_timeout(-1) };
 
-    // 3) 清理：最终 checkpoint → ubus/uloop → drop(Bpf) 自动 detach filter
+    // 3) 清理：最终 checkpoint → ubus/uloop → drop(Ebpf) 自动 detach filter
     ubus::with_daemon(|d| {
         if ubus::shutting_down() {
             println!("[zen-trafficd] 收到 SIGTERM/SIGINT，开始清理");

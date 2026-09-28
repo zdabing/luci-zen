@@ -6,5 +6,5 @@ license.workspace = true
 description = "Aya 封装：zen_traffic.bpf.o 加载、TC attach/detach、devices map 读取、local_prefixes LPM 写入"
 
 [dependencies]
-aya = "0.13"
+aya = "0.14"
 libc = "0.2"
