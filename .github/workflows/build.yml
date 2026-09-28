@@ -148,6 +148,24 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install rust libubus libubox clang bpf-headers luci-base
 
+      - name: Use verified Rust CI LLVM when available
+        working-directory: ${{ env.SDK_DIR }}
+        run: |
+          set -euo pipefail
+          RUST_MAKEFILE=feeds/packages/lang/rust/Makefile
+          RUST_VERSION=$(sed -n 's/^PKG_VERSION:=//p' "$RUST_MAKEFILE")
+          # Rust 1.96.0 的官方 CI LLVM 构件仍可下载，省去本地编译 LLVM。
+          # feed 更新版本或构件失效时保持 OpenWrt 的源码编译默认行为。
+          CI_LLVM_URL=https://ci-artifacts.rust-lang.org/rustc-builds/ac68faa20c58cbccd01ee7208bf3b6e93a7d7f96/rust-dev-1.96.0-x86_64-unknown-linux-gnu.tar.xz
+          if [ "$RUST_VERSION" = 1.96.0 ] && \
+             grep -qF -- '--set=llvm.download-ci-llvm=false' "$RUST_MAKEFILE" && \
+             curl -fsSIL --retry 2 "$CI_LLVM_URL" >/dev/null; then
+            sed -i 's/--set=llvm.download-ci-llvm=false/--set=llvm.download-ci-llvm=true/' "$RUST_MAKEFILE"
+            echo 'Rust 1.96.0: 使用官方 CI LLVM，跳过本地 LLVM 编译'
+          else
+            echo "Rust $RUST_VERSION: 沿用 OpenWrt 默认 LLVM 源码编译"
+          fi
+
       - name: Install packages & configure
         working-directory: ${{ env.SDK_DIR }}
         run: |
