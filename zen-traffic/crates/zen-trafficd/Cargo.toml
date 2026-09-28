@@ -10,7 +10,7 @@ name = "zen-trafficd"
 path = "src/main.rs"
 
 [dependencies]
-aya = { version = "0.13", features = ["tc"] }
+aya = "0.13"
 libc = "0.2"
 rusqlite = { version = "0.31", features = ["bundled"] }
 zen-bpf = { path = "../zen-bpf" }
