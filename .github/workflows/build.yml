@@ -83,8 +83,9 @@ jobs:
         working-directory: ${{ env.SDK_DIR }}
         run: |
           mkdir -p "$GITHUB_WORKSPACE/out"
-          find bin/packages -type f -name '*.apk' \
+          find bin/packages -type f -name 'luci-theme-zen-*.apk' \
             -exec cp {} "$GITHUB_WORKSPACE/out/" \;
+          test "$(find "$GITHUB_WORKSPACE/out" -maxdepth 1 -type f -name '*.apk' | wc -l)" -eq 1
           ls -la "$GITHUB_WORKSPACE/out"
 
       - uses: actions/upload-artifact@v7
@@ -235,8 +236,9 @@ jobs:
         working-directory: ${{ env.SDK_DIR }}
         run: |
           mkdir -p "$GITHUB_WORKSPACE/out"
-          find bin/packages -type f -name '*.apk' \
+          find bin/packages -type f \( -name 'zen-traffic-*.apk' -o -name 'luci-app-zen-traffic-*.apk' \) \
             -exec cp {} "$GITHUB_WORKSPACE/out/" \;
+          test "$(find "$GITHUB_WORKSPACE/out" -maxdepth 1 -type f -name '*.apk' | wc -l)" -eq 2
           ls -la "$GITHUB_WORKSPACE/out"
 
       - uses: actions/upload-artifact@v7
