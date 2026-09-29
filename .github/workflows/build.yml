@@ -267,7 +267,7 @@ jobs:
           tag_name: ${{ github.event_name == 'workflow_dispatch' && format('build-{0}-{1}', github.run_id, github.run_attempt) || github.ref_name }}
           target_commitish: ${{ github.sha }}
           prerelease: ${{ github.event_name == 'workflow_dispatch' }}
-          name: ${{ github.event_name == 'workflow_dispatch' && format('SDK build #{0} ({1})', github.run_number, inputs.sdk_target || 'x86/64') || github.ref_name }}
+          name: "${{ github.event_name == 'workflow_dispatch' && format('SDK build #{0} ({1})', github.run_number, inputs.sdk_target || 'x86/64') || github.ref_name }}"
           body: |
             OpenWrt SDK: ${{ inputs.sdk_version || '25.12.5' }}
             Target: ${{ inputs.sdk_target || 'x86/64' }}
