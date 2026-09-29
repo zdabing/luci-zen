@@ -2107,7 +2107,9 @@ div.cbi-value var.cbi-tooltip-container .cbi-tooltip,
 
 /* ---------- Overview dashboard (zen) ---------- */
 body.node-status-overview #maincontent,
-body.node-status-overview #maincontent > .container {
+body.node-status-overview #maincontent > .container,
+body.node-admin-status-overview #maincontent,
+body.node-admin-status-overview #maincontent > .container {
 	max-width: none;
 }
 
