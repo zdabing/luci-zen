@@ -186,8 +186,36 @@ jobs:
           key: rust-host-${{ runner.os }}-${{ env.SDK_VERSION }}-${{ env.SDK_TARGET }}-${{ hashFiles('**/feeds/packages/lang/rust/Makefile') }}
 
       - name: Build Rust host toolchain
+        if: steps.rust-cache.outputs.cache-hit != 'true'
         working-directory: ${{ env.SDK_DIR }}
         run: make package/feeds/packages/rust/host/compile V=s -j"$(nproc)"
+
+      - name: Restore cached Rust host build state
+        if: steps.rust-cache.outputs.cache-hit == 'true'
+        working-directory: ${{ env.SDK_DIR }}
+        run: |
+          set -euo pipefail
+          test -f staging_dir/hostpkg/stamp/.rust_installed
+          rustc_bin=$(find staging_dir -path '*/host/bin/rustc' -print -quit)
+          cargo_bin=$(find staging_dir -path '*/host/bin/cargo' -print -quit)
+          test -x "$rustc_bin" && test -x "$cargo_bin"
+          "$rustc_bin" --version
+          "$cargo_bin" --version
+          # OpenWrt cleans the Rust source tree after host install. Fetch the
+          # source archive with the feed's pinned hash, then recreate stamps.
+          rust_makefile=feeds/packages/lang/rust/Makefile
+          rust_version=$(sed -n 's/^PKG_VERSION:=//p' "$rust_makefile")
+          rust_hash=$(sed -n 's/^PKG_HASH:=//p' "$rust_makefile")
+          test -n "$rust_version" && test -n "$rust_hash"
+          rust_source="rustc-${rust_version}-src.tar.xz"
+          curl -fsSL --retry 3 "https://static.rust-lang.org/dist/$rust_source" -o "dl/$rust_source"
+          printf '%s  %s\n' "$rust_hash" "dl/$rust_source" | sha256sum -c -
+          make package/feeds/packages/rust/host/configure V=s
+          rust_src_dir=$(find build_dir -path '*/host/rustc-*-src' -type d -print -quit)
+          test -n "$rust_src_dir"
+          touch "$rust_src_dir/.built"
+          touch staging_dir/hostpkg/stamp/.rust_installed
+          make package/feeds/packages/rust/host/compile V=s -j"$(nproc)"
 
       - name: Save Rust host toolchain cache
         if: steps.rust-cache.outputs.cache-hit != 'true'
