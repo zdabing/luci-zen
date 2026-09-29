@@ -101,7 +101,7 @@ jobs:
   zen-traffic:
     name: "SDK build zen-traffic + luci-app-zen-traffic"
     runs-on: ubuntu-24.04
-    timeout-minutes: 120
+    timeout-minutes: 240
     env:
       SDK_VERSION: ${{ inputs.sdk_version || '25.12.5' }}
       SDK_TARGET: ${{ inputs.sdk_target || 'x86/64' }}
@@ -174,6 +174,30 @@ jobs:
           echo 'CONFIG_PACKAGE_zen-traffic=m' >> .config
           echo 'CONFIG_PACKAGE_luci-app-zen-traffic=m' >> .config
           make defconfig
+
+      - name: Restore Rust host toolchain cache
+        id: rust-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ${{ env.SDK_DIR }}/staging_dir/target-*/host
+            ${{ env.SDK_DIR }}/staging_dir/hostpkg/stamp/.rust_installed
+            ${{ env.SDK_DIR }}/build_dir/target-*/host/rustc-*
+          key: rust-host-${{ runner.os }}-${{ env.SDK_VERSION }}-${{ env.SDK_TARGET }}-${{ hashFiles('**/feeds/packages/lang/rust/Makefile') }}
+
+      - name: Build Rust host toolchain
+        working-directory: ${{ env.SDK_DIR }}
+        run: make package/feeds/packages/rust/host/compile V=s -j"$(nproc)"
+
+      - name: Save Rust host toolchain cache
+        if: steps.rust-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ${{ env.SDK_DIR }}/staging_dir/target-*/host
+            ${{ env.SDK_DIR }}/staging_dir/hostpkg/stamp/.rust_installed
+            ${{ env.SDK_DIR }}/build_dir/target-*/host/rustc-*
+          key: ${{ steps.rust-cache.outputs.cache-primary-key }}
 
       - name: Build
         working-directory: ${{ env.SDK_DIR }}

@@ -30,6 +30,15 @@ include $(INCLUDE_DIR)/package.mk
 include $(INCLUDE_DIR)/bpf.mk
 include $(TOPDIR)/feeds/packages/lang/rust/rust-package.mk
 
+# bpf.mk defaults to MIPS; select the SDK target's kernel headers and ABI.
+ifeq ($(ARCH),aarch64)
+  BPF_KARCH:=arm64
+  BPF_ARCH:=aarch64
+else ifeq ($(ARCH),x86_64)
+  BPF_KARCH:=x86
+  BPF_ARCH:=x86_64
+endif
+
 define Package/zen-traffic
   SECTION:=net
   CATEGORY:=Network
@@ -51,8 +60,17 @@ endef
 BPF_SRC:=$(PKG_BUILD_DIR)/bpf/zen_traffic.bpf.c
 BPF_OBJ:=$(PKG_BUILD_DIR)/bpf/zen_traffic.bpf.o
 
+define Build/Prepare
+	$(call Build/Prepare/Default)
+	$(CP) ./Cargo.toml ./crates ./bpf $(PKG_BUILD_DIR)/
+endef
+
 define Build/Configure
 	$(call CompileBPF,$(BPF_SRC))
+endef
+
+define Build/Compile
+	$(call Build/Compile/Cargo,crates/zen-trafficd)
 endef
 
 # build.rs 经 UBUS_LIB_DIR 链接 staging 的 libubus/libubox
@@ -60,9 +78,7 @@ export UBUS_LIB_DIR:=$(STAGING_DIR)/usr/lib
 
 define Package/zen-traffic/install
 	$(INSTALL_DIR) $(1)/usr/bin
-	$(INSTALL_BIN) \
-		$$(find $(PKG_BUILD_DIR)/target -type f -name zen-trafficd -perm -u+x | head -n1) \
-		$(1)/usr/bin/
+	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/bin/zen-trafficd $(1)/usr/bin/
 
 	$(INSTALL_DIR) $(1)/usr/share/zen-traffic
 	$(INSTALL_DATA) $(BPF_OBJ) $(1)/usr/share/zen-traffic/zen_traffic.bpf.o
