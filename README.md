@@ -25,7 +25,8 @@
 SDK 编译（GitHub Actions 自动完成，本地手动流程见 `docs/DEVELOPMENT.md`）：
 
 - push / PR → CI：Rust `cargo check` + eBPF 对象编译 + `.po` 校验
-- 打 tag（`v*`）或发 release → OpenWrt 25 SDK 正式交叉编译，`.apk` 上传到 artifacts / release
+- 手动运行 SDK Build → 编译成功后把三个 `.apk` 上传到 Artifacts，并创建一个标记 SDK 目标的预发布 Release
+- 打 `v*` tag → 编译成功后把三个 `.apk` 上传到正式 Release
 
 ## 文档
 

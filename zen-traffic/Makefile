@@ -34,7 +34,7 @@ define Package/zen-traffic
   SECTION:=net
   CATEGORY:=Network
   TITLE:=zen-traffic device traffic daemon (eBPF + ubus + SQLite)
-  DEPENDS:=$(RUST_ARCH_DEPENDS) +libubus +libubox +kmod-sched-bpf +kmod-sched
+  DEPENDS:=$(RUST_ARCH_DEPENDS) +libubus +libubox +kmod-sched-bpf +kmod-sched-core
 endef
 
 define Package/zen-traffic/description

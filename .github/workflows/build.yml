@@ -1,5 +1,5 @@
 # OpenWrt 25 SDK 正式编译：tag（v*）/ release / 手动触发。
-# 上传 .apk artifacts；release 事件同时附加到 GitHub Release。
+# 上传 .apk artifacts；两个构建都成功后统一发布到 GitHub Releases。
 #
 # 只打 .apk 包（OpenWrt 25 默认 apk 包管理器）。必须走 SDK 交叉编译（rust-package.mk 导出 target cargo/linker、
 # bpf.mk 走 llvm-bpf 工具链），不允许用普通 Linux binary 代替。
@@ -92,12 +92,6 @@ jobs:
         with:
           name: luci-theme-zen-apk
           path: out/
-
-      - name: Attach to release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v3
-        with:
-          files: out/*
 
   zen-traffic:
     name: "SDK build zen-traffic + luci-app-zen-traffic"
@@ -246,8 +240,39 @@ jobs:
           name: zen-traffic-apk
           path: out/
 
-      - name: Attach to release
-        if: startsWith(github.ref, 'refs/tags/v')
+  publish:
+    name: Publish APKs to Releases
+    needs: [luci-theme-zen, zen-traffic]
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: luci-theme-zen-apk
+          path: release-assets/theme
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: zen-traffic-apk
+          path: release-assets/traffic
+
+      - name: Verify release assets
+        run: |
+          test "$(find release-assets -type f -name '*.apk' | wc -l)" -eq 3
+          find release-assets -type f -name '*.apk' -print
+
+      - name: Publish release
         uses: softprops/action-gh-release@v3
         with:
-          files: out/*
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && format('build-{0}-{1}', github.run_id, github.run_attempt) || github.ref_name }}
+          target_commitish: ${{ github.sha }}
+          prerelease: ${{ github.event_name == 'workflow_dispatch' }}
+          name: ${{ github.event_name == 'workflow_dispatch' && format('SDK build #{0} ({1})', github.run_number, inputs.sdk_target || 'x86/64') || github.ref_name }}
+          body: |
+            OpenWrt SDK: ${{ inputs.sdk_version || '25.12.5' }}
+            Target: ${{ inputs.sdk_target || 'x86/64' }}
+            Commit: ${{ github.sha }}
+
+            Kernel modules for zen-traffic must match the firmware build.
+          files: release-assets/**/*.apk
+          fail_on_unmatched_files: true
