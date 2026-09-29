@@ -242,6 +242,7 @@ unsafe extern "C" {
     // blob.c（导出符号）
     pub fn blob_buf_init(buf: *mut blob_buf, id: c_int) -> c_int;
     pub fn blob_buf_free(buf: *mut blob_buf);
+    pub fn blob_nest_end(buf: *mut blob_buf, cookie: *mut c_void);
 
     // blobmsg.c（导出符号；头文件内联 helper 在 Rust 侧封装，见下方安全函数）
     pub fn blobmsg_add_field(
@@ -319,14 +320,14 @@ pub unsafe fn blobmsg_open_array(buf: *mut blob_buf, name: *const c_char) -> *mu
 /// # Safety
 /// cookie 必须来自同 buf 的 open。
 pub unsafe fn blobmsg_close_array(buf: *mut blob_buf, cookie: *mut c_void) {
-    (*buf).head = cookie as *mut blob_attr;
+    blob_nest_end(buf, cookie);
 }
 
 /// 等价 blobmsg_close_table（blob.h inline：`buf->head = cookie`）
 /// # Safety
 /// cookie 必须来自同 buf 的 open。
 pub unsafe fn blobmsg_close_table(buf: *mut blob_buf, cookie: *mut c_void) {
-    (*buf).head = cookie as *mut blob_attr;
+    blob_nest_end(buf, cookie);
 }
 
 unsafe fn libc_strlen(s: *const c_char) -> usize {
