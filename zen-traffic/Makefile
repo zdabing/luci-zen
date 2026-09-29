@@ -30,15 +30,6 @@ include $(INCLUDE_DIR)/package.mk
 include $(INCLUDE_DIR)/bpf.mk
 include $(TOPDIR)/feeds/packages/lang/rust/rust-package.mk
 
-# bpf.mk defaults to MIPS; select the SDK target's kernel headers and ABI.
-ifeq ($(ARCH),aarch64)
-  BPF_KARCH:=arm64
-  BPF_ARCH:=aarch64
-else ifeq ($(ARCH),x86_64)
-  BPF_KARCH:=x86
-  BPF_ARCH:=x86_64
-endif
-
 define Package/zen-traffic
   SECTION:=net
   CATEGORY:=Network
