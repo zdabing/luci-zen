@@ -3,7 +3,7 @@
 //! 自 poc/rust-spike/crates/zen-ubus-sys 原样升级（spike Step 1–5 已验证的基线）：
 //!   - blob_attr 转为真实布局（id_len 头字段），提供 blob/blobmsg 逐字段解析辅助
 //!     （network.interface dump、hostapd get_clients 等 ubus 客户端回包解析用）；
-//!   - 新增 ubus 客户端侧符号：ubus_lookup / ubus_lookup_id / ubus_invoke。
+//!   - 新增 ubus 客户端侧符号：ubus_lookup / ubus_lookup_id / ubus_invoke_fd。
 //!
 //! 布局来源（逐字段手工转写，非 bindgen）：
 //!   - https://git.openwrt.org/?p=project/ubus.git   libubus.h
@@ -554,8 +554,8 @@ unsafe extern "C" {
 
     pub fn ubus_lookup_id(ctx: *mut ubus_context, path: *const c_char, id: *mut u32) -> c_int;
 
-    /// 同步调用（内部走 ubus_complete_request 事件循环）；timeout 单位 ms
-    pub fn ubus_invoke(
+    /// 同步调用的导出符号；libubus.h 的 ubus_invoke 是 static inline。
+    pub fn ubus_invoke_fd(
         ctx: *mut ubus_context,
         obj: u32,
         method: *const c_char,
@@ -563,7 +563,23 @@ unsafe extern "C" {
         cb: ubus_data_handler_t,
         priv_: *mut c_void,
         timeout: c_int,
+        fd: c_int,
     ) -> c_int;
+}
+
+/// 等价 libubus.h 的 static inline ubus_invoke；timeout 单位 ms。
+/// # Safety
+/// 参数须满足 libubus.h 中 ubus_invoke_fd 的约束。
+pub unsafe fn ubus_invoke(
+    ctx: *mut ubus_context,
+    obj: u32,
+    method: *const c_char,
+    msg: *mut blob_attr,
+    cb: ubus_data_handler_t,
+    priv_: *mut c_void,
+    timeout: c_int,
+) -> c_int {
+    ubus_invoke_fd(ctx, obj, method, msg, cb, priv_, timeout, -1)
 }
 
 /// 等价 libubus.h inline：构造 blob_attr 头 + blobmsg 名字后作为 ubus_invoke 的 msg。
