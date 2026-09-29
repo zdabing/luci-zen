@@ -7,6 +7,8 @@
 #   - respawn 守护；reload = restart（filter 幂等 + SIGTERM checkpoint 保证累计不丢）。
 
 USE_PROCD=1
+START=95
+STOP=10
 
 NAME=zen-traffic
 PROG=/usr/bin/zen-trafficd
