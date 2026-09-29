@@ -105,6 +105,7 @@ pub fn qdisc_ensure(iface: &str) -> Result<bool, String> {
         Ok(()) => Ok(true),
         Err(TcError::AlreadyAttached) => Ok(false),
         Err(TcError::IoError(e)) if e.kind() == std::io::ErrorKind::AlreadyExists => Ok(false),
+        Err(TcError::NetlinkError(e)) if e.to_string().contains("Exclusivity flag on") => Ok(false),
         Err(e) => Err(format!("{iface}: 创建 clsact 失败: {e}")),
     }
 }

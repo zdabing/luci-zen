@@ -538,8 +538,16 @@ pub struct ubus_request {
 
 pub type ubus_data_handler_t =
     Option<unsafe extern "C" fn(req: *mut ubus_request, type_: c_int, msg: *mut blob_attr)>;
-pub type ubus_object_handler_t =
-    Option<unsafe extern "C" fn(ctx: *mut ubus_context, obj: *mut ubus_object, priv_: *mut c_void)>;
+#[repr(C)]
+pub struct ubus_object_data {
+    pub id: u32,
+    pub type_id: u32,
+    pub path: *const c_char,
+    pub signature: *mut blob_attr,
+}
+
+pub type ubus_lookup_handler_t =
+    Option<unsafe extern "C" fn(ctx: *mut ubus_context, obj: *mut ubus_object_data, priv_: *mut c_void)>;
 pub type ubus_complete_handler_t =
     Option<unsafe extern "C" fn(req: *mut ubus_request, ret: c_int)>;
 
@@ -548,7 +556,7 @@ unsafe extern "C" {
     pub fn ubus_lookup(
         ctx: *mut ubus_context,
         path: *const c_char,
-        cb: ubus_object_handler_t,
+        cb: ubus_lookup_handler_t,
         priv_: *mut c_void,
     ) -> c_int;
 

@@ -205,7 +205,7 @@ pub unsafe fn wifi_clients(ctx: *mut ubus::ubus_context) -> Vec<(String, Option<
     let mut names: Vec<String> = Vec::new();
     unsafe {
         SCRATCH.lock().expect("scratch").names = std::mem::take(&mut names);
-        let cb: ubus::ubus_object_handler_t = Some(collect_hostapd);
+        let cb: ubus::ubus_lookup_handler_t = Some(collect_hostapd);
         ubus::ubus_lookup(ctx, std::ptr::null(), cb, std::ptr::null_mut());
         names = std::mem::take(&mut SCRATCH.lock().expect("scratch").names);
     }
@@ -255,17 +255,18 @@ static SCRATCH: std::sync::Mutex<Scratch> = std::sync::Mutex::new(Scratch {
 
 unsafe extern "C" fn collect_hostapd(
     _ctx: *mut ubus::ubus_context,
-    obj: *mut ubus::ubus_object,
+    obj: *mut ubus::ubus_object_data,
     _priv_: *mut std::os::raw::c_void,
 ) {
-    let name = (*obj).name;
-    if name.is_null() {
+    let path = (*obj).path;
+    if path.is_null() {
         return;
     }
-    let s = CStr::from_ptr(name).to_string_lossy().into_owned();
+    let s = CStr::from_ptr(path).to_string_lossy();
+    let s = s.strip_prefix('/').unwrap_or(&s);
     if s.starts_with("hostapd.") {
         if let Ok(mut g) = SCRATCH.lock() {
-            g.names.push(s);
+            g.names.push(s.to_string());
         }
     }
 }

@@ -221,13 +221,13 @@ static __always_inline int zen_account(struct __sk_buff *skb, int egress)
 	return TC_ACT_OK;
 }
 
-SEC("tc")
+SEC("classifier")
 int zen_ingress(struct __sk_buff *skb)
 {
 	return zen_account(skb, 0);	/* 帧自设备进入：上传 */
 }
 
-SEC("tc")
+SEC("classifier")
 int zen_egress(struct __sk_buff *skb)
 {
 	return zen_account(skb, 1);	/* 帧发往设备：下载 */
