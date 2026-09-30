@@ -1,9 +1,16 @@
 # 第三方参考代码（luci-app-bandix / luci-theme-round 等），仅供本地对照，不入库
 /reference/
 
-# 文档一律不上传（本地保留）；仅根 README.md 例外——GitHub 仓库首页展示用
+# 发布说明和公开开发文档上传；研究、计划及参考文档仍保留在本地
 *.md
 !/README.md
+!/CHANGELOG.md
+!/docs/ARCHITECTURE.md
+!/docs/DEVELOPMENT.md
+!/docs/TESTING.md
+!/docs/REALTIME-HISTORY.md
+!/poc/README.md
+!/poc/rust-spike/README.md
 
 # 研究文档：参考项目分析与实施方案（含第三方实现细节），仅本地保留
 /docs/PHASE1-ANALYSIS.md
