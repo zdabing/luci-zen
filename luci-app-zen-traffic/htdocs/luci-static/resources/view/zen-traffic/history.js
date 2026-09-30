@@ -27,7 +27,8 @@ const callDevices = rpc.declare({
 
 const callHistory = rpc.declare({
 	object: 'zen.traffic',
-	method: 'getHistory'
+	method: 'getHistory',
+	params: ['agg', 'mac']
 });
 
 function fmtBytes(n) {
@@ -67,8 +68,8 @@ function svg(name, attrs, children) {
 	return el;
 }
 
-/* 样式自包含（幂等注入，与 devices.js 共用同一 id 避免重复） */
-const CSS_ID = 'zen-traffic-css';
+/* 独立样式 id，避免先打开设备页后跳过历史图表样式。 */
+const CSS_ID = 'zen-traffic-history-css';
 function injectStyles() {
 	if (document.getElementById(CSS_ID))
 		return;
@@ -82,6 +83,8 @@ function injectStyles() {
 		'.zen-tf-ax { font-size: 11px; fill: currentColor; opacity: .65; }',
 		'.zen-tf-line-dl { stroke: var(--dl, currentColor); stroke-width: 2; }',
 		'.zen-tf-line-ul { stroke: var(--ul, currentColor); stroke-width: 2; stroke-dasharray: 5 5; }',
+		'.zen-tf-point-dl { fill: var(--dl, currentColor); }',
+		'.zen-tf-point-ul { fill: var(--bg-panel, white); stroke: var(--ul, currentColor); stroke-width: 2; }',
 		'.zen-tf-legend { display: flex; gap: 16px; padding-top: 6px; font-size: 13px; }',
 		'.zen-tf-legend .zen-tf-dl { color: var(--dl, currentColor); }',
 		'.zen-tf-legend .zen-tf-ul { color: var(--ul, currentColor); }'
@@ -122,9 +125,8 @@ return view.extend({
 			this.mac = ev.target.value;
 			this.refresh();
 		}, this) }, [
-			E('option', { 'value': '' }, _('All devices')),
-			devs.map((d) => E('option', { 'value': d.mac }, d.host || d.ip4 || d.mac))
-		]);
+			E('option', { 'value': '' }, _('All devices'))
+		].concat(devs.map((d) => E('option', { 'value': d.mac }, d.host || d.ip4 || d.mac))));
 
 		const tabs = E('div', { 'class': 'zen-tf-tabs' }, [
 			this.tabBtn('day', _('Daily (90 days)')),
@@ -168,12 +170,10 @@ return view.extend({
 		if (document.hidden || !this.chart)
 			return;
 
-		const params = { agg: this.agg };
-		if (this.mac)
-			params.mac = this.mac;
-
-		callHistory(params).then(L.bind((res) => {
-			this.draw(res);
+		const request = this.request = (this.request || 0) + 1;
+		return callHistory(this.agg, this.mac || null).then(L.bind((res) => {
+			if (request === this.request)
+				this.draw(res);
 		}, this)).catch((e) => {
 			console.warn('zen-traffic history', e);
 		});
@@ -185,7 +185,7 @@ return view.extend({
 			return;
 
 		const isMonth = (res && res.agg === 'month');
-		const rows = (isMonth ? (res.months || []) : (res.days || []))
+		const rows = (isMonth ? (res.months || []) : ((res && res.days) || []))
 			.map((r) => ({ k: r.date || r.month, dl: r.download || 0, ul: r.upload || 0 }));
 
 		el.textContent = '';
@@ -224,6 +224,18 @@ return view.extend({
 			d: rows.map((r, i) => (i ? 'L' : 'M') + x(i).toFixed(1) + ',' + y(r[key]).toFixed(1)).join(' '),
 			'fill': 'none', 'class': key === 'dl' ? 'zen-tf-line-dl' : 'zen-tf-line-ul'
 		});
+		/* 单个数据点没有线段；圆点同时提供日期与流量提示。 */
+		const points = [];
+		rows.forEach((r, i) => {
+			for (const key of ['dl', 'ul']) {
+				points.push(svg('circle', {
+					cx: x(i), cy: y(r[key]), r: key === 'dl' ? 4 : 3,
+					'class': 'zen-tf-point-' + key
+				}, [svg('title', {}, [document.createTextNode(
+					r.k + ' · ' + (key === 'dl' ? _('Download') : _('Upload')) + ': ' + fmtBytes(r[key])
+				)])]));
+			}
+		});
 
 		const legend = E('div', { 'class': 'zen-tf-legend' }, [
 			E('span', { 'class': 'zen-tf-dl' }, '— ' + _('Download')),
@@ -234,7 +246,7 @@ return view.extend({
 			viewBox: '0 0 %d %d'.format(W, H),
 			'preserveAspectRatio': 'xMidYMid meet',
 			'class': 'zen-tf-chart-svg'
-		}, [].concat(grid, ytexts, xticks, [path('dl'), path('ul')]));
+		}, [].concat(grid, ytexts, xticks, [path('dl'), path('ul')], points));
 
 		el.appendChild(chartSvg);
 		el.appendChild(legend);
