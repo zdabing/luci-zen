@@ -333,19 +333,28 @@ header .status {
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
-	background: var(--aside-bg);
-	border-right: 1px solid var(--line);
+	background: var(--bg-panel);
+	border: 1px solid var(--line);
 	overflow: hidden;
 	z-index: 30;
 	transition: width 0.25s ease, padding 0.25s ease, border-color 0.25s ease;
 }
 
 @media (min-width: 769px) {
+	.main-left {
+		top: calc(var(--header-h) + 20px);
+		margin: 20px 0 20px 20px;
+		height: calc(100vh - var(--header-h) - 40px);
+		border-radius: var(--radius);
+		box-shadow: var(--shadow);
+	}
+
 	body.sidebar-collapsed .main-left {
 		width: 0;
 		padding-left: 0;
 		padding-right: 0;
-		border-right-width: 0;
+		border-width: 0;
+		margin-left: 0;
 		overflow: hidden;
 		pointer-events: none;
 	}
@@ -476,12 +485,14 @@ footer a {
 	flex-direction: column;
 	gap: 8px;
 	width: 100%;
+	border-top: 1px solid var(--line);
+	padding-top: 10px;
 }
 
 .theme-toggle {
 	display: flex;
 	align-items: center;
-	justify-content: center;
+	justify-content: flex-start;
 	gap: 8px;
 	width: 100%;
 	padding: 9px 12px;
@@ -505,7 +516,7 @@ footer a {
 .logout {
 	display: flex;
 	align-items: center;
-	justify-content: center;
+	justify-content: flex-start;
 	gap: 8px;
 	width: 100%;
 	padding: 9px 12px;
@@ -554,17 +565,35 @@ footer a {
 .main-left .slide > .menu {
 	display: flex;
 	align-items: center;
-	gap: 8px;
-	padding: 9px 12px;
+	gap: 10px;
+	min-height: 40px;
+	padding: 10px 12px;
 	color: var(--text-secondary);
 	font-size: 13.5px;
 	font-weight: 500;
 	letter-spacing: -0.01em;
 	border-radius: var(--radius-sm);
-	margin-bottom: 2px;
+	margin-bottom: 4px;
 	text-decoration: none;
 	transition: background 0.15s ease-out, color 0.15s ease-out;
 	cursor: pointer;
+}
+
+.main-left .nav > li > a > svg {
+	flex: 0 0 18px;
+}
+
+.zen-menu-label {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.main-left a:focus-visible,
+.main-left button:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 2px;
 }
 
 .main-left .nav > li > a:hover,
@@ -605,11 +634,12 @@ footer a {
 	transform: rotate(225deg);
 }
 
-.slide-menu {
+.main-left .slide-menu {
 	display: none;
 	list-style: none;
-	margin: 0 0 4px;
-	padding: 0 0 0 14px;
+	margin: 4px 0 12px 20px;
+	padding: 0 0 0 12px;
+	border-left: 1px solid var(--line);
 }
 
 .slide.active > .slide-menu {
@@ -617,10 +647,11 @@ footer a {
 }
 
 .slide-menu a {
+	position: relative;
 	display: block;
 	padding: 7px 12px;
 	margin: 1px 0;
-	color: var(--text-muted);
+	color: var(--text-secondary);
 	font-size: 13px;
 	border-radius: 8px;
 	text-decoration: none;
@@ -635,8 +666,21 @@ footer a {
 
 .slide-menu li.active > a,
 .slide-menu a.active {
-	color: var(--accent);
+	color: var(--nav-active-text);
+	background: var(--accent-soft);
 	font-weight: 600;
+}
+
+.slide-menu li.active > a::before,
+.slide-menu a.active::before {
+	content: "";
+	position: absolute;
+	left: -14px;
+	top: 9px;
+	bottom: 9px;
+	width: 3px;
+	border-radius: 3px;
+	background: var(--accent);
 }
 
 .modemenu-buttons {

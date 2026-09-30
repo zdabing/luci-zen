@@ -18,6 +18,7 @@
 		bottom: 0;
 		height: auto;
 		width: min(var(--sidebar-w), 84vw);
+		background: var(--aside-bg), var(--bg-base);
 		transform: translateX(-110%);
 		transition: transform 0.25s ease;
 		box-shadow: none;

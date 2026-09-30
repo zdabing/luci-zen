@@ -211,11 +211,16 @@ return baseclass.extend({
 				this.list.appendChild(ent.li);
 			}
 
-			const icon = icons.typeIcon(icons.inferType(devName(d), d.conn), 17);
-			if (!ent.iconBox.firstChild)
-				ent.iconBox.insertBefore(icon, ent.ov);
-			else if (ent.iconBox.firstChild !== icon)
-				ent.iconBox.replaceChild(icon, ent.iconBox.firstChild);
+			const type = icons.inferType(devName(d), d.conn);
+			if (ent.iconType !== type) {
+				const icon = icons.typeIcon(type, 17);
+				if (ent.glyph)
+					ent.iconBox.replaceChild(icon, ent.glyph);
+				else
+					ent.iconBox.insertBefore(icon, ent.ov);
+				ent.glyph = icon;
+				ent.iconType = type;
+			}
 			ent.ov.classList.toggle('up', !!d.online);
 			ent.ov.classList.toggle('down', !d.online);
 

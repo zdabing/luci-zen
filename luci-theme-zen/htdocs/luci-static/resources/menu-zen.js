@@ -1,10 +1,17 @@
 'use strict';
 'require baseclass';
 'require ui';
+'require view.zen.zen-icons as icons';
 
 const STORAGE_KEY = 'luci-theme-zen';
 const SIDEBAR_KEY = 'luci-theme-zen-sidebar';
 const MOBILE_BP = 768;
+const MENU_ICONS = {
+	status: 'zen-i-status',
+	system: 'zen-i-system',
+	services: 'zen-i-services',
+	network: 'zen-i-network'
+};
 
 function currentTheme() {
 	return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
@@ -167,8 +174,10 @@ return baseclass.extend({
 					'class': hasChildren ? 'menu' + (isActive ? ' active' : '') : (isActive ? 'active' : ''),
 					'click': hasChildren ? ui.createHandlerFn(this, 'handleMenuExpand') : '',
 					'data-title': _(child.title),
+					'aria-current': !hasChildren && isActive ? 'page' : null,
 				}, [
-					_(child.title)
+					...(l === 1 ? [icons.icon(MENU_ICONS[child.name] || 'zen-i-menu', 18)] : []),
+					E('span', { 'class': 'zen-menu-label' }, _(child.title))
 				]),
 				submenu
 			]));

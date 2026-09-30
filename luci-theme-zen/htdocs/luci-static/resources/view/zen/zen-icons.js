@@ -13,6 +13,11 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 
 /* 9 类设备 + 连接方式 + 界面符号；24 viewBox，stroke 风格统一 */
 const SYMBOLS = {
+	'zen-i-status': '<rect x="3" y="3" width="18" height="18" rx="4"/><path d="m6 13 3-4 3 6 3-4h3"/>',
+	'zen-i-system': '<path d="m12 3 8 4.5v9L12 21l-8-4.5v-9zM4 7.5l8 4.5 8-4.5M12 12v9"/>',
+	'zen-i-services': '<rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/>',
+	'zen-i-network': '<rect x="8" y="3" width="8" height="6" rx="1.5"/><rect x="2" y="16" width="7" height="5" rx="1.5"/><rect x="15" y="16" width="7" height="5" rx="1.5"/><path d="M12 9v4M5.5 16v-3h13v3"/>',
+	'zen-i-menu': '<path d="M4 6h16M4 12h16M4 18h16"/>',
 	'zen-i-desktop': '<rect x="2" y="3.5" width="20" height="13" rx="2.5"/><path d="M8 20.5h8M12 16.5v4"/>',
 	'zen-i-laptop': '<rect x="4" y="4" width="16" height="11.5" rx="2"/><path d="M2 19.5h20"/>',
 	'zen-i-phone': '<rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M10.5 18.5h3"/>',
@@ -35,7 +40,10 @@ function mountSymbols() {
 
 	const svg = document.createElementNS(SVG_NS, 'svg');
 	svg.setAttribute('xmlns', SVG_NS);
-	svg.style.display = 'none';
+	svg.setAttribute('width', '0');
+	svg.setAttribute('height', '0');
+	svg.style.position = 'absolute';
+	svg.style.overflow = 'hidden';
 	svg.setAttribute('aria-hidden', 'true');
 
 	for (const id in SYMBOLS) {
@@ -61,12 +69,14 @@ function mountSymbols() {
 }
 
 function icon(id, size) {
+	mountSymbols();
 	if (!SYMBOLS[id])
 		id = 'zen-i-unknown';
 
 	const s = document.createElementNS(SVG_NS, 'svg');
 	s.setAttribute('width', size || 16);
 	s.setAttribute('height', size || 16);
+	s.setAttribute('viewBox', '0 0 24 24');
 	s.setAttribute('aria-hidden', 'true');
 	const u = document.createElementNS(SVG_NS, 'use');
 	u.setAttribute('href', '#' + id);
