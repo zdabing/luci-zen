@@ -341,8 +341,9 @@ return baseclass.extend({
 				]),
 				E('section', { 'class': 'zen-dash-panel zen-dash-trend' }, [
 					E('div', { 'class': 'zen-dash-chart-legend' }, [
+						E('span', { 'class': 'ul' }, [E('span', { 'class': 'swatch', 'aria-hidden': 'true' }), _('Upload (dashed)')]),
 						E('span', { 'class': 'dl' }, [E('span', { 'class': 'swatch', 'aria-hidden': 'true' }), _('Download (solid)')]),
-						E('span', { 'class': 'ul' }, [E('span', { 'class': 'swatch', 'aria-hidden': 'true' }), _('Upload (dashed)')])
+						E('span', {}, _('Independent scales'))
 					]),
 					E('div', { 'class': 'zen-dash-chart' }, [chart, tip])
 				])
@@ -527,26 +528,24 @@ return baseclass.extend({
 		const w = Math.max(host.clientWidth || 0, 320);
 		const h = Math.max(host.clientHeight || 0, 160);
 
-		const padL = 58, padR = 12, padT = 12, padB = 28;
+		const padL = 86, padR = 86, padT = 26, padB = 28;
 		const innerW = Math.max(w - padL - padR, 10);
 		const innerH = Math.max(h - padT - padB, 10);
 		const samples = this.history;
-
-		let peak = 0;
-		samples.forEach((s) => {
-			if (s.rx > peak) peak = s.rx;
-			if (s.tx > peak) peak = s.tx;
-		});
-		// Keep every visible peak, with ~5% headroom and finer rounding.
-		const scaleUnit = Math.pow(10, Math.floor(Math.log10(Math.max(peak, 1)))) / 5;
-		const max = Math.max(64, Math.ceil(peak * 1.05 / scaleUnit) * scaleUnit);
+		const bands = {};
+		for (const key of ['tx', 'rx']) {
+			const peak = samples.reduce((value, sample) => Math.max(value, sample[key] || 0), 0);
+			const unit = Math.pow(10, Math.floor(Math.log10(Math.max(peak, 1)))) / 5;
+			bands[key] = { top: padT,
+				max: Math.max(64, Math.ceil(peak * 1.05 / unit) * unit) };
+		}
 		// 固定时间窗口：采样点间距恒定，最新点贴右侧；数据不足时曲线只占右侧，
 		// 如实反映“刚开始采集”。
 		const step = innerW / (HISTORY - 1);
 
 		// 网格线只在容器尺寸变化时重建 DOM；Y 轴刻度每帧只改文本。
 		const DIV = 4;
-		if (w !== this.lastW || h !== this.lastH || this.yLabels.length !== DIV + 1) {
+		if (w !== this.lastW || h !== this.lastH || this.yLabels.length !== 2 * (DIV + 1)) {
 			// viewBox 用容器真实像素，坐标 1:1，避免拉伸变形。
 			chart.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
 			parts.grid.textContent = '';
@@ -559,33 +558,40 @@ return baseclass.extend({
 				x: String(padL + innerW), y: String(h - 6), 'text-anchor': 'end'
 			}, [document.createTextNode(_('Now'))]));
 			this.yLabels = [];
+			for (const key of ['tx', 'rx']) {
+				const axisX = key === 'tx' ? padL - 8 : padL + innerW + 8;
+				const anchor = key === 'tx' ? 'end' : 'start';
+				parts.yaxis.appendChild(svg('text', { x: String(axisX), y: String(padT - 10), 'text-anchor': anchor, 'class': 'axis-direction ' + key },
+					[document.createTextNode(key === 'tx' ? _('Upload') : _('Download'))]));
 			for (let i = 0; i <= DIV; i++) {
-				const gy = padT + (innerH * i) / DIV;
-				parts.grid.appendChild(svg('line', {
+				const gy = bands[key].top + (innerH * i) / DIV;
+				if (key === 'tx') parts.grid.appendChild(svg('line', {
 					x1: String(padL),
 					x2: String(padL + innerW),
 					y1: gy.toFixed(1),
 					y2: gy.toFixed(1)
 				}));
-				const label = svg('text', { x: String(padL - 8), y: (gy + 4).toFixed(1), 'text-anchor': 'end' }, []);
+				const label = svg('text', { x: String(axisX), y: (gy + 4).toFixed(1), 'text-anchor': anchor, 'class': 'axis-direction ' + key }, []);
 				parts.yaxis.appendChild(label);
 				this.yLabels.push(label);
+			}
 			}
 			this.lastW = w;
 			this.lastH = h;
 		}
-		for (let i = 0; i <= DIV; i++)
-			this.yLabels[i].textContent = fmt.fmtRate(max * (1 - i / DIV));
+		for (const [index, key] of ['tx', 'rx'].entries())
+			for (let i = 0; i <= DIV; i++)
+				this.yLabels[index * (DIV + 1) + i].textContent = fmt.fmtRate(bands[key].max * (1 - i / DIV));
 
 		const count = samples.length;
 		const xAt = (i) => padL + innerW - (count - 1 - i) * step;
-		const yAt = (v) => padT + innerH * (1 - Math.min(v, max) / max);
-		const y0 = padT + innerH;
+		const yAt = (v, key) => bands[key].top + innerH * (1 - Math.min(v, bands[key].max) / bands[key].max);
 
 		function series(key) {
 			if (!count)
 				return { line: '', fill: '' };
-			const pts = samples.map((s, i) => xAt(i).toFixed(1) + ',' + yAt(s[key]).toFixed(1));
+			const y0 = bands[key].top + innerH;
+			const pts = samples.map((s, i) => xAt(i).toFixed(1) + ',' + yAt(s[key], key).toFixed(1));
 			const line = pts.join(' ');
 			let fill = '';
 			if (count > 1)
@@ -602,7 +608,7 @@ return baseclass.extend({
 		parts.fillRx.setAttribute('d', rx.fill);
 		parts.fillTx.setAttribute('d', tx.fill);
 
-		this.geom = { padL, padT, innerW, innerH, step, max, count };
+		this.geom = { padL, padT, innerW, innerH, step, bands, count };
 
 		// 数据滑动后鼠标仍在图上时，按新坐标重定位十字线/提示框。
 		if (this.hoverClientX != null) {
@@ -631,7 +637,7 @@ return baseclass.extend({
 			return;
 		}
 		const samples = this.history;
-		const { padL, padT, innerW, innerH, step, max, count } = g;
+		const { padL, padT, innerW, innerH, step, bands, count } = g;
 
 		let i;
 		if (count === 1)
@@ -642,8 +648,8 @@ return baseclass.extend({
 
 		const s = samples[i] || { rx: 0, tx: 0, t: Date.now() };
 		const xi = padL + innerW - (count - 1 - i) * step;
-		const yRx = padT + innerH * (1 - Math.min(s.rx, max) / max);
-		const yTx = padT + innerH * (1 - Math.min(s.tx, max) / max);
+		const yRx = bands.rx.top + innerH * (1 - Math.min(s.rx, bands.rx.max) / bands.rx.max);
+		const yTx = bands.tx.top + innerH * (1 - Math.min(s.tx, bands.tx.max) / bands.tx.max);
 
 		const hover = chart.querySelector('g.hover');
 		hover.style.display = '';
@@ -651,7 +657,7 @@ return baseclass.extend({
 		cross.setAttribute('x1', xi.toFixed(1));
 		cross.setAttribute('x2', xi.toFixed(1));
 		cross.setAttribute('y1', String(padT));
-		cross.setAttribute('y2', (padT + innerH).toFixed(1));
+		cross.setAttribute('y2', (bands.rx.top + innerH).toFixed(1));
 		const dotRx = hover.querySelector('circle.dot.rx');
 		dotRx.setAttribute('cx', xi.toFixed(1));
 		dotRx.setAttribute('cy', yRx.toFixed(1));

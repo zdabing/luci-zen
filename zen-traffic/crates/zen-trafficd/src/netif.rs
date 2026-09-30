@@ -40,7 +40,8 @@ pub unsafe fn refresh(d: &mut Daemon) -> Result<usize, String> {
     }
     // Gather a complete snapshot before changing the map. A failed dump keeps old prefixes.
     if !d.ubus_ctx.is_null() {
-        let dump = network_dump(d.ubus_ctx).ok_or("network.interface dump 失败，保留现有前缀")?;
+        let dump = network_dump(d.ubus_ctx)
+            .map_err(|reason| format!("network.interface dump 失败（{reason}），保留现有前缀"))?;
         for e in dump {
             if e.upstream { continue; }
             for (a, m) in e.v4 { desired.push((libc::AF_INET, a.octets().to_vec(), m as u32)); }
@@ -95,9 +96,9 @@ fn parse_cidr(cidr: &str) -> Option<(bool, [u8; 16], u8)> {
 /// 调 `network.interface dump`（无参），解析子网与默认路由归属。
 /// # Safety
 /// ctx 必须是有效的 ubus_context。
-unsafe fn network_dump(ctx: *mut ubus::ubus_context) -> Option<Vec<IfEntry>> {
+unsafe fn network_dump(ctx: *mut ubus::ubus_context) -> Result<Vec<IfEntry>, String> {
     // 1) 上游接口名（netlink 默认路由 → 接口名，dump 里按名字对齐）
-    let mut nl = Netlink::open().ok()?;
+    let mut nl = Netlink::open().map_err(|e| format!("打开 netlink: {e}"))?;
     let up_idx = nl.default_route_ifaces();
     let links = nl.links();
     let upstream_names: Vec<String> = links
@@ -108,13 +109,11 @@ unsafe fn network_dump(ctx: *mut ubus::ubus_context) -> Option<Vec<IfEntry>> {
     drop(nl);
 
     // 2) ubus invoke
-    { let mut scratch = SCRATCH.lock().ok()?; scratch.ifaces.clear(); scratch.valid = false; }
+    { let mut scratch = SCRATCH.lock().map_err(|_| "前缀缓存锁异常")?; scratch.ifaces.clear(); scratch.valid = false; }
     let mut id: u32 = 0;
-    if ubus::ubus_lookup_id(ctx, c"network.interface".as_ptr(), &mut id)
-        != ubus::UBUS_STATUS_OK
-    {
-        SCRATCH.lock().ok()?.ifaces = Vec::new();
-        return None;
+    let lookup_rc = ubus::ubus_lookup_id(ctx, c"network.interface".as_ptr(), &mut id);
+    if lookup_rc != ubus::UBUS_STATUS_OK {
+        return Err(format!("查找 ubus 对象，状态码 {lookup_rc}"));
     }
     let cb: ubus::ubus_data_handler_t = Some(dump_cb);
     let mut msg = ubus::empty_blobmsg_msg();
@@ -129,14 +128,13 @@ unsafe fn network_dump(ctx: *mut ubus::ubus_context) -> Option<Vec<IfEntry>> {
     );
     ubus::blob_buf_free(&mut msg);
     if rc != ubus::UBUS_STATUS_OK {
-        SCRATCH.lock().ok()?.ifaces = Vec::new();
-        return None;
+        return Err(format!("调用 dump，状态码 {rc}"));
     }
 
     // 3) 上游标记
     let mut ifaces = {
-        let mut scratch = SCRATCH.lock().ok()?;
-        if !scratch.valid { return None; }
+        let mut scratch = SCRATCH.lock().map_err(|_| "前缀缓存锁异常")?;
+        if !scratch.valid { return Err("回包缺少有效的 interface 数组".into()); }
         std::mem::take(&mut scratch.ifaces)
     };
     for e in ifaces.iter_mut() {
@@ -144,7 +142,7 @@ unsafe fn network_dump(ctx: *mut ubus::ubus_context) -> Option<Vec<IfEntry>> {
             e.upstream = true;
         }
     }
-    Some(ifaces)
+    Ok(ifaces)
 }
 
 /// dump 回包：{ "interface": [ { "interface": "wan", "route": [...],

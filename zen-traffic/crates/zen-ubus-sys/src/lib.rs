@@ -104,20 +104,15 @@ pub unsafe fn blob_data<'a>(attr: *const blob_attr) -> &'a [u8] {
 }
 
 #[inline]
-fn align2(v: usize) -> usize {
-    (v + 1) & !1usize
-}
-
-#[inline]
 fn align4(v: usize) -> usize {
     (v + 3) & !3usize
 }
 
 /// blobmsg 名字头长度（blobmsg.h）：BLOBMSG_PADDING(sizeof(blobmsg_hdr) + namelen + 1)
-/// = align2(2 + namelen + 1)；BLOBMSG_ALIGN = 2。
+/// = align4(2 + namelen + 1)；BLOBMSG_ALIGN = 2 表示 1 << 2（4 字节）。
 #[inline]
 fn blobmsg_hdrlen(namelen: usize) -> usize {
-    align2(2 + namelen + 1)
+    align4(2 + namelen + 1)
 }
 
 /// blobmsg 属性视图：类型 + 名字 + 载荷切片（已剥离自身名字头）
@@ -177,13 +172,14 @@ pub unsafe fn attrs_from_slice<'a>(payload: &'a [u8]) -> Vec<AttrRef<'a>> {
         let body = &payload[off + 4..off + body_len];
 
         // blobmsg 头（blobmsg.c blobmsg_new）：{ be16 namelen; char name[namelen]; '\0' }
-        // 总头长 = align2(2 + namelen + 1)；未置 EXTENDED 位的普通 blob 属性无名字头
-        let (name, data) = if extended && body.len() >= 2 {
+        // 总头长 = align4(2 + namelen + 1)；普通 blob 属性无名字头。
+        let (name, data) = if extended {
+            if body.len() < 2 { break; }
             let namelen = u16::from_be_bytes([body[0], body[1]]) as usize;
             let hdr = blobmsg_hdrlen(namelen);
-            let nm = body.get(2..2 + namelen).unwrap_or(&[]);
-            let dat = if hdr <= body.len() { &body[hdr..] } else { &body[body.len()..] };
-            (std::str::from_utf8(nm).ok(), dat)
+            if hdr > body.len() || body[2 + namelen] != 0 { break; }
+            let nm = &body[2..2 + namelen];
+            (std::str::from_utf8(nm).ok(), &body[hdr..])
         } else {
             (None, body)
         };
@@ -195,29 +191,25 @@ pub unsafe fn attrs_from_slice<'a>(payload: &'a [u8]) -> Vec<AttrRef<'a>> {
 }
 
 /// 解析顶层 blobmsg 消息（ubus 回包 msg 指针）为直接子属性表。
-/// 顶层容器经 blobmsg_open_nested(NULL→"") 创建：名字头 namelen=0（4 字节），
-/// 子属性从 blobmsg_data(msg) 起。
+/// libubus 回调传入普通 UBUS_ATTR_DATA，方法参数常用普通 id=0 根容器。
+/// 只有置 EXTENDED 位的 blobmsg TABLE/ARRAY 才有名字头；普通容器直接取载荷。
 /// # Safety
 /// msg 必须是 libubox 生成的合法 blobmsg 消息。
 pub unsafe fn parse_msg<'a>(msg: *mut blob_attr) -> Vec<AttrRef<'a>> {
-    if msg.is_null() {
-        return Vec::new();
-    }
-    let ty = blob_id(msg);
-    if ty != 2 && ty != 1 {
-        // 2=BLOBMSG_TYPE_TABLE, 1=BLOBMSG_TYPE_ARRAY（blobmsg.h enum blobmsg_type）
+    if msg.is_null() || blob_raw_len(msg) < 4 {
         return Vec::new();
     }
     let full = blob_data(msg);
-    let hdr = if full.len() >= 2 {
-        let namelen = u16::from_be_bytes([full[0], full[1]]) as usize;
-        blobmsg_hdrlen(namelen)
-    } else {
-        0
-    };
-    if hdr > full.len() {
-        return Vec::new();
+    let extended = u32::from_be((*msg).id_len) & BLOB_ATTR_EXTENDED != 0;
+    if !extended {
+        return attrs_from_slice(full);
     }
+    let ty = blob_id(msg);
+    if (ty != BLOBMSG_TYPE_TABLE as u8 && ty != BLOBMSG_TYPE_ARRAY as u8)
+        || full.len() < 2 { return Vec::new(); }
+    let namelen = u16::from_be_bytes([full[0], full[1]]) as usize;
+    let hdr = blobmsg_hdrlen(namelen);
+    if hdr > full.len() || full[2 + namelen] != 0 { return Vec::new(); }
     attrs_from_slice(&full[hdr..])
 }
 
@@ -671,3 +663,109 @@ const _: () = {
     assert!(std::mem::size_of::<ubus_request>() == if cfg!(target_pointer_width = "64") { 104 } else { 60 });
     assert!(std::mem::offset_of!(ubus_request, priv_) == if cfg!(target_pointer_width = "64") { 96 } else { 56 });
 };
+
+#[cfg(test)]
+mod blobmsg_tests {
+    use super::*;
+
+    // Encode fixtures using libubox's wire format, independently of the parser.
+    fn wire(id: u8, name: Option<&str>, data: &[u8]) -> Vec<u8> {
+        let mut body = Vec::new();
+        if let Some(name) = name {
+            body.extend_from_slice(&(name.len() as u16).to_be_bytes());
+            body.extend_from_slice(name.as_bytes());
+            body.push(0);
+            while body.len() % 4 != 0 { body.push(0); }
+        }
+        body.extend_from_slice(data);
+        let header = ((id as u32) << 24) | (body.len() as u32 + 4)
+            | if name.is_some() { 0x8000_0000 } else { 0 };
+        let mut bytes = header.to_be_bytes().to_vec();
+        bytes.extend_from_slice(&body);
+        while bytes.len() % 4 != 0 { bytes.push(0); }
+        bytes
+    }
+
+    fn with_message(bytes: &[u8], check: impl FnOnce(Vec<AttrRef<'_>>)) {
+        // blob_attr requires u32 alignment; do not cast a Vec<u8> allocation.
+        let mut words = vec![0u32; (bytes.len() + 3) / 4];
+        unsafe {
+            std::ptr::copy_nonoverlapping(bytes.as_ptr(), words.as_mut_ptr().cast::<u8>(), bytes.len());
+            check(parse_msg(words.as_mut_ptr().cast::<blob_attr>()));
+        }
+    }
+
+    #[test]
+    fn network_dump_callback_uses_plain_data_container() {
+        let address = wire(3, Some("address"), b"10.0.0.1\0");
+        let mask = wire(5, Some("mask"), &24u32.to_be_bytes());
+        let addr = wire(2, Some(""), &[address, mask].concat());
+        let addresses = wire(1, Some("ipv4-address"), &addr);
+        let name = wire(3, Some("interface"), b"lan\0");
+        let iface = wire(2, Some(""), &[name, addresses].concat());
+        let interfaces = wire(1, Some("interface"), &iface);
+        // UBUS_ATTR_DATA = 7, no EXTENDED/name header.
+        with_message(&wire(7, None, &interfaces), |top| unsafe {
+            assert_eq!(top.len(), 1);
+            assert_eq!(top[0].name, Some("interface"));
+            let entries = attrs_from_slice(top[0].data);
+            let fields = attrs_from_slice(entries[0].data);
+            assert_eq!(fields[0].as_str(), Some("lan"));
+            let ips = attrs_from_slice(fields[1].data);
+            let ip = attrs_from_slice(ips[0].data);
+            assert_eq!(ip[0].as_str(), Some("10.0.0.1"));
+            assert_eq!(ip[1].as_u32(), Some(24));
+        });
+    }
+
+    #[test]
+    fn ordinary_root_preserves_query_parameters() {
+        let iface = wire(3, Some("iface"), b"pppoe-wan\0");
+        let start = wire(5, Some("start"), &1790730000u32.to_be_bytes());
+        with_message(&wire(0, None, &[iface, start].concat()), |attrs| {
+            assert_eq!(attrs[0].as_str(), Some("pppoe-wan"));
+            assert_eq!(attrs[1].as_u32(), Some(1790730000));
+        });
+    }
+
+    #[test]
+    fn device_history_keeps_each_requested_mac() {
+        for mac in ["38:65:04:6a:c0:9b", "84:47:09:3b:e8:70"] {
+            let agg = wire(3, Some("agg"), b"day\0");
+            let mac_value = format!("{mac}\0");
+            let field = wire(3, Some("mac"), mac_value.as_bytes());
+            with_message(&wire(7, None, &[agg, field].concat()), |attrs| {
+                assert_eq!(attrs.len(), 2);
+                assert_eq!(attrs[0].name, Some("agg"));
+                assert_eq!(attrs[0].as_str(), Some("day"));
+                assert_eq!(attrs[1].name, Some("mac"));
+                assert_eq!(attrs[1].as_str(), Some(mac));
+            });
+        }
+    }
+
+    #[test]
+    fn extended_containers_and_name_lengths_use_four_byte_alignment() {
+        for length in 0..17 {
+            let name = "x".repeat(length);
+            let field = wire(5, Some(&name), &42u32.to_be_bytes());
+            for id in [1, 2] {
+                with_message(&wire(id, Some(""), &field), |attrs| {
+                    assert_eq!(attrs.len(), 1);
+                    assert_eq!(attrs[0].name, Some(name.as_str()));
+                    assert_eq!(attrs[0].as_u32(), Some(42));
+                });
+            }
+        }
+    }
+
+    #[test]
+    fn empty_and_invalid_name_headers_are_safe() {
+        with_message(&wire(7, None, &[]), |attrs| assert!(attrs.is_empty()));
+        with_message(&[0x82, 0, 0, 8, 0xff, 0xff, 0, 0], |attrs| assert!(attrs.is_empty()));
+        let mut field = wire(3, Some("mask"), b"value\0");
+        field[10] = b'x'; // Replace required name terminator.
+        with_message(&wire(7, None, &field), |attrs| assert!(attrs.is_empty()));
+        unsafe { assert!(parse_msg(std::ptr::null_mut()).is_empty()); }
+    }
+}

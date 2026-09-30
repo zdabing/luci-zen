@@ -2613,7 +2613,8 @@ body.node-admin-status-overview #maincontent > .container {
 
 /* Top-N 折叠的“展开全部”按钮 */
 .zen-dash-dev-more {
-	margin-top: 8px;
+	display: block;
+	margin: 8px auto 0;
 	padding: 4px 10px;
 	border: 1px solid var(--line);
 	border-radius: var(--radius-sm);
@@ -2954,7 +2955,7 @@ header .showSide:focus-visible { outline: 2px solid var(--accent); outline-offse
 
 /* Device list: separate identity columns share one track definition. */
 .zen-dash-devices {
-	--zen-dev-columns: 36px minmax(130px, 1.35fr) minmax(110px, .9fr) minmax(158px, 1.15fr) minmax(80px, .7fr) minmax(110px, .9fr) 18px;
+	--zen-dev-columns: 36px minmax(130px, 1.35fr) minmax(100px, .8fr) minmax(145px, 1fr) minmax(80px, .65fr) minmax(100px, .75fr) minmax(100px, .75fr) minmax(160px, 1.05fr) 18px;
 	container-type: inline-size;
 }
 .zen-dash-dev-columns, .zen-dash-dev-row { grid-template-columns: var(--zen-dev-columns); gap: 12px; }
@@ -2985,21 +2986,28 @@ header .showSide:focus-visible { outline: 2px solid var(--accent); outline-offse
 .zen-dash-dev-rates { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .zen-dash-dev-rates .zen-dash-dev-rate { text-align: left; font-size: 13px; white-space: nowrap; }
 .zen-dash-dev-detail { padding-left: 48px; }
-@container (max-width: 820px) {
-	.zen-dash-dev-columns, .zen-dash-dev-row { grid-template-columns: 36px minmax(120px, 1.1fr) minmax(100px, .9fr) minmax(155px, 1.2fr) minmax(100px, .9fr) 18px; gap: 10px; }
-	.zen-dash-dev-columns .zen-dash-dev-conn, .zen-dash-dev-row .zen-dash-dev-conn { display: none; }
-}
-@container (max-width: 660px) {
-	.zen-dash-dev-columns { display: none; }
+.zen-dash-dev-last { color: var(--text-muted); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.zen-dash-dev-row > .zen-dash-dev-rate { display: grid; grid-template-columns: 12px minmax(0, 1fr); gap: 8px; font-size: 13px; min-width: 0; white-space: nowrap; }
+.zen-dash-dev-sort { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; text-align: left; }
+.zen-dash-dev-sort[aria-pressed="true"] { color: var(--text); }
+.zen-dash-dev-sort:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 4px; }
+.zen-dash-dev-detail-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); }
+@container (max-width: 1120px) {
+	.zen-dash-dev-columns { display: flex; gap: 24px; }
+	.zen-dash-dev-columns > span { display: none; }
 	.zen-dash-dev-row { grid-template-columns: 36px minmax(0, 1fr) auto 16px; gap: 6px 10px; }
 	.zen-dash-dev-icon { grid-column: 1; grid-row: 1 / 4; }
 	.zen-dash-dev-id { grid-column: 2; grid-row: 1; }
 	.zen-dash-dev-ip { grid-column: 2; grid-row: 2; }
 	.zen-dash-dev-mac { grid-column: 2; grid-row: 3; font-size: 10px; padding: 3px 5px; }
 	.zen-dash-dev-ip, .zen-dash-dev-mac { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
-	.zen-dash-dev-rates { grid-column: 3; grid-row: 1 / 4; }
+	.zen-dash-dev-upload { grid-column: 3; grid-row: 1; }
+	.zen-dash-dev-download { grid-column: 3; grid-row: 2; }
 	.zen-dash-dev-chev { grid-column: 4; grid-row: 1 / 4; }
-	.zen-dash-dev-detail { grid-row: 4; padding-left: 0; }
+	.zen-dash-dev-row .zen-dash-dev-conn { display: flex; grid-column: 2 / 4; grid-row: 4; }
+	.zen-dash-dev-last { grid-column: 2 / 4; grid-row: 5; white-space: normal; overflow-wrap: anywhere; }
+	.zen-dash-dev-last::before { content: attr(data-label) '：'; }
+	.zen-dash-dev-detail { grid-row: 6; padding-left: 0; }
 }
 
 /* Uptime uses the same tonal surface; layout follows available dashboard width. */
@@ -3139,7 +3147,10 @@ header .showSide:focus-visible { outline: 2px solid var(--accent); outline-offse
 /* Interface summary and four metrics share a compact row; the trend spans both. */
 .zen-dash-body { align-items: stretch; gap: 16px; }
 .zen-dash-trend { grid-column: 1 / -1; }
-.zen-dash-trend .zen-dash-chart { height: 190px; min-height: 190px; margin-top: 8px; }
+.zen-dash-trend .zen-dash-chart { height: 220px; min-height: 220px; margin-top: 8px; }
+.zen-dash-svg text.axis-direction { font-weight: 600; }
+.zen-dash-svg text.axis-direction.tx { fill: var(--ul); }
+.zen-dash-svg text.axis-direction.rx { fill: var(--dl); }
 .zen-dash-trend .zen-dash-chart-legend { justify-content: flex-end; margin: 0 4px; }
 .zen-dash-traffic .zen-dash-hint { display: block; margin: 4px 0 0; font-size: 11px; }
 .zen-dash-traffic-stats { flex: 1; gap: 12px; }
@@ -3147,12 +3158,12 @@ header .showSide:focus-visible { outline: 2px solid var(--accent); outline-offse
 .zen-dash-stat:not(.rx):not(.tx) .v { font-size: 28px; font-weight: 700; line-height: 1.2; color: var(--text); }
 .zen-dash-iface-control { position: relative; flex-shrink: 0; }
 .zen-dash-iface-control::after { content: ''; position: absolute; right: 14px; width: 6px; height: 6px; border-right: 1.5px solid var(--text-secondary); border-bottom: 1.5px solid var(--text-secondary); transform: translateY(-2px) rotate(45deg); pointer-events: none; }
-.zen-dash-iface-control select { appearance: none; min-width: 138px; padding: 8px 30px 8px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--bg-nested); color: var(--text); font: inherit; font-weight: 600; cursor: pointer; }
+.zen-dash-iface-control #zen-dash-iface { appearance: none; min-width: 156px; max-width: 240px; padding: 8px 38px 8px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--bg-nested); color: var(--text); font: inherit; font-weight: 600; cursor: pointer; }
 .zen-dash-iface-control select:focus-visible { outline: 2px solid var(--gauge); outline-offset: 2px; }
 @container zen-dashboard (max-width: 600px) {
  .zen-dash-stat:not(.rx):not(.tx) { padding: 12px; }
  .zen-dash-stat:not(.rx):not(.tx) .v { font-size: 24px; }
- .zen-dash-trend .zen-dash-chart { height: 160px; min-height: 160px; }
+ .zen-dash-trend .zen-dash-chart { height: 200px; min-height: 200px; }
 }
 
 .zen-dash-traffic-stats .zen-dash-stat.total-tx .k, .zen-dash-traffic-stats .zen-dash-stat.total-tx .v { color: var(--ul); }

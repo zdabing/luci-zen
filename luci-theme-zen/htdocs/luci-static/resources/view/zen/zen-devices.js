@@ -59,11 +59,11 @@ function drawHistory(ent, res) {
 		chart.appendChild(historySvg('line', { x1: left, x2: right, y1: y(value), y2: y(value), 'class': 'history-grid' }));
 		chart.appendChild(historySvg('text', { x: left - 8, y: y(value) + 4, 'text-anchor': 'end' }, fmt.fmtBytes(value)));
 	}
-	for (const key of ['download', 'upload']) {
+	for (const key of ['upload', 'download']) {
 		const series = key === 'download' ? 'dl' : 'ul';
 		if (rows.length === 1) {
 			const value = Number(rows[0][key]) || 0;
-			const center = x(0) + (key === 'download' ? -30 : 30);
+			const center = x(0) + (key === 'upload' ? -30 : 30);
 			const bar = historySvg('rect', { x: center - 18, y: y(value), width: 36, height: bottom - y(value), rx: 4, 'class': 'history-bar ' + series });
 			bar.appendChild(historySvg('title', {}, rows[0].date + ' · ' + (key === 'download' ? _('Download') : _('Upload')) + ': ' + fmt.fmtBytes(value)));
 			chart.appendChild(bar);
@@ -94,8 +94,8 @@ function refreshHistory(ent, force) {
 		refresh.addEventListener('click', () => refreshHistory(ent, true));
 		ent.detail.appendChild(E('div', { 'class': 'zen-dash-history-head' }, [E('strong', {}, _('Daily traffic')), refresh]));
 		ent.detail.appendChild(E('div', { 'class': 'zen-dash-chart-legend' }, [
-			E('span', { 'class': 'dl' }, [E('span', { 'class': 'swatch' }), _('Download (solid)')]),
-			E('span', { 'class': 'ul' }, [E('span', { 'class': 'swatch' }), _('Upload (dashed)')])
+			E('span', { 'class': 'ul' }, [E('span', { 'class': 'swatch' }), _('Upload (dashed)')]),
+			E('span', { 'class': 'dl' }, [E('span', { 'class': 'swatch' }), _('Download (solid)')])
 		]));
 		ent.detail.appendChild(ent.historyChart);
 	}
@@ -159,6 +159,9 @@ function buildRow() {
 	]);
 	const dl = rate('dl', '↓', _('Download'));
 	const ul = rate('ul', '↑', _('Upload'));
+	dl.classList.add('zen-dash-dev-download');
+	ul.classList.add('zen-dash-dev-upload');
+	const last = E('span', { 'class': 'zen-dash-dev-last', 'data-label': _('Last activity') }, '');
 	const chev = E('span', { 'class': 'zen-dash-dev-chev' }, [icons.icon('zen-i-chev', 16)]);
 
 	const detail = E('div', { 'class': 'zen-dash-dev-detail' },
@@ -169,12 +172,14 @@ function buildRow() {
 	li.appendChild(ip);
 	li.appendChild(mac);
 	li.appendChild(conn);
-	li.appendChild(E('span', { 'class': 'zen-dash-dev-rates' }, [dl, ul]));
+	li.appendChild(ul);
+	li.appendChild(dl);
+	li.appendChild(last);
 	li.appendChild(chev);
 	li.appendChild(detail);
 
 	const ent = {
-		li, iconBox, ov, ip, mac, conn: connLabel, connBox: conn,
+		li, iconBox, ov, ip, mac, last, conn: connLabel, connBox: conn,
 		dl: dl.lastChild, ul: ul.lastChild, detail,
 		grid: detail.firstChild,
 		name: id.firstChild,
@@ -204,12 +209,9 @@ function buildRow() {
 function updateDetail(ent, d) {
 	const grid = ent.grid;
 	const cells = [
-		[_('IP'), (d.ip4 || '—') + (d.ip6 ? ' / ' + d.ip6 : '')],
-		[_('MAC'), d.mac],
-		[_('Today'), '↓ ' + fmt.fmtBytes(d.rx_today) + '  ↑ ' + fmt.fmtBytes(d.tx_today)],
-		[_('Month'), '↓ ' + fmt.fmtBytes(d.rx_month) + '  ↑ ' + fmt.fmtBytes(d.tx_month)],
-		[_('Total'), '↓ ' + fmt.fmtBytes(d.rx_total) + '  ↑ ' + fmt.fmtBytes(d.tx_total)],
-		[_('Last activity'), d.last > 0 ? new Date(d.last * 1000).toLocaleString() : fmt.MISSING]
+		[_('Today'), '↑ ' + fmt.fmtBytes(d.tx_today) + '  ↓ ' + fmt.fmtBytes(d.rx_today)],
+		[_('Month'), '↑ ' + fmt.fmtBytes(d.tx_month) + '  ↓ ' + fmt.fmtBytes(d.rx_month)],
+		[_('Total'), '↑ ' + fmt.fmtBytes(d.tx_total) + '  ↓ ' + fmt.fmtBytes(d.rx_total)]
 	];
 	if (!grid.firstChild) {
 		for (const [k] of cells)
@@ -254,13 +256,35 @@ return baseclass.extend({
 		section.setAttribute('data-state', 'ok');
 		this.section = section;
 		this.count = section.querySelector('.zen-dash-dev-count');
+		this.sortKey = null;
+		this.sortDescending = true;
+		this.sortButtons = [];
+		const sortColumn = (key, label) => {
+			const arrow = E('span', { 'aria-hidden': 'true' }, '↕');
+			const button = E('button', { type: 'button', 'class': 'zen-dash-dev-sort', 'aria-pressed': 'false', title: _('Sort descending') }, [label, arrow]);
+			this.sortButtons.push({ key, button, arrow });
+			button.addEventListener('click', () => {
+				this.sortDescending = this.sortKey === key ? !this.sortDescending : true;
+				this.sortKey = key;
+				for (const entry of this.sortButtons) {
+					const active = entry.key === key;
+					entry.button.setAttribute('aria-pressed', String(active));
+					entry.button.title = active && this.sortDescending ? _('Sort ascending') : _('Sort descending');
+					entry.arrow.textContent = active ? (this.sortDescending ? '↓' : '↑') : '↕';
+				}
+				this.render(this.devs || []);
+			});
+			return button;
+		};
 		section.appendChild(E('div', { 'class': 'zen-dash-dev-columns', 'aria-hidden': 'true' }, [
 			E('span', {}, ''),
 			E('span', {}, _('Hostname')),
 			E('span', { 'class': 'zen-dash-dev-ip' }, 'IPv4'),
 			E('span', { 'class': 'zen-dash-dev-mac' }, _('MAC')),
 			E('span', { 'class': 'zen-dash-dev-conn' }, _('Connection')),
-			E('span', { 'class': 'zen-dash-dev-rates' }, _('Realtime Traffic')),
+			sortColumn('tx_r', _('Realtime upload')),
+			sortColumn('rx_r', _('Realtime download')),
+			E('span', { 'class': 'zen-dash-dev-last' }, _('Last activity')),
 			E('span', {}, '')
 		]));
 		this.list = E('ul', { 'class': 'zen-dash-dev-list' }, []);
@@ -302,9 +326,12 @@ return baseclass.extend({
 
 	render(devs) {
 		const keep = new Set();
+		this.devs = devs.slice();
+		devs = this.devs.slice();
 
 		/* Top-N：实时速率优先，其次今日累计 */
 		devs.sort((a, b) =>
+			(this.sortKey ? ((a[this.sortKey] || 0) - (b[this.sortKey] || 0)) * (this.sortDescending ? -1 : 1) : 0) ||
 			((b.rx_r || 0) + (b.tx_r || 0)) - ((a.rx_r || 0) + (a.tx_r || 0)) ||
 			((b.rx_today || 0) + (b.tx_today || 0)) - ((a.rx_today || 0) + (a.tx_today || 0)));
 
@@ -352,6 +379,7 @@ return baseclass.extend({
 			}
 			setText(ent.dl, fmt.fmtRate(d.rx_r || 0));
 			setText(ent.ul, fmt.fmtRate(d.tx_r || 0));
+			setText(ent.last, d.last > 0 ? new Date(d.last * 1000).toLocaleString() : fmt.MISSING);
 
 			if (ent.li.classList.contains('open'))
 				updateDetail(ent, d);

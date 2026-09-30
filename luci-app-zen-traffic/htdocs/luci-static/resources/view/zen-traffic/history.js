@@ -13,7 +13,7 @@
  */
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
-const W = 860, H = 320, PAD_L = 64, PAD_R = 16, PAD_T = 24, PAD_B = 40;
+const H = 260, PAD_L = 86, PAD_R = 20, PAD_T = 28, PAD_B = 40;
 
 const callStatus = rpc.declare({
 	object: 'zen.traffic',
@@ -78,7 +78,10 @@ function injectStyles() {
 	style.textContent = [
 		'.zen-tf-controls { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }',
 		'.zen-tf-tabs { display: flex; gap: 8px; }',
-		'.zen-tf-chart-svg { width: 100%; height: auto; background: rgba(127,127,127,.04); border-radius: 8px; }',
+		'.zen-tf-chart-svg { display: block; width: 100%; height: 260px; background: rgba(127,127,127,.04); border-radius: 12px; }',
+		'.zen-tf-controls > select { min-width: 0; max-width: 100%; }',
+		'.zen-tf-bar-ul { fill: var(--ul, #ea580c); }',
+		'.zen-tf-bar-dl { fill: var(--dl, #15803d); }',
 		'.zen-tf-grid { stroke: currentColor; opacity: .12; }',
 		'.zen-tf-ax { font-size: 11px; fill: currentColor; opacity: .65; }',
 		'.zen-tf-line-dl { stroke: var(--dl, currentColor); stroke-width: 2; }',
@@ -93,6 +96,9 @@ function injectStyles() {
 }
 
 return view.extend({
+	handleSaveApply: null,
+	handleSave: null,
+	handleReset: null,
 	agg: 'day',
 	mac: '',
 	chart: null,
@@ -138,7 +144,7 @@ return view.extend({
 			E('div', { 'class': 'cbi-map-descr' },
 				_('Daily and monthly usage aggregated from the zen-traffic SQLite database. download = rx, upload = tx.')),
 			E('div', { 'class': 'cbi-section zen-tf-controls' }, [
-				E('label', {}, _('Device: ')), sel,
+				E('label', {}, _('Device')), sel,
 				tabs
 			]),
 			E('div', { 'class': 'cbi-section' },
@@ -146,6 +152,14 @@ return view.extend({
 		]);
 
 		this.sel = sel;
+		if (this.resizeObserver) this.resizeObserver.disconnect();
+		if (typeof ResizeObserver !== 'undefined') {
+			this.resizeObserver = new ResizeObserver(() => {
+				if (this.chart.clientWidth !== this.chartWidth && this.lastResult)
+					this.draw(this.lastResult);
+			});
+			this.resizeObserver.observe(this.chart);
+		}
 		this.refresh();
 		return root;
 	},
@@ -183,6 +197,9 @@ return view.extend({
 		const el = this.chart;
 		if (!el)
 			return;
+		this.lastResult = res;
+		this.chartWidth = el.clientWidth;
+		const W = Math.max(280, el.clientWidth || 860);
 
 		const isMonth = (res && res.agg === 'month');
 		const rows = (isMonth ? (res.months || []) : ((res && res.days) || []))
@@ -213,10 +230,10 @@ return view.extend({
 		}
 
 		const xticks = [];
-		const step = Math.ceil(n / 6);
+		const step = Math.max(1, Math.ceil(n / Math.max(2, Math.floor(iw / 110))));
 		for (let i = 0; i < n; i += step) {
 			xticks.push(svg('text', {
-				x: x(i), y: H - PAD_B + 18, 'text-anchor': 'middle', 'class': 'zen-tf-ax'
+				x: x(i), y: H - PAD_B + 18, 'text-anchor': n === 1 ? 'middle' : i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle', 'class': 'zen-tf-ax'
 			}, [document.createTextNode(rows[i].k)]));
 		}
 
@@ -224,10 +241,20 @@ return view.extend({
 			d: rows.map((r, i) => (i ? 'L' : 'M') + x(i).toFixed(1) + ',' + y(r[key]).toFixed(1)).join(' '),
 			'fill': 'none', 'class': key === 'dl' ? 'zen-tf-line-dl' : 'zen-tf-line-ul'
 		});
-		/* 单个数据点没有线段；圆点同时提供日期与流量提示。 */
+		/* 单日/月使用两根柱；多日/月保留曲线和圆点。 */
 		const points = [];
 		rows.forEach((r, i) => {
-			for (const key of ['dl', 'ul']) {
+			for (const key of ['ul', 'dl']) {
+				if (n === 1) {
+					const center = x(0) + (key === 'ul' ? -32 : 32);
+					const height = Math.max(2, H - PAD_B - y(r[key]));
+					const top = H - PAD_B - height;
+					points.push(svg('rect', { x: center - 20, y: top, width: 40, height, rx: 4, 'class': 'zen-tf-bar-' + key }, [
+						svg('title', {}, [document.createTextNode(r.k + ' · ' + (key === 'ul' ? _('Upload') : _('Download')) + ': ' + fmtBytes(r[key]))])
+					]));
+					points.push(svg('text', { x: center, y: top - 8, 'text-anchor': 'middle', 'class': 'zen-tf-ax' }, [document.createTextNode(fmtBytes(r[key]))]));
+					continue;
+				}
 				points.push(svg('circle', {
 					cx: x(i), cy: y(r[key]), r: key === 'dl' ? 4 : 3,
 					'class': 'zen-tf-point-' + key
@@ -238,15 +265,16 @@ return view.extend({
 		});
 
 		const legend = E('div', { 'class': 'zen-tf-legend' }, [
-			E('span', { 'class': 'zen-tf-dl' }, '— ' + _('Download')),
-			E('span', { 'class': 'zen-tf-ul' }, '— ' + _('Upload'))
+			E('span', { 'class': 'zen-tf-ul' }, '— ' + _('Upload')),
+			E('span', { 'class': 'zen-tf-dl' }, '— ' + _('Download'))
 		]);
 
 		const chartSvg = svg('svg', {
 			viewBox: '0 0 %d %d'.format(W, H),
 			'preserveAspectRatio': 'xMidYMid meet',
+			role: 'img', 'aria-label': _('Traffic History'),
 			'class': 'zen-tf-chart-svg'
-		}, [].concat(grid, ytexts, xticks, [path('dl'), path('ul')], points));
+		}, [].concat(grid, ytexts, xticks, n === 1 ? [] : [path('ul'), path('dl')], points));
 
 		el.appendChild(chartSvg);
 		el.appendChild(legend);

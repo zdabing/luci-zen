@@ -325,3 +325,17 @@ msgstr "%d小时 %d分钟"
 
 msgid "%dm"
 msgstr "%d分钟"
+msgid "Realtime upload"
+msgstr "实时上传"
+
+msgid "Realtime download"
+msgstr "实时下载"
+
+msgid "Sort descending"
+msgstr "按从高到低排序"
+
+msgid "Sort ascending"
+msgstr "按从低到高排序"
+
+msgid "Independent scales"
+msgstr "左右轴独立刻度"

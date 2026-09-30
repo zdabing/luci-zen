@@ -23,7 +23,7 @@ function svg(tag, attrs, text) {
 function styles() {
  if (document.getElementById('zen-realtime-css')) return;
  const style = E('style', { id: 'zen-realtime-css' });
- style.textContent = '.zen-rt-controls{display:flex;gap:16px;align-items:end;flex-wrap:wrap}.zen-rt-field{display:flex;flex-direction:column;gap:6px;font-size:13px}.zen-rt-controls input,.zen-rt-controls select{max-width:100%;min-height:36px}.zen-rt-summary{display:flex;gap:28px;flex-wrap:wrap;margin-bottom:16px}.zen-rt-summary strong{display:block;font-size:24px;margin-top:4px}.zen-rt-dl{color:var(--dl,#15803d)}.zen-rt-ul{color:var(--ul,#ea580c)}.zen-rt-chart svg{display:block;width:100%;height:240px}.zen-rt-chart text{fill:currentColor;opacity:.65;font-size:11px}.zen-rt-grid{stroke:currentColor;opacity:.12;stroke-dasharray:3 5}.zen-rt-chart .dl{stroke:var(--dl,#15803d);fill:none}.zen-rt-chart .ul{stroke:var(--ul,#ea580c);fill:none;stroke-dasharray:5 5}.zen-rt-legend{display:flex;gap:20px;justify-content:flex-end;font-size:13px;margin-bottom:8px}.zen-rt-pagination{display:flex;justify-content:flex-end;align-items:center;gap:12px;margin-top:12px}.zen-rt-table td,.zen-rt-table th{text-align:right}.zen-rt-table td:first-child,.zen-rt-table th:first-child{text-align:left}.zen-rt-note{font-size:13px;opacity:.7}.zen-rt-error{color:var(--danger,#dc2626)}@media(max-width:600px){.zen-rt-field{flex:1 1 180px;min-width:0}.zen-rt-summary strong{font-size:20px}.zen-rt-table{font-size:12px}}';
+ style.textContent = '.zen-rt-controls{display:flex;gap:16px;align-items:end;flex-wrap:wrap}.zen-rt-field{display:flex;flex-direction:column;gap:6px;font-size:13px}.zen-rt-controls input,.zen-rt-controls select{max-width:100%;min-height:36px}.zen-rt-summary{display:flex;gap:28px;flex-wrap:wrap;margin-bottom:16px}.zen-rt-summary strong{display:block;font-size:24px;margin-top:4px}.zen-rt-dl{color:var(--dl,#15803d)}.zen-rt-ul{color:var(--ul,#ea580c)}.zen-rt-chart svg{display:block;width:100%;height:240px}.zen-rt-chart text{fill:currentColor;opacity:.65;font-size:11px}.zen-rt-chart text.zen-rt-ul{fill:var(--ul,#ea580c);opacity:1}.zen-rt-chart text.zen-rt-dl{fill:var(--dl,#15803d);opacity:1}.zen-rt-grid{stroke:currentColor;opacity:.12;stroke-dasharray:3 5}.zen-rt-chart .dl{stroke:var(--dl,#15803d);fill:none}.zen-rt-chart .ul{stroke:var(--ul,#ea580c);fill:none;stroke-dasharray:5 5}.zen-rt-legend{display:flex;flex-wrap:wrap;gap:8px 20px;justify-content:flex-end;font-size:13px;margin-bottom:8px}.zen-rt-pagination{display:flex;justify-content:flex-end;align-items:center;gap:12px;margin-top:12px}.zen-rt-table td,.zen-rt-table th{text-align:right}.zen-rt-table td:first-child,.zen-rt-table th:first-child{text-align:left}.zen-rt-note{font-size:13px;opacity:.7}.zen-rt-error{color:var(--danger,#dc2626)}@media(max-width:600px){.zen-rt-field{flex:1 1 180px;min-width:0}.zen-rt-summary strong{font-size:20px}.zen-rt-table{font-size:12px}}';
  document.head.appendChild(style);
 }
 
@@ -65,7 +65,7 @@ return view.extend({
     field(_('Start time'),this.start),field(_('End time'),this.end),this.button
    ]),this.error,
    E('section',{'class':'cbi-section'},[this.summary,
-    E('div',{'class':'zen-rt-legend'},[E('span',{'class':'zen-rt-dl'},'— '+_('Download')),E('span',{'class':'zen-rt-ul'},'┄ '+_('Upload'))]),
+    E('div',{'class':'zen-rt-legend'},[E('span',{'class':'zen-rt-ul'},'┄ '+_('Upload')),E('span',{'class':'zen-rt-dl'},'— '+_('Download')),E('span',{},_('Independent scales'))]),
     this.chart,this.note
    ]),
    E('section',{'class':'cbi-section'},[
@@ -124,28 +124,33 @@ return view.extend({
   if(!this.data) return;
   this.chart.replaceChildren();const samples=this.data.samples;
   if(!samples.length) {this.chart.appendChild(E('p',{},_('No realtime history yet. Leave the service running to collect samples.')));return;}
-  const width=Math.max(320,this.chart.clientWidth||960), left=70,right=width-16,top=20,bottom=205;
+  const width=Math.max(280,this.chart.clientWidth||960), left=86,right=width-86,top=28,bottom=205;
   const start=this.data.start??samples[0].time,end=this.data.end??samples[samples.length-1].time;
-  const peak=Math.max(64,...samples.flatMap(s=>[s.download,s.upload]))*1.05;
-  const x=t=>left+(t-start)/Math.max(1,end-start)*(right-left),y=v=>bottom-v/peak*(bottom-top);
+  const peaks={};
+  for(const key of ['upload','download']) peaks[key]=Math.max(64,...samples.map(s=>s[key]||0))*1.05;
+  const x=t=>left+(t-start)/Math.max(1,end-start)*(right-left),y=(v,key)=>bottom-v/peaks[key]*(bottom-top);
   const chart=svg('svg',{viewBox:'0 0 '+width+' 240',role:'img','aria-label':_('Realtime History')});
   for(let i=0;i<=4;i++) {
-   const v=peak*i/4;
-   chart.appendChild(svg('line',{x1:left,x2:right,y1:y(v),y2:y(v),'class':'zen-rt-grid'}));
-   chart.appendChild(svg('text',{x:left-8,y:y(v)+4,'text-anchor':'end'},rate(v)));
+   const gy=bottom-i/4*(bottom-top);
+   chart.appendChild(svg('line',{x1:left,x2:right,y1:gy,y2:gy,'class':'zen-rt-grid'}));
+   for(const [key,cls] of [['upload','zen-rt-ul'],['download','zen-rt-dl']]) {
+    chart.appendChild(svg('text',{x:key==='upload'?left-8:right+8,y:gy+4,'text-anchor':key==='upload'?'end':'start','class':cls},rate(peaks[key]*i/4)));
+   }
   }
-  for(const [key,cls] of [['download','dl'],['upload','ul']]) {
+  for(const [key,cls] of [['upload','ul'],['download','dl']]) {
+   chart.appendChild(svg('text',{x:key==='upload'?left-8:right+8,y:16,'text-anchor':key==='upload'?'end':'start','class':key==='upload'?'zen-rt-ul':'zen-rt-dl'},key==='upload'?_('Upload'):_('Download')));
    let segment=[];
-   const flush=()=>{if(segment.length>1)chart.appendChild(svg('polyline',{points:segment.map(s=>x(s.time)+','+y(s[key])).join(' '),'class':cls,'stroke-width':2}));segment=[];};
+   const flush=()=>{if(segment.length>1)chart.appendChild(svg('polyline',{points:segment.map(s=>x(s.time)+','+y(s[key],key)).join(' '),'class':cls,'stroke-width':2}));segment=[];};
    samples.forEach((s,i)=>{
     if(i&&s.time-samples[i-1].time>this.data.step*1.5) flush();
     segment.push(s);
-    const dot=svg('circle',{cx:x(s.time),cy:y(s[key]),r:samples.length===1?4:2,fill:cls==='dl'?'var(--dl,#15803d)':'var(--ul,#ea580c)'});
-    dot.appendChild(svg('title',{},new Date(s.time*1000).toLocaleString()+' · '+rate(s[key])));chart.appendChild(dot);
+    const dot=svg('circle',{cx:x(s.time),cy:y(s[key],key),r:samples.length===1?4:2,fill:cls==='dl'?'var(--dl,#15803d)':'var(--ul,#ea580c)'});
+    dot.appendChild(svg('title',{},new Date(s.time*1000).toLocaleString()+' · '+(key==='upload'?_('Upload'):_('Download'))+': '+rate(s[key])));chart.appendChild(dot);
    });flush();
   }
-  chart.appendChild(svg('text',{x:left,y:232},new Date(start*1000).toLocaleString()));
-  chart.appendChild(svg('text',{x:right,y:232,'text-anchor':'end'},new Date(end*1000).toLocaleString()));
+  const timeLabel=t=>width<600?new Date(t*1000).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',hour12:false}):new Date(t*1000).toLocaleString();
+  chart.appendChild(svg('text',{x:left,y:232},timeLabel(start)));
+  chart.appendChild(svg('text',{x:right,y:232,'text-anchor':'end'},timeLabel(end)));
   this.chart.appendChild(chart);
  },
  drawTable() {

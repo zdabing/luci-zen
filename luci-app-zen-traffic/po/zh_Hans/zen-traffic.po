@@ -198,3 +198,6 @@ msgstr "%d 个数据点 · 每%d秒一组"
 
 msgid "No realtime history yet. Leave the service running to collect samples."
 msgstr "所选范围暂无实时历史，请保持流量统计服务运行以采集数据。"
+
+msgid "Independent scales"
+msgstr "左右轴独立刻度"
