@@ -328,7 +328,7 @@ return baseclass.extend({
 		const all = {};
 		const listed = [];
 		for (const name in devs) {
-			if (skipIface(name))
+			if (SKIP_IFACE.test(name))
 				continue;
 			const d = devs[name];
 			if (d && d.present === false)
