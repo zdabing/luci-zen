@@ -107,7 +107,7 @@ daemon 启动即自动完成（`tc.rs`）：
 ```sh
 tc filter show dev br-lan        # in/egress 各 1 条 zen_ingress/zen_egress
 # 制造流量（LAN 主机 ping/iperf3 网关外地址）后，daemon 日志出现：
-# [tick N] devices=1 WAN↓ x KB/s WAN↑ y B/s | aa:bb:cc:dd:ee:01 wan_rx=... 
+# [tick N] devices=1 WAN↓ x KB/s WAN↑ y B/s | aa:bb:cc:dd:ee:01 wan_rx=...
 kill -TERM <pid> 后 tc filter show 无 zen_ 残留
 ```
 
