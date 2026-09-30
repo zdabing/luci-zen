@@ -68,9 +68,10 @@ function buildRow() {
 	iconBox.appendChild(ov);
 
 	const id = E('span', { 'class': 'zen-dash-dev-id' }, [
-		E('span', { 'class': 'zen-dash-dev-name' }, ''),
-		E('span', { 'class': 'zen-dash-dev-meta' }, '')
+		E('span', { 'class': 'zen-dash-dev-name' }, '')
 	]);
+	const ip = E('span', { 'class': 'zen-dash-dev-ip' }, '');
+	const mac = E('span', { 'class': 'zen-dash-dev-mac' }, '');
 
 	const conn = E('span', { 'class': 'zen-dash-dev-conn' }, '');
 	const dl = E('span', { 'class': 'zen-dash-dev-rate dl' }, '');
@@ -82,9 +83,10 @@ function buildRow() {
 
 	li.appendChild(iconBox);
 	li.appendChild(id);
+	li.appendChild(ip);
+	li.appendChild(mac);
 	li.appendChild(conn);
-	li.appendChild(dl);
-	li.appendChild(ul);
+	li.appendChild(E('span', { 'class': 'zen-dash-dev-rates' }, [dl, ul]));
 	li.appendChild(chev);
 	li.appendChild(detail);
 
@@ -104,10 +106,9 @@ function buildRow() {
 	});
 
 	return {
-		li, iconBox, ov, conn, dl, ul, detail,
+		li, iconBox, ov, ip, mac, conn, dl, ul, detail,
 		grid: detail.firstChild,
-		name: id.firstChild,
-		meta: id.lastChild
+		name: id.firstChild
 	};
 }
 
@@ -162,6 +163,15 @@ return baseclass.extend({
 		section.setAttribute('data-state', 'ok');
 		this.section = section;
 		this.count = section.querySelector('.zen-dash-dev-count');
+		section.appendChild(E('div', { 'class': 'zen-dash-dev-columns', 'aria-hidden': 'true' }, [
+			E('span', {}, ''),
+			E('span', {}, _('Hostname')),
+			E('span', { 'class': 'zen-dash-dev-ip' }, 'IPv4'),
+			E('span', { 'class': 'zen-dash-dev-mac' }, _('MAC')),
+			E('span', { 'class': 'zen-dash-dev-conn' }, _('Connection')),
+			E('span', { 'class': 'zen-dash-dev-rates' }, _('Realtime Traffic')),
+			E('span', {}, '')
+		]));
 		this.list = E('ul', { 'class': 'zen-dash-dev-list' }, []);
 		this.showAll = false;
 		this.cache = new Map();
@@ -233,7 +243,11 @@ return baseclass.extend({
 			ent.ov.classList.toggle('down', !d.online);
 
 			setText(ent.name, devName(d));
-			setText(ent.meta, d.mac + (d.ip4 ? ' · ' + d.ip4 : ''));
+			setText(ent.ip, d.ip4 || '—');
+			setText(ent.mac, d.mac);
+			ent.mac.title = d.mac;
+			ent.name.title = devName(d);
+			ent.ip.title = d.ip4 || d.ip6 || '';
 			setText(ent.conn, connText(d));
 			setText(ent.dl, '↓ ' + fmt.fmtRate(d.rx_r || 0));
 			setText(ent.ul, '↑ ' + fmt.fmtRate(d.tx_r || 0));

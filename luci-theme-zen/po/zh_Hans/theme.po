@@ -211,3 +211,9 @@ msgstr "隐藏密码"
 
 msgid "Welcome back"
 msgstr "欢迎回来"
+
+msgid "Hostname"
+msgstr "主机名"
+
+msgid "Connection"
+msgstr "连接方式"

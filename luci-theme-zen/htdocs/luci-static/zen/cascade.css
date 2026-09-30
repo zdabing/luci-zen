@@ -2939,3 +2939,53 @@ header .showSide:focus-visible { outline: 2px solid var(--accent); outline-offse
 @media (prefers-contrast: more) {
 	.zen-dash-card, .zen-dash-panel, .zen-login-card { border: 1px solid var(--text-secondary); }
 }
+
+/* Device list: separate identity columns share one track definition. */
+.zen-dash-devices {
+	--zen-dev-columns: 36px minmax(130px, 1.35fr) minmax(110px, .9fr) minmax(158px, 1.15fr) minmax(80px, .7fr) minmax(110px, .9fr) 18px;
+	container-type: inline-size;
+}
+.zen-dash-dev-columns, .zen-dash-dev-row { grid-template-columns: var(--zen-dev-columns); gap: 12px; }
+.zen-dash-dev-columns {
+	display: grid;
+	align-items: center;
+	background: var(--bg-nested);
+	border-radius: 14px;
+	padding: 14px 12px;
+	margin: 18px 0 4px;
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--text-secondary);
+}
+.zen-dash-dev-row { padding: 16px 12px; border-radius: 0; }
+.zen-dash-dev-ip { font-size: 13px; color: var(--text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.zen-dash-dev-mac {
+	justify-self: start;
+	font-family: var(--mono);
+	font-size: 12px;
+	white-space: nowrap;
+	color: var(--text-secondary);
+	background: var(--bg-nested);
+	border-radius: 8px;
+	padding: 5px 8px;
+}
+.zen-dash-dev-columns .zen-dash-dev-mac { font-family: var(--font); background: none; padding: 0; }
+.zen-dash-dev-rates { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.zen-dash-dev-rates .zen-dash-dev-rate { text-align: left; font-size: 13px; white-space: nowrap; }
+.zen-dash-dev-detail { padding-left: 48px; }
+@container (max-width: 820px) {
+	.zen-dash-dev-columns, .zen-dash-dev-row { grid-template-columns: 36px minmax(120px, 1.1fr) minmax(100px, .9fr) minmax(155px, 1.2fr) minmax(100px, .9fr) 18px; gap: 10px; }
+	.zen-dash-dev-columns .zen-dash-dev-conn, .zen-dash-dev-row .zen-dash-dev-conn { display: none; }
+}
+@container (max-width: 660px) {
+	.zen-dash-dev-columns { display: none; }
+	.zen-dash-dev-row { grid-template-columns: 36px minmax(0, 1fr) auto 16px; gap: 6px 10px; }
+	.zen-dash-dev-icon { grid-column: 1; grid-row: 1 / 4; }
+	.zen-dash-dev-id { grid-column: 2; grid-row: 1; }
+	.zen-dash-dev-ip { grid-column: 2; grid-row: 2; }
+	.zen-dash-dev-mac { grid-column: 2; grid-row: 3; font-size: 10px; padding: 3px 5px; }
+	.zen-dash-dev-ip, .zen-dash-dev-mac { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+	.zen-dash-dev-rates { grid-column: 3; grid-row: 1 / 4; }
+	.zen-dash-dev-chev { grid-column: 4; grid-row: 1 / 4; }
+	.zen-dash-dev-detail { grid-row: 4; padding-left: 0; }
+}

@@ -260,7 +260,8 @@
 							<h3>设备流量 <span class="zen-dash-hint">w_rx_r = ↓ 下载 · w_tx_r = ↑ 上传（与 Bandix 原版一致）</span></h3>
 							<span class="zen-dash-dev-count" id="dev-count">—</span>
 						</div>
-						<ul class="zen-dash-dev-list" id="dev-list"></ul>
+						<div class="zen-dash-dev-columns" aria-hidden="true"><span></span><span>主机名</span><span class="zen-dash-dev-ip">IPv4</span><span class="zen-dash-dev-mac">MAC 地址</span><span class="zen-dash-dev-conn">连接方式</span><span class="zen-dash-dev-rates">实时流量</span><span></span></div>
+<ul class="zen-dash-dev-list" id="dev-list"></ul>
 					</section>
 				</div>
 
@@ -351,7 +352,8 @@ function buildRow(d) {
 
 	var id = el('span', 'zen-dash-dev-id');
 	id.appendChild(el('span', 'zen-dash-dev-name', d.host));
-	id.appendChild(el('span', 'zen-dash-dev-meta', d.ip + ' · ' + d.mac));
+	var ip = el('span', 'zen-dash-dev-ip', d.ip);
+	var mac = el('span', 'zen-dash-dev-mac', d.mac);
 
 	var conn = el('span', 'zen-dash-dev-conn');
 	conn.appendChild(useIcon(d.conn === 'wifi' ? 'zen-i-wifi' : d.conn === 'router' ? 'zen-i-router' : 'zen-i-eth', 13));
@@ -373,8 +375,9 @@ function buildRow(d) {
 	var detail = el('div', 'zen-dash-dev-detail');
 	detail.style.display = 'none';
 
-	li.appendChild(iconBox); li.appendChild(id); li.appendChild(conn);
-	li.appendChild(dl); li.appendChild(ulr); li.appendChild(chev);
+	li.appendChild(iconBox); li.appendChild(id); li.appendChild(ip); li.appendChild(mac); li.appendChild(conn);
+	var rates = el('span', 'zen-dash-dev-rates'); rates.appendChild(dl); rates.appendChild(ulr);
+	li.appendChild(rates); li.appendChild(chev);
 	li.appendChild(detail);
 
 	li.addEventListener('click', function () {
