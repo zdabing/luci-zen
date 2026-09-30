@@ -13,18 +13,22 @@ use std::os::unix::io::RawFd;
 
 // ---- uapi 常量（libc 未覆盖的部分自行定义，值为内核稳定 ABI）----
 const NLM_F_REQUEST: u16 = 0x01;
-const NLM_F_MULTI: u16 = 0x02;
+const NLM_F_DUMP_INTR: u16 = 0x10;
 const NLM_F_ACK: u16 = 0x04;
 const NLM_F_DUMP: u16 = 0x300;
 
 const NLMSG_ERROR: u16 = 0x02;
 const NLMSG_DONE: u16 = 0x03;
 
+const RTM_NEWLINK: u16 = 16;
 const RTM_GETLINK: u16 = 18;
+const RTM_NEWROUTE: u16 = 24;
 const RTM_GETROUTE: u16 = 26;
+const RTM_NEWNEIGH: u16 = 28;
 const RTM_GETNEIGH: u16 = 30;
-const RTM_DELTFILTER: u16 = 33;
-const RTM_GETTFILTER: u16 = 34;
+const RTM_NEWTFILTER: u16 = 44;
+const RTM_DELTFILTER: u16 = 45;
+const RTM_GETTFILTER: u16 = 46;
 
 const IFLA_ADDRESS: u16 = 1;
 const IFLA_IFNAME: u16 = 3;
@@ -136,8 +140,8 @@ fn rta_iter(buf: &[u8]) -> Vec<(u16, &[u8])> {
     out
 }
 
-/// nlmsghdr 迭代：返回 (type, 消息体切片)
-fn nlmsg_iter(buf: &[u8]) -> Vec<(u16, &[u8])> {
+/// 完整消息迭代：保留 nlmsghdr，输出不含尾部 padding。
+fn nlmsg_frames(buf: &[u8]) -> Vec<&[u8]> {
     let mut out = Vec::new();
     let mut off = 0usize;
     while off + 16 <= buf.len() {
@@ -145,10 +149,56 @@ fn nlmsg_iter(buf: &[u8]) -> Vec<(u16, &[u8])> {
         if len < 16 || off + len > buf.len() {
             break;
         }
-        out.push((rd_u16(buf, off + 4), &buf[off + 16..off + len]));
+        out.push(&buf[off..off + len]);
         off += align4(len);
     }
     out
+}
+/// 消息体视图只供解析字段使用；dump 必须保留完整消息。
+fn nlmsg_iter(buf: &[u8]) -> Vec<(u16, &[u8])> {
+    nlmsg_frames(buf)
+        .into_iter()
+        .map(|frame| (rd_u16(frame, 4), &frame[16..]))
+        .collect()
+}
+
+/// 合并一个数据报；过滤其他请求的消息，ACK 不代表 dump 完成。
+fn collect_dump_packet(out: &mut Vec<u8>, packet: &[u8], seq: u32) -> io::Result<bool> {
+    for frame in nlmsg_frames(packet) {
+        if rd_u32(frame, 8) != seq {
+            continue;
+        }
+        if rd_u16(frame, 6) & NLM_F_DUMP_INTR != 0 {
+            return Err(io::Error::new(
+                io::ErrorKind::Interrupted,
+                "netlink dump interrupted",
+            ));
+        }
+        let body = &frame[16..];
+        match rd_u16(frame, 4) {
+            NLMSG_DONE | NLMSG_ERROR => {
+                if body.len() >= 4 {
+                    let err = rd_u32(body, 0) as i32;
+                    if err != 0 {
+                        return Err(io::Error::from_raw_os_error(err.saturating_neg()));
+                    }
+                } else if rd_u16(frame, 4) == NLMSG_ERROR {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "short netlink error",
+                    ));
+                }
+                if rd_u16(frame, 4) == NLMSG_DONE {
+                    return Ok(true);
+                }
+            }
+            _ => {
+                out.extend_from_slice(frame);
+                out.resize(align4(out.len()), 0);
+            }
+        }
+    }
+    Ok(false)
 }
 
 impl Netlink {
@@ -193,10 +243,10 @@ impl Netlink {
         let total = 16 + align4(payload.len());
         let mut req = vec![0u8; total];
         wr_u32(&mut req, 0, total as u32); // len
-        wr_u32(&mut req, 8, 1); // seq
+        wr_u32(&mut req, 8, self.seq); // seq
         wr_u32(&mut req, 12, 0); // pid
         req[4..6].copy_from_slice(&msg_type.to_ne_bytes());
-        req[6..8].copy_from_slice(&(NLM_F_REQUEST | NLM_F_ACK | NLM_F_DUMP | NLM_F_MULTI).to_ne_bytes());
+        req[6..8].copy_from_slice(&(NLM_F_REQUEST | NLM_F_DUMP).to_ne_bytes());
         req[16..16 + payload.len()].copy_from_slice(payload);
 
         let sa = Self::sockaddr_nl();
@@ -228,63 +278,24 @@ impl Netlink {
                 return Err(e);
             }
             let n = n as usize;
-            for (ty, body) in nlmsg_iter(&rbuf[..n]) {
-                match ty {
-                    NLMSG_DONE => return Ok(out),
-                    NLMSG_ERROR => {
-                        if body.len() >= 4 && rd_u32(body, 0) != 0 {
-                            return Err(io::Error::from_raw_os_error(rd_u32(body, 0) as i32));
-                        }
-                        // error==0 为 ACK，dump 场景等待 DONE
-                    }
-                    _ => out.extend_from_slice(body),
-                }
+            if n == 0 {
+                return Err(io::Error::new(
+                    io::ErrorKind::UnexpectedEof,
+                    "netlink socket closed",
+                ));
+            }
+            if collect_dump_packet(&mut out, &rbuf[..n], self.seq)? {
+                return Ok(out);
             }
         }
     }
 
     /// RTM_GETLINK：接口清单 + stats64
     pub fn links(&mut self) -> Vec<LinkInfo> {
-        let mut out = Vec::new();
-        // rtgenmsg: 1 字节 family（AF_UNSPEC=0）
-        let Ok(raw) = self.dump(RTM_GETLINK, &[0u8]) else {
-            return out;
+        let Ok(raw) = self.dump(RTM_GETLINK, &[0u8; 16]) else {
+            return Vec::new();
         };
-        for (ty, body) in nlmsg_iter(&raw) {
-            if ty != RTM_GETLINK || body.len() < 16 {
-                continue;
-            }
-            let ifindex = rd_u32(body, 4); // ifinfomsg.ifi_index @4
-            let attrs = &body[16..];
-            let mut li = LinkInfo {
-                ifindex,
-                name: String::new(),
-                mac: [0; 6],
-                rx_bytes: 0,
-                tx_bytes: 0,
-            };
-            for (at, av) in rta_iter(attrs) {
-                match at {
-                    IFLA_IFNAME => {
-                        let end = av.iter().position(|&b| b == 0).unwrap_or(av.len());
-                        li.name = String::from_utf8_lossy(&av[..end]).into_owned();
-                    }
-                    IFLA_ADDRESS if av.len() == 6 => {
-                        li.mac.copy_from_slice(av);
-                    }
-                    IFLA_STATS64 if av.len() >= 16 => {
-                        // rtnl_link_stats64: rx_bytes @0, tx_bytes @8
-                        li.rx_bytes = rd_u64(av, 0);
-                        li.tx_bytes = rd_u64(av, 8);
-                    }
-                    _ => {}
-                }
-            }
-            if !li.name.is_empty() {
-                out.push(li);
-            }
-        }
-        out
+        parse_links(&raw)
     }
 
     /// RTM_GETROUTE：默认路由（dst_len=0）所在接口（上游/WAN 判定）
@@ -297,28 +308,9 @@ impl Netlink {
             let Ok(raw) = self.dump(RTM_GETROUTE, &msg) else {
                 continue;
             };
-            for (ty, body) in nlmsg_iter(&raw) {
-                if ty != RTM_GETROUTE || body.len() < 12 {
-                    continue;
-                }
-                if body[1] != 0 {
-                    continue; // rtm_dst_len != 0 → 非默认路由
-                }
-                let mut has_dst = false;
-                let mut oif: Option<u32> = None;
-                for (at, av) in rta_iter(&body[12..]) {
-                    match at {
-                        RTA_DST => has_dst = true, // 带目的地址的"默认路由"（policy routing）不作数
-                        RTA_OIF if av.len() == 4 => oif = Some(rd_u32(av, 0)),
-                        _ => {}
-                    }
-                }
-                if !has_dst {
-                    if let Some(o) = oif {
-                        if !out.contains(&o) {
-                            out.push(o);
-                        }
-                    }
+            for iface in parse_default_routes(&raw) {
+                if !out.contains(&iface) {
+                    out.push(iface);
                 }
             }
         }
@@ -327,49 +319,10 @@ impl Netlink {
 
     /// RTM_GETNEIGH：可达/永久的 ARP/NDP 邻居
     pub fn neighbors(&mut self) -> Vec<Neigh> {
-        let mut out = Vec::new();
-        let Ok(raw) = self.dump(RTM_GETNEIGH, &[0u8]) else {
-            return out;
+        let Ok(raw) = self.dump(RTM_GETNEIGH, &[0u8; 12]) else {
+            return Vec::new();
         };
-        for (ty, body) in nlmsg_iter(&raw) {
-            if ty != RTM_GETNEIGH || body.len() < 16 {
-                continue;
-            }
-            // ndmsg: family@0, ifindex@4, state@8
-            let state = rd_u32(body, 8) as u16;
-            if state & NUD_VALID == 0 {
-                continue;
-            }
-            let mut mac = [0u8; 6];
-            let mut ip: Option<(bool, String)> = None;
-            for (at, av) in rta_iter(&body[16..]) {
-                match at {
-                    NDA_DST if av.len() == 4 => {
-                        let a = Ipv4Addr::new(av[0], av[1], av[2], av[3]);
-                        // 排除 0.0.0.0
-                        if !a.is_unspecified() {
-                            ip = Some((false, a.to_string()));
-                        }
-                    }
-                    NDA_DST if av.len() == 16 => {
-                        let mut b = [0u8; 16];
-                        b.copy_from_slice(av);
-                        let a = Ipv6Addr::from(b);
-                        if !a.is_unspecified() && !a.is_unicast_link_local() {
-                            ip = Some((true, a.to_string()));
-                        }
-                    }
-                    NDA_LLADDR if av.len() == 6 => mac.copy_from_slice(av),
-                    _ => {}
-                }
-            }
-            if let Some((v6, s)) = ip {
-                if mac != [0; 6] {
-                    out.push(Neigh { mac, ip: s, v6 });
-                }
-            }
-        }
-        out
+        parse_neighbors(&raw)
     }
 
     /// 清理本项目的残留 TC filter（daemon 崩溃后 Aya link 不会自动 detach）。
@@ -386,7 +339,7 @@ impl Netlink {
         };
         let mut removed = 0usize;
         for (ty, body) in nlmsg_iter(&raw) {
-            if ty != RTM_GETTFILTER || body.len() < 20 {
+            if ty != RTM_NEWTFILTER || body.len() < 20 {
                 continue;
             }
             let handle = rd_u32(body, 8);
@@ -463,12 +416,22 @@ impl Netlink {
                 return Err(e);
             }
             let n = n as usize;
-            for (ty, body) in nlmsg_iter(&rbuf[..n]) {
-                if ty == NLMSG_ERROR {
+            if n == 0 {
+                return Err(io::Error::new(
+                    io::ErrorKind::UnexpectedEof,
+                    "netlink socket closed",
+                ));
+            }
+            for frame in nlmsg_frames(&rbuf[..n]) {
+                if rd_u32(frame, 8) != self.seq {
+                    continue;
+                }
+                let body = &frame[16..];
+                if rd_u16(frame, 4) == NLMSG_ERROR {
                     if body.len() >= 4 {
                         let err = rd_u32(body, 0) as i32;
                         if err != 0 {
-                            return Err(io::Error::from_raw_os_error(err));
+                            return Err(io::Error::from_raw_os_error(err.saturating_neg()));
                         }
                     }
                     return Ok(());
@@ -476,6 +439,117 @@ impl Netlink {
             }
         }
     }
+}
+
+fn parse_links(raw: &[u8]) -> Vec<LinkInfo> {
+    let mut out = Vec::new();
+    for (ty, body) in nlmsg_iter(raw) {
+        if ty != RTM_NEWLINK || body.len() < 16 {
+            continue;
+        }
+        let ifindex = rd_u32(body, 4); // ifinfomsg.ifi_index @4
+        let attrs = &body[16..];
+        let mut li = LinkInfo {
+            ifindex,
+            name: String::new(),
+            mac: [0; 6],
+            rx_bytes: 0,
+            tx_bytes: 0,
+        };
+        for (at, av) in rta_iter(attrs) {
+            match at {
+                IFLA_IFNAME => {
+                    let end = av.iter().position(|&b| b == 0).unwrap_or(av.len());
+                    li.name = String::from_utf8_lossy(&av[..end]).into_owned();
+                }
+                IFLA_ADDRESS if av.len() == 6 => {
+                    li.mac.copy_from_slice(av);
+                }
+                IFLA_STATS64 if av.len() >= 32 => {
+                    // rtnl_link_stats64: packets @0/@8, bytes @16/@24
+                    li.rx_bytes = rd_u64(av, 16);
+                    li.tx_bytes = rd_u64(av, 24);
+                }
+                _ => {}
+            }
+        }
+        if !li.name.is_empty() {
+            out.push(li);
+        }
+    }
+    out
+}
+
+fn parse_neighbors(raw: &[u8]) -> Vec<Neigh> {
+    let mut out = Vec::new();
+    for (ty, body) in nlmsg_iter(raw) {
+        if ty != RTM_NEWNEIGH || body.len() < 12 {
+            continue;
+        }
+        // ndmsg: family@0, ifindex@4, state@8
+        let state = rd_u16(body, 8);
+        if state & NUD_VALID == 0 {
+            continue;
+        }
+        let mut mac = [0u8; 6];
+        let mut ip: Option<(bool, String)> = None;
+        for (at, av) in rta_iter(&body[12..]) {
+            match at {
+                NDA_DST if av.len() == 4 => {
+                    let a = Ipv4Addr::new(av[0], av[1], av[2], av[3]);
+                    // 排除 0.0.0.0
+                    if !a.is_unspecified() {
+                        ip = Some((false, a.to_string()));
+                    }
+                }
+                NDA_DST if av.len() == 16 => {
+                    let mut b = [0u8; 16];
+                    b.copy_from_slice(av);
+                    let a = Ipv6Addr::from(b);
+                    if !a.is_unspecified() && !a.is_unicast_link_local() {
+                        ip = Some((true, a.to_string()));
+                    }
+                }
+                NDA_LLADDR if av.len() == 6 => mac.copy_from_slice(av),
+                _ => {}
+            }
+        }
+        if let Some((v6, s)) = ip {
+            if mac != [0; 6] {
+                out.push(Neigh { mac, ip: s, v6 });
+            }
+        }
+    }
+    out
+}
+
+fn parse_default_routes(raw: &[u8]) -> Vec<u32> {
+    let mut out = Vec::new();
+    for (ty, body) in nlmsg_iter(raw) {
+        if ty != RTM_NEWROUTE || body.len() < 12 {
+            continue;
+        }
+        if body[1] != 0 {
+            continue; // rtm_dst_len != 0 → 非默认路由
+        }
+        let mut has_dst = false;
+        let mut oif: Option<u32> = None;
+        for (at, av) in rta_iter(&body[12..]) {
+            match at {
+                RTA_DST => has_dst = true, // 带目的地址的"默认路由"（policy routing）不作数
+                RTA_OIF if av.len() == 4 => oif = Some(rd_u32(av, 0)),
+                _ => {}
+            }
+        }
+        if !has_dst {
+            if let Some(o) = oif {
+                if !out.contains(&o) {
+                    out.push(o);
+                }
+            }
+        }
+    }
+    out
 }
 
 impl Drop for Netlink {
@@ -501,5 +575,111 @@ fn rd_u64(b: &[u8], off: usize) -> u64 {
             b[off], b[off + 1], b[off + 2], b[off + 3], b[off + 4], b[off + 5], b[off + 6],
             b[off + 7],
         ])
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn message(ty: u16, seq: u32, body: &[u8]) -> Vec<u8> {
+        let mut frame = vec![0u8; align4(16 + body.len())];
+        wr_u32(&mut frame, 0, (16 + body.len()) as u32);
+        frame[4..6].copy_from_slice(&ty.to_ne_bytes());
+        wr_u32(&mut frame, 8, seq);
+        frame[16..16 + body.len()].copy_from_slice(body);
+        frame
+    }
+
+    fn attr(ty: u16, value: &[u8]) -> Vec<u8> {
+        let mut a = vec![0u8; align4(4 + value.len())];
+        a[..2].copy_from_slice(&((4 + value.len()) as u16).to_ne_bytes());
+        a[2..4].copy_from_slice(&ty.to_ne_bytes());
+        a[4..4 + value.len()].copy_from_slice(value);
+        a
+    }
+
+    #[test]
+    fn multipart_dump_preserves_headers_padding_and_sequence() {
+        let mut out = Vec::new();
+        let unrelated = message(16, 8, &[0; 16]);
+        assert!(!collect_dump_packet(&mut out, &unrelated, 9).unwrap());
+        assert!(out.is_empty());
+        let first = message(16, 9, &[1; 17]); // unaligned payload
+        let second = message(24, 9, &[2; 12]);
+        assert!(!collect_dump_packet(&mut out, &first, 9).unwrap());
+        let mut packet = second.clone();
+        packet.extend(message(NLMSG_DONE, 9, &0i32.to_ne_bytes()));
+        assert!(collect_dump_packet(&mut out, &packet, 9).unwrap());
+        assert_eq!(
+            nlmsg_iter(&out),
+            vec![(16, &[1u8; 17][..]), (24, &[2u8; 12][..])]
+        );
+        assert_eq!(&out[..first.len()], first.as_slice());
+    }
+
+    #[test]
+    fn pppoe_link_and_default_route_use_new_messages_and_byte_counters() {
+        let mut link = vec![0u8; 16];
+        wr_u32(&mut link, 4, 7);
+        link.extend(attr(IFLA_IFNAME, b"pppoe-wan\0"));
+        let mut stats = Vec::new();
+        for value in [11u64, 22, 123456, 654321] {
+            stats.extend(value.to_ne_bytes());
+        }
+        link.extend(attr(IFLA_STATS64, &stats));
+        let mut raw = Vec::new();
+        collect_dump_packet(&mut raw, &message(16, 3, &link), 3).unwrap();
+        let links = parse_links(&raw);
+        assert_eq!(links.len(), 1);
+        assert_eq!(links[0].name, "pppoe-wan");
+        assert_eq!(links[0].ifindex, 7);
+        assert_eq!((links[0].rx_bytes, links[0].tx_bytes), (123456, 654321));
+
+        let mut route = vec![0u8; 12];
+        route[0] = libc::AF_INET as u8;
+        route[7] = 1; // RTN_UNICAST
+        route.extend(attr(RTA_OIF, &7u32.to_ne_bytes()));
+        assert_eq!(parse_default_routes(&message(24, 4, &route)), vec![7]);
+        route[1] = 24;
+        assert!(parse_default_routes(&message(24, 4, &route)).is_empty());
+    }
+
+    #[test]
+    fn neighbor_attributes_start_after_twelve_byte_ndmsg() {
+        let mut body = vec![0u8; 12];
+        body[0] = libc::AF_INET as u8;
+        body[8..10].copy_from_slice(&NUD_REACHABLE.to_ne_bytes());
+        let mac = [0x84, 0x47, 0x09, 0x3b, 0xee, 0x70];
+        body.extend(attr(NDA_DST, &[10, 0, 0, 205]));
+        body.extend(attr(NDA_LLADDR, &mac));
+        let neighbors = parse_neighbors(&message(28, 5, &body));
+        assert_eq!(neighbors.len(), 1);
+        assert_eq!(neighbors[0].mac, mac);
+        assert_eq!(neighbors[0].ip, "10.0.0.205");
+    }
+
+    #[test]
+    fn ack_errors_and_interrupted_dumps_are_not_successful_data() {
+        let mut out = Vec::new();
+        let ack = message(NLMSG_ERROR, 6, &0i32.to_ne_bytes());
+        assert!(!collect_dump_packet(&mut out, &ack, 6).unwrap());
+        let error = message(NLMSG_ERROR, 6, &(-1i32).to_ne_bytes());
+        assert_eq!(
+            collect_dump_packet(&mut out, &error, 6).unwrap_err().raw_os_error(),
+            Some(1)
+        );
+        let done_error = message(NLMSG_DONE, 6, &(-5i32).to_ne_bytes());
+        assert_eq!(
+            collect_dump_packet(&mut out, &done_error, 6).unwrap_err().raw_os_error(),
+            Some(5)
+        );
+        let mut interrupted = message(NLMSG_DONE, 6, &0i32.to_ne_bytes());
+        interrupted[6..8].copy_from_slice(&NLM_F_DUMP_INTR.to_ne_bytes());
+        assert_eq!(
+            collect_dump_packet(&mut out, &interrupted, 6).unwrap_err().kind(),
+            io::ErrorKind::Interrupted
+        );
+        assert!(out.is_empty());
     }
 }
