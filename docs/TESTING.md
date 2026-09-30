@@ -175,6 +175,19 @@ python tools/tc-attachment-report.py tcx filters.tcx
 查询结束后删除路由器上的临时程序与结果。两个方向都必须查询完整；工具对响应长度、
 错误状态、超时及中断检查，TCX 不支持时报告错误而不会将其当作零附着。
 
+### TCX 异常退出的隔离验收
+
+2026-10-01 使用已部署 daemon，另建没有 IP 地址的临时 dummy 接口，数据库指向
+独立 `/tmp` 文件。生产采集服务未停止，生产数据库未交给测试进程；测试进程
+注册重复 ubus 对象失败后按已有降级路径继续采集，原 `zen.traffic` 查询正常。
+只读查询两方向 TCX，连续两轮观测为 `0/0 → 1/1 → SIGKILL → 0/0`。
+重新启动的测试实例各方向只有一个附着，没有上一轮残留。
+
+前后生产 daemon PID 和 `br-lan` 的 program/link ID、revision 保持一致，查询的
+backend、version、interval、offload 和同步状态正常。临时接口、RAM 数据库、日志
+与查询程序全部删除并核实。此项覆盖 Linux 6.12 的 TCX 进程异常退出清理，
+不证明旧内核传统 TC filter、生产 procd 崩溃恢复或突然断电后的 SQLite 一致性。
+
 ### LAN/WAN 分开计数
 
 `getDevices` 的今日/本月/累计是 WAN+LAN 合计，不能据它单独判断 LAN 是否误入
@@ -264,7 +277,8 @@ R5C 新增包验证使用 [R5C pinned package acceptance](../.github/workflows/r
 - [x] 全球 IPv6 WAN 已知大小上/下行、同 MAC 归并及临时配置清理。
 - [ ] LAN 桥接/跨 VLAN 口径。
 - [x] 当前 6.12 内核 TCX 两方向正常停止清理、连续重启无重复附着；传统 filter 查询为空。
-- [ ] 旧内核传统 filter 路径和异常退出后的附着清理。
+- [x] 当前 6.12 内核 TCX 隔离测试实例连续两次 SIGKILL 后无附着残留，生产采集未中断。
+- [ ] 旧内核传统 filter 路径、生产 procd 崩溃恢复及断电持久化。
 - [x] 正常服务重启及自然跨日/月连续性、旧历史保留和新历史落盘。
 - [ ] 重启整机、NTP 跳变、PPPoE 重连、卸载 ON/OFF、存储故障和 7 天真机连续记录。
 
