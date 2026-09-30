@@ -223,7 +223,9 @@ return view.extend({
 			}
 		}
 
-		devs.slice(0, MAX_ROWS).forEach((d, idx) => {
+		/* cursor 按 DOM 节点前进，设备行和详情行保持为一组。 */
+		let cursor = this.tbody.firstElementChild;
+		devs.slice(0, MAX_ROWS).forEach((d) => {
 			let row = this.rows.get(d.mac);
 			if (!row) {
 				row = this.buildRow();
@@ -231,10 +233,15 @@ return view.extend({
 			}
 			row.d = d;
 			this.updateRow(row, d);
-			/* insertBefore 重排（移动已有节点） */
-			this.tbody.insertBefore(row.tr, this.tbody.children[idx] || null);
-			if (row.expanded && row.detail)
-				this.tbody.insertBefore(row.detail, row.tr.nextSibling);
+			if (row.tr !== cursor)
+				this.tbody.insertBefore(row.tr, cursor);
+			cursor = row.tr.nextElementSibling;
+			/* 收起的详情也留在所属设备旁，避免下一次展开时错位。 */
+			if (row.detail) {
+				if (row.detail !== cursor)
+					this.tbody.insertBefore(row.detail, cursor);
+				cursor = row.detail.nextElementSibling;
+			}
 		});
 	},
 

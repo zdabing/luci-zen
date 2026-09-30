@@ -90,10 +90,19 @@ function buildRow() {
 	li.appendChild(chev);
 	li.appendChild(detail);
 
-	/* 展开/收起：仅切 class（CSS 过渡），detail 网格内容按需更新 */
+	const ent = {
+		li, iconBox, ov, ip, mac, conn, dl, ul, detail,
+		grid: detail.firstChild,
+		name: id.firstChild,
+		d: null
+	};
+
+	/* 展开时立即使用缓存数据，不等待下一轮轮询。 */
 	const toggle = (ev) => {
 		if (ev.target.closest('.zen-dash-dev-detail'))
 			return;
+		if (!li.classList.contains('open') && ent.d)
+			updateDetail(ent, ent.d);
 		li.classList.toggle('open');
 		li.setAttribute('aria-expanded', String(li.classList.contains('open')));
 	};
@@ -105,11 +114,7 @@ function buildRow() {
 		}
 	});
 
-	return {
-		li, iconBox, ov, ip, mac, conn, dl, ul, detail,
-		grid: detail.firstChild,
-		name: id.firstChild
-	};
+	return ent;
 }
 
 function updateDetail(ent, d) {
@@ -229,6 +234,7 @@ return baseclass.extend({
 				this.list.appendChild(ent.li);
 			}
 
+			ent.d = d;
 			const type = icons.inferType(devName(d), d.conn);
 			if (ent.iconType !== type) {
 				const icon = icons.typeIcon(type, 17);
