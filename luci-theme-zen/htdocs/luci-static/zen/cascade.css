@@ -2998,7 +2998,7 @@ header .showSide:focus-visible { outline: 2px solid var(--accent); outline-offse
 .zen-dash-gauges [data-gauge] { flex-direction: row-reverse; }
 .zen-dash-uptime .zen-dash-sub { white-space: normal; overflow: visible; text-overflow: clip; }
 @container zen-dashboard (min-width: 1100px) {
-	.zen-dash-gauges { grid-template-columns: 1.4fr repeat(4, minmax(0, 1fr)); }
+	.zen-dash-gauges { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 	.zen-dash-uptime { grid-column: auto; }
 	.zen-dash-gauges .zen-dash-card { padding: 14px; gap: 8px; }
 	.zen-dash-gauges .zen-dash-ring svg { width: 56px; height: 56px; }
