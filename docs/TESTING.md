@@ -196,6 +196,14 @@ NAS 原有 SSH 关闭；本次经用户确认临时启用并设置 10 分钟自�
 
 ### P0/P1 剩余证据
 
+R5C 新增包验证使用 [R5C pinned package acceptance](../.github/workflows/r5c-acceptance.yml)，
+以已部署固件源码记录固定 OpenWrt `6ad13aa`、packages `42cd716` 和 LuCI `1fcad1e`。
+它从源码构建匹配目标工具链，采用部署时的 O2/LTO、musl、Rust 1.96 与主机 LLVM
+配置，随后仅编译三个 Zen 包；不使用当前滚动 snapshot SDK，不发布 Release 或
+刷写固件。必要的内核/BPF 依赖会构建，但不分发或安装本次生成的 kmod。
+源码、配置、SHA256 和分阶段耗时随小包产物保存 7 天。完整构建成功及安装后的
+真机核验尚未取得，本流程存在并不表示目标包验收通过。
+
 - [x] Rust 单元测试与匹配头文件的 x86_64、AArch64/musl 1.2.5 ABI 检查，CI #36741518660 成功。
 - [ ] 匹配固件的目标 SDK 中编译新增 ABI guard、出包并安装；CI 的真实 musl 头文件
   交叉编译通过 C 静态断言，不代替完整目标包编译、链接和部署验收。

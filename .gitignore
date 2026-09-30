@@ -22,6 +22,8 @@
 target/
 **/*.rs.bk
 __pycache__/
+/acceptance-openwrt/
+/acceptance-out/
 
 # eBPF 编译产物
 *.bpf.o
