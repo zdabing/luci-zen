@@ -250,7 +250,7 @@ return baseclass.extend({
 				]),
 				E('section', { 'class': 'zen-dash-panel zen-dash-traffic' }, [
 					E('header', { 'class': 'zen-dash-traffic-head' }, [
-						E('h3', {}, [_('Realtime Traffic'), E('span', { 'class': 'zen-dash-hint' }, '~3min · 2s')]),
+						E('h3', {}, [_('Realtime Traffic'), E('span', { 'class': 'zen-dash-hint' }, '~5min · 5s')]),
 						iface
 					]),
 					E('div', { 'class': 'zen-dash-traffic-stats' }, [

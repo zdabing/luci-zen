@@ -1,6 +1,7 @@
 # luci-zen
 
-自包含的 OpenWrt / ImmortalWrt LuCI 项目：Apple 风格主题 + 设备实时流量统计。
+自包含的 OpenWrt / ImmortalWrt LuCI 项目：黑白主题 + 设备实时流量统计。
+视觉参考 Obsidian 的明暗层次，交互与细节遵循 apple-design；上传和下载通过箭头、灰度与曲线线型区分。
 目标平台：OpenWrt 25.x（ucode + 原生 JS，无 Lua 运行时）。
 
 ## 组成

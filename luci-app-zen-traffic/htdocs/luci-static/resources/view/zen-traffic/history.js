@@ -80,11 +80,11 @@ function injectStyles() {
 		'.zen-tf-chart-svg { width: 100%; height: auto; background: rgba(127,127,127,.04); border-radius: 8px; }',
 		'.zen-tf-grid { stroke: currentColor; opacity: .12; }',
 		'.zen-tf-ax { font-size: 11px; fill: currentColor; opacity: .65; }',
-		'.zen-tf-line-dl { stroke: #3478f6; stroke-width: 2; }',
-		'.zen-tf-line-ul { stroke: #34c759; stroke-width: 2; }',
+		'.zen-tf-line-dl { stroke: var(--dl, currentColor); stroke-width: 2; }',
+		'.zen-tf-line-ul { stroke: var(--ul, currentColor); stroke-width: 2; stroke-dasharray: 5 5; }',
 		'.zen-tf-legend { display: flex; gap: 16px; padding-top: 6px; font-size: 13px; }',
-		'.zen-tf-legend .zen-tf-dl { color: #3478f6; }',
-		'.zen-tf-legend .zen-tf-ul { color: #34c759; }'
+		'.zen-tf-legend .zen-tf-dl { color: var(--dl, currentColor); }',
+		'.zen-tf-legend .zen-tf-ul { color: var(--ul, currentColor); }'
 	].join('\n');
 	document.head.appendChild(style);
 }

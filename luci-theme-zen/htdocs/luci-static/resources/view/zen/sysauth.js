@@ -71,7 +71,7 @@ return view.extend({
 			E('section', { 'class': 'zen-login-card', 'aria-labelledby': 'zen-login-title' }, [
 				E('div', { 'class': 'zen-login-heading' }, [
 					E('span', { 'class': 'zen-login-host' }, host),
-					E('h1', { id: 'zen-login-title' }, _('Log in')),
+					E('h1', { id: 'zen-login-title' }, _('Welcome back')),
 					E('p', {}, _('Sign in to manage your network.'))
 				]),
 				...messages,

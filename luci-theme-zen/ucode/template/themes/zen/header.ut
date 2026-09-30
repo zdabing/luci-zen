@@ -68,7 +68,7 @@
 		<header>
 			<div class="fill">
 				<div class="container">
-					<span class="showSide" title="{{ _('Toggle menu') }}" aria-label="{{ _('Toggle menu') }}"></span>
+					<button type="button" class="showSide" title="{{ _('Toggle menu') }}" aria-label="{{ _('Toggle menu') }}" aria-controls="mainmenu" aria-expanded="true"></button>
 					<a id="logo" href="{{ ctx.authsession ? dispatcher.build_url('admin/status/overview') : '#' }}">
 						<img src="{{ media }}/logo.svg?v={{ pkgmtime }}" alt="Zen">
 					</a>

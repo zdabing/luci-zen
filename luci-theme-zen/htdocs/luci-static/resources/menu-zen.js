@@ -125,6 +125,12 @@ return baseclass.extend({
 			clearTimeout(this._resizeTimer);
 			this._resizeTimer = setTimeout(() => this.handleSidebarResize(), 100);
 		});
+		window.addEventListener('keydown', ev => {
+			if (ev.key === 'Escape' && document.body.classList.contains('sidebar-open')) {
+				this.setSidebarOpen(false);
+				if (showSide) showSide.focus();
+			}
+		});
 	},
 
 	handleMenuExpand(ev) {
@@ -268,6 +274,8 @@ return baseclass.extend({
 			return;
 
 		document.body.classList.toggle('sidebar-open', open);
+		const toggle = document.querySelector('.showSide');
+		if (toggle) toggle.setAttribute('aria-expanded', String(open));
 
 		if (darkMask) {
 			darkMask.style.visibility = open ? 'visible' : '';
@@ -291,6 +299,8 @@ return baseclass.extend({
 
 	setDesktopCollapsed(collapsed) {
 		document.body.classList.toggle('sidebar-collapsed', collapsed);
+		const toggle = document.querySelector('.showSide');
+		if (toggle) toggle.setAttribute('aria-expanded', String(!collapsed));
 		try {
 			localStorage.setItem(SIDEBAR_KEY, collapsed ? 'collapsed' : 'open');
 		} catch (e) { /* private mode */ }

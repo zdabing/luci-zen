@@ -61,7 +61,7 @@ function connText(d) {
 }
 
 function buildRow() {
-	const li = E('li', { 'class': 'zen-dash-dev-row' });
+	const li = E('li', { 'class': 'zen-dash-dev-row', role: 'button', tabindex: '0', 'aria-expanded': 'false' });
 
 	const iconBox = E('span', { 'class': 'zen-dash-dev-icon' }, []);
 	const ov = E('span', { 'class': 'zen-dash-ov-dot dot' });
@@ -89,10 +89,18 @@ function buildRow() {
 	li.appendChild(detail);
 
 	/* 展开/收起：仅切 class（CSS 过渡），detail 网格内容按需更新 */
-	li.addEventListener('click', (ev) => {
+	const toggle = (ev) => {
 		if (ev.target.closest('.zen-dash-dev-detail'))
 			return;
 		li.classList.toggle('open');
+		li.setAttribute('aria-expanded', String(li.classList.contains('open')));
+	};
+	li.addEventListener('click', toggle);
+	li.addEventListener('keydown', ev => {
+		if (ev.target === li && (ev.key === 'Enter' || ev.key === ' ')) {
+			ev.preventDefault();
+			toggle(ev);
+		}
 	});
 
 	return {
@@ -227,8 +235,8 @@ return baseclass.extend({
 			setText(ent.name, devName(d));
 			setText(ent.meta, d.mac + (d.ip4 ? ' · ' + d.ip4 : ''));
 			setText(ent.conn, connText(d));
-			setText(ent.dl, fmt.fmtRate(d.rx_r || 0));
-			setText(ent.ul, fmt.fmtRate(d.tx_r || 0));
+			setText(ent.dl, '↓ ' + fmt.fmtRate(d.rx_r || 0));
+			setText(ent.ul, '↑ ' + fmt.fmtRate(d.tx_r || 0));
 
 			if (ent.li.classList.contains('open'))
 				updateDetail(ent, d);

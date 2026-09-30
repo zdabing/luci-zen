@@ -200,11 +200,12 @@
 	.zen-dash-traffic-stats {
 		grid-template-columns: 1fr;
 	}
+	.zen-dash-traffic-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
 	.zen-dash-ov-cell + .zen-dash-ov-cell {
-		padding-left: 0;
+		padding-left: 14px;
 		border-left: 0;
-		padding-top: 12px;
+		padding-top: 14px;
 	}
 
 	.zen-dash-ov-cell:nth-child(n+3) { border-top: 0; }

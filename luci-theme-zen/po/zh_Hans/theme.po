@@ -208,3 +208,6 @@ msgstr "显示密码"
 
 msgid "Hide password"
 msgstr "隐藏密码"
+
+msgid "Welcome back"
+msgstr "欢迎回来"
