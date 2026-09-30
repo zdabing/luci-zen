@@ -8,7 +8,7 @@
 2. eBPF 对象编译：`clang -target bpf` 编译 `zen-traffic/bpf/zen_traffic.bpf.c`
 3. `.po` 翻译文件校验：`node tools/check-po.js`
 
-新增检查（需对应 CI 运行成功后才能作为通过证据）：匹配真机版本的 libubox/libubus
+新增检查：匹配真机版本的 libubox/libubus
 头文件 ABI 编译检查、`cargo test --workspace`、两个包的翻译校验、首页历史恢复
 回归及 SQLite 保留/聚合回归。SDK 的 `Build/Configure` 也会使用目标 staging
 头文件编译 `abi-check.c`；布局不匹配时停止出包。
@@ -74,10 +74,14 @@ MAC 与原始日志仅留在忽略目录 `.zcode/`，不放入公开报告。
 | WAN 历史 | pppoe-wan 可查询，约 5 秒采样，包含最近未落盘样本 |
 | LuCI 真机 | 中文登录页与首页可用，PPPoE 状态、双轴曲线、设备列表有真实数据 |
 | 本地回归 | 5 个实时历史测试、4 个日/月保留测试、首页历史恢复与两个包翻译校验通过 |
+| Rust / ABI CI | [运行 #36736316491](https://github.com/zdabing/luci-zen/actions/runs/36736316491) 全部通过；9 个 Rust 单测、C 头文件布局、eBPF 与前端/SQLite 回归成功 |
+| WAN 上行 | 客户端 A 向 Cloudflare 上传 16 MiB，HTTP 200；tx 增量误差 +1.303%（客户端隧道仍参与路径） |
+| 直连 WAN 下行 | 从 USTC 镜像下载已确认存在的文件前 16 MiB，HTTP 206；rx 增量误差 +3.766% |
+| IPv6 LAN | 4 MiB link-local 上行成功，误差 +1.739%；仍归并到客户端 A 的同一个 MAC 条目 |
 
 设备增量包括 TCP/IP 与测试控制流量，误差按 `(增量 / 应用载荷 - 1)` 计算。
-以上为两个客户端分别到路由器的 LAN 测试，没有证明两设备同时传输、LAN 桥接对传、
-WAN 转发、IPv6 或卸载开启时的准确性。TCP 上行 iperf 接收报告少一个发送块，
+两个客户端分别到路由器的 LAN 测试及单客户端 WAN 已测；没有证明两设备同时传输、
+LAN 桥接对传、全球 IPv6 / IPv6 WAN 或卸载开启时的准确性。TCP 上行 iperf 接收报告少一个发送块，
 本表以发送端已发送的 64 MiB 为载荷基准。
 
 | 性能 | 实测 |
@@ -93,6 +97,23 @@ CPU 由 `/proc/<pid>/stat` 与 `/proc/stat` 差分计算，daemon 百分比按�
 忙碌按四核总量计。daemon CPU 不包括 eBPF 在内核网络路径中的开销。短样本中的
 零 CPU 差分受时钟 tick 精度限制；HTTP 的 146–253 Mbps 是 Wi-Fi/HTTP 路径结果，
 不作为路由器吞吐上限。UDP 应用数据报数也不保证等于 TC 看到的 skb 数（GRO/GSO）。
+
+### WAN 测试路径与偏差排查
+
+客户端运行 Bettbox TUN，测试域名解析为假 IP；Windows 实际路由也将公网测试地址
+导入 TUN。直接传 `--resolve` 并不能绕过该路由。GitHub 文件的 8/32 MiB 请求多次
+出现 11.7%–37.8% 正差，而路由器对对应公网连接的定向包头抓包为零，不能把这些
+应用载荷与经过 LAN 的隧道字节直接等同，也没有证据据此判定 Zen 计数错误。
+
+为验证真正直连，仅给选定镜像服务器添加临时 Windows ActiveStore `/32` 路由，
+下一跳为 LAN 路由器；不改默认路由或关闭 TUN。国内镜像直连成功，16 MiB 已知
+大小下载通过 ±10% 判据。GitHub 直连 TLS 未完成，Cloudflare 下载返回 403，
+这两项没有作为通过证据。所有临时路由、HTTP 监听和路由器抓包文件均已清理。
+客户端当前仅有 IPv6 link-local 地址，所以 IPv6 测试只证明 LAN/MAC 合并。
+
+使用的公开测试源为 [Cloudflare 官方测速接口说明](https://github.com/cloudflare/speedtest)
+和 [USTC 镜像目录](https://mirrors.ustc.edu.cn/ubuntu-releases/24.04/)；
+下载按 HTTP Range 限制大小，没有安装镜像或公开用户数据。原始采集仅存本地忽略目录。
 
 ### 可复现基线
 
@@ -117,10 +138,11 @@ NAS `/tmp/zen-p0-test.1m31GWSD` 留有本次无凭据的源码副本；SSH 自�
 
 ### P0/P1 剩余证据
 
-- [ ] 新增 Rust 单元测试 CI 成功记录；当前 Windows 没有 Linux Rust/libubus 构建环境。
+- [x] Rust 单元测试与匹配头文件的 x86_64 ABI 检查，CI #36736316491 成功。
 - [ ] 目标 musl SDK 中编译新增 ABI guard 并出包；现已用匹配版本头文件在 AArch64
   交叉编译通过 C 静态断言，但使用 Android sysroot，不代替目标 musl SDK 验收。
-- [ ] 两客户端同时传输、WAN/IPv6 已知大小测试及 LAN 桥接/跨 VLAN 口径。
+- [x] 两个客户端分别传输、单客户端 WAN 上/下行及 IPv6 link-local 上行已知大小验证。
+- [ ] 两客户端同时传输、全球 IPv6/WAN、LAN 桥接/跨 VLAN 口径。
 - [ ] tc filter 无重复挂载证据（固件没有 tc 命令）；仅重启恢复通过不足以替代此项。
 - [ ] 重启整机、跨日/月、NTP 跳变、PPPoE 重连、卸载 ON/OFF、存储故障和 7 天真机连续记录。
 
