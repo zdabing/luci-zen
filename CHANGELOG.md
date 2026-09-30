@@ -1,5 +1,11 @@
 # 更新记录
 
+## 未发布
+
+- `zen-traffic` 包 release 升为 2：在 OpenWrt 开启 C LTO 时，为 bundled SQLite
+  保留机器码并补齐 GCC 最终链接的 LTO 插件参数，处理 `sqlite3_*` 未定义符号。
+  Rust 和 C LTO 保持启用；完整 R5C 固件构建仍需验证。
+
 ## 0.2.0 — 2026-09-30
 
 ### 新增
