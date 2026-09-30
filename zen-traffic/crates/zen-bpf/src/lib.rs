@@ -2,14 +2,14 @@
 //!
 //! 自 poc/rust-spike 的 bpf.rs / tc.rs 演进（spike Step 2/3 已验证的 API 面）：
 //!   - load：EbpfLoader::new().load_file()（BTF-defined maps 随对象自带，license=GPL 由 ELF 读取）；
-//!   - attach/detach：clsact qdisc + SchedClassifier ingress/egress，Aya 自管 Link；
+//!   - attach/detach：SchedClassifier ingress/egress，Aya 自管 Link；
 //!   - read_devices：全量遍历 devices HASH（key=MAC，value=dev_stats）；
 //!   - prefix_insert：local_prefixes LPM 写入（IPv4 以 v4-mapped 归一化，单表双栈）。
 //!
 //! 与 C PoC 的语义差异（有意为之，见 ARCHITECTURE.md 执行记录）：
-//!   - C 版固定 pref/handle REPLACE 幂等 attach；Aya 走 netlink filter 语义，
-//!     daemon 崩溃后 filter 可能残留 → 由 zen-trafficd 的 netlink 模块在启动时
-//!     按名字清理本项目的旧 filter（zen_ingress/zen_egress），保证幂等；
+//!   - C 版固定 pref/handle REPLACE 幂等 attach；Aya 的自动 attach 可选择 TCX。
+//!     R5C Linux 6.12 真机使用 TCX，停止后 Link 自动释放；传统 netlink filter
+//!     路径可能残留，由启动清理按名字删除本项目旧 filter（zen_ingress/zen_egress）；
 //!   - C 版 pin maps 保持计数连续；Rust 版不 pin，重启后 BPF 计数从 0 开始，
 //!     累计（今日/月/总量）由 SQLite checkpoint 恢复（崩溃丢失去 checkpoint 止，
 //!     正常 SIGTERM 无损失）。

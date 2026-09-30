@@ -71,6 +71,7 @@ MAC 与原始日志仅留在忽略目录 `.zcode/`，不放入公开报告。
 | 客户端 B 64 MiB TCP 上/下行，限 100 Mbps | tx/rx 方向正确；增量误差 +0.215% / +0.155% |
 | B 测试时其他 MAC | 最大同方向增量分别为测试载荷的 0.126% / 3.047%，低于 10% 判据 |
 | 正常服务重启 | 22 台设备累计、今日、本月计数均 after ≥ before；正常退出 checkpoint 完成 |
+| TC/BPF 附着清理 | Linux 6.12 实际使用 TCX；运行时 ingress/egress 各 1 个，停止后各 0 个，启动及连续 3 次重启后始终各 1 个 |
 | WAN 历史 | pppoe-wan 可查询，约 5 秒采样，包含最近未落盘样本 |
 | LuCI 真机 | 中文登录页与首页可用，PPPoE 状态、双轴曲线、设备列表有真实数据 |
 | 本地回归 | 5 个实时历史测试、4 个日/月保留测试、首页历史恢复与两个包翻译校验通过 |
@@ -128,6 +129,33 @@ CPU 由 `/proc/<pid>/stat` 与 `/proc/stat` 差分计算，daemon 百分比按�
 历史均写入下载 59,726,260 字节、上传 6,025,792 字节；查询时内存计数稍高，
 对应检查点之后的流量。未修改系统时间，也未清空数据库；本项不覆盖 NTP 跳变。
 
+### TCX 与传统 TC filter 检查
+
+2026-10-01 用只读内核接口查询，`br-lan` 的传统 `RTM_GETTFILTER` 两方向为空，
+但 `BPF_PROG_QUERY` 的 TCX ingress/egress 各返回 1 个程序和 1 个 Link。
+停止服务后各返回 0 个；重新启动与连续 3 次正常重启后始终各 1 个，程序与 Link ID
+随重新加载变化。最终 ubus 报告 backend=ebpf、synced=true、22 台设备。
+临时查询程序已删除。此证据覆盖当前内核的正常停止/启动，不覆盖旧内核传统 filter
+路径或进程异常退出；仅查看 `tc filter` 的空结果会漏掉当前 TCX 附着。
+
+固件未安装 `tc`/`bpftool`，查询工具只使用 Linux UAPI，没有修改附着或加载 BPF。
+可用 Clang + LLD 编译独立 AArch64 ELF，不依赖 libc；它不是目标包编译的替代品：
+
+```sh
+clang --target=aarch64-linux-gnu -Os -ffreestanding -fno-stack-protector \
+  -nostdlib -static -fuse-ld=lld -Wall -Wextra -Werror \
+  tools/tc-filter-dump-aarch64.c -o tc-filter-dump
+# 将程序复制到 ARM64 路由器 /tmp 后，在路由器执行：
+/tmp/tc-filter-dump "$(cat /sys/class/net/br-lan/ifindex)" > /tmp/filters.netlink
+/tmp/tc-filter-dump "$(cat /sys/class/net/br-lan/ifindex)" tcx > /tmp/filters.tcx
+# 将结果取回开发机解码；退出非零或解码失败不算通过：
+python tools/tc-attachment-report.py netlink filters.netlink
+python tools/tc-attachment-report.py tcx filters.tcx
+```
+
+查询结束后删除路由器上的临时程序与结果。两个方向都必须查询完整；工具对响应长度、
+错误状态、超时及中断检查，TCX 不支持时报告错误而不会将其当作零附着。
+
 ### 可复现基线
 
 安装 Paramiko 后，在可信终端运行（密码交互输入，不写进参数或文件）：
@@ -156,7 +184,8 @@ NAS `/tmp/zen-p0-test.1m31GWSD` 留有本次无凭据的源码副本；SSH 自�
   交叉编译通过 C 静态断言，不代替完整目标包编译、链接和部署验收。
 - [x] 两个客户端分别传输、单客户端 WAN 上/下行及 IPv6 link-local 上行已知大小验证。
 - [ ] 两客户端同时传输、全球 IPv6/WAN、LAN 桥接/跨 VLAN 口径。
-- [ ] tc filter 无重复挂载证据（固件没有 tc 命令）；仅重启恢复通过不足以替代此项。
+- [x] 当前 6.12 内核 TCX 两方向正常停止清理、连续重启无重复附着；传统 filter 查询为空。
+- [ ] 旧内核传统 filter 路径和异常退出后的附着清理。
 - [x] 正常服务重启及自然跨日/月连续性、旧历史保留和新历史落盘。
 - [ ] 重启整机、NTP 跳变、PPPoE 重连、卸载 ON/OFF、存储故障和 7 天真机连续记录。
 

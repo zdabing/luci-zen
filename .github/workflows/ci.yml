@@ -86,7 +86,13 @@ jobs:
       - name: Install clang / libbpf headers
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang llvm libbpf-dev
+          sudo apt-get install -y clang llvm lld libbpf-dev
+
+      - name: Compile read-only AArch64 TC attachment helper
+        run: |
+          clang --target=aarch64-linux-gnu -Os -ffreestanding -fno-stack-protector \
+            -nostdlib -static -fuse-ld=lld -Wall -Wextra -Werror \
+            tools/tc-filter-dump-aarch64.c -o tc-filter-dump
 
       # 正式数据面（zen-traffic/Makefile 内 bpf.mk 同参数：-O2 -g -target bpf）
       # -I/usr/include/x86_64-linux-gnu：bpf target 下 linux/types.h 找不到 asm/types.h
