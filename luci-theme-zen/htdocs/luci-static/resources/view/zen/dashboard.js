@@ -231,6 +231,13 @@ return baseclass.extend({
 				E('span', { 'data-strip': 'uptime' }, '')
 			]),
 			E('div', { 'class': 'zen-dash-gauges' }, [
+				E('article', { 'class': 'zen-dash-card zen-dash-uptime' }, [
+					E('div', { 'class': 'zen-dash-meta' }, [
+						E('div', { 'class': 'zen-dash-label' }, _('Uptime')),
+						E('div', { 'class': 'zen-dash-value', 'data-uptime': 'value' }, fmt.MISSING),
+						E('div', { 'class': 'zen-dash-sub' }, _('Since last restart'))
+					])
+				]),
 				this.buildRing('load', _('Load')),
 				this.buildRing('cpu', 'CPU'),
 				this.buildRing('ram', 'RAM'),
@@ -310,6 +317,18 @@ return baseclass.extend({
 			if (dot)
 				dot.className = 'zen-dash-ov-dot ' + (dotState ? 'up' : 'down');
 		}
+	},
+
+	setUptime(sec) {
+		let value = fmt.MISSING;
+		if (sec != null && sec !== '' && Number.isFinite(Number(sec)) && Number(sec) >= 0) {
+			const minutes = Math.floor(Number(sec) / 60);
+			const days = Math.floor(minutes / 1440);
+			const hours = String(Math.floor(minutes % 1440 / 60)).padStart(2, '0');
+			const mins = String(minutes % 60).padStart(2, '0');
+			value = (days ? _('%dd').format(days) + ' ' : '') + hours + ':' + mins;
+		}
+		this.setText(this.dash, '[data-uptime]', value);
 	},
 
 	setStrip(host, model, uptime) {
@@ -705,6 +724,7 @@ return baseclass.extend({
 
 		const sys = info || {};
 		this.setStrip(sys.hostname, sys.model, sys.uptime != null ? fmt.fmtUptime(sys.uptime) : fmt.MISSING);
+		this.setUptime(sys.uptime);
 
 		const loadRaw = (sys.load || [0, 0, 0]).map((v) => (Number(v) || 0) / 65535);
 		const perCore = loadRaw[0] / (cpu.cores || 1);

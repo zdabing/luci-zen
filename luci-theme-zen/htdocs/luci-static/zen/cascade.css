@@ -2157,7 +2157,7 @@ body.node-admin-status-overview #maincontent > .container {
 	letter-spacing: -0.01em;
 }
 
-/* --- 系统状态 4 卡 --- */
+/* --- 系统状态卡片 --- */
 .zen-dash-gauges {
 	display: grid;
 	grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -2988,4 +2988,16 @@ header .showSide:focus-visible { outline: 2px solid var(--accent); outline-offse
 	.zen-dash-dev-rates { grid-column: 3; grid-row: 1 / 4; }
 	.zen-dash-dev-chev { grid-column: 4; grid-row: 1 / 4; }
 	.zen-dash-dev-detail { grid-row: 4; padding-left: 0; }
+}
+
+/* Uptime uses the same tonal surface; layout follows available dashboard width. */
+#zen-dashboard { container-type: inline-size; container-name: zen-dashboard; }
+.zen-dash-gauges { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.zen-dash-uptime { grid-column: 1 / -1; background: var(--bg-nested); }
+.zen-dash-uptime .zen-dash-label { font-size: 15px; font-weight: 500; }
+.zen-dash-uptime .zen-dash-value { font-size: clamp(30px, 3vw, 40px); letter-spacing: -0.035em; white-space: nowrap; }
+.zen-dash-uptime .zen-dash-sub { font-size: 14px; }
+@container zen-dashboard (min-width: 1200px) {
+	.zen-dash-gauges { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+	.zen-dash-uptime { grid-column: auto; }
 }

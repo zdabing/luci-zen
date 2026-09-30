@@ -217,3 +217,12 @@ msgstr "主机名"
 
 msgid "Connection"
 msgstr "连接方式"
+
+msgid "Uptime"
+msgstr "运行时间"
+
+msgid "Since last restart"
+msgstr "自上次重启"
+
+msgid "%dd"
+msgstr "%d天"
