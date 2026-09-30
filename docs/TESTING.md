@@ -221,8 +221,10 @@ LAN 下行计数 33,600,128 字节，WAN 下行仅 1,789 字节。后台 WAN 流
 源码现读取 `ipv6-address` 与 `ipv6-prefix-assignment`，保留默认路由上游排除，
 不读取代表上游委派范围的 `ipv6-prefix`。加入 netifd 格式的回归样本，覆盖空地址
 列表、公网/ULA assigned 子网、上游委派不导入、默认路由标记和非法 mask 拒绝。
-daemon 包 release 增为 3。当前运行的目标包构建基于修复前提交，不能作为这项
-修复的出包或部署证据；新包编译、安装和 IPv6 LAN/WAN 再验仍待完成。
+daemon 包 release 增为 3。[CI #36758124873](https://github.com/zdabing/luci-zen/actions/runs/36758124873)
+全部通过，新增 assigned 子网回归通过，共 10 个 Rust 单元测试。已完成的第一次
+目标包构建基于修复前提交，不能作为这项修复的出包或部署证据；新包编译、安装
+和 IPv6 LAN/WAN 再验仍待完成。
 
 ### 当前拓扑的终端对传边界
 
@@ -282,8 +284,18 @@ R5C 新增包验证使用 [R5C pinned package acceptance](../.github/workflows/r
 它从源码构建匹配目标工具链，采用部署时的 O2/LTO、musl、Rust 1.96 与主机 LLVM
 配置，随后仅编译三个 Zen 包；不使用当前滚动 snapshot SDK，不发布 Release 或
 刷写固件。必要的内核/BPF 依赖会构建，但不分发或安装本次生成的 kmod。
-源码、配置、SHA256 和分阶段耗时随小包产物保存 7 天。完整构建成功及安装后的
-真机核验尚未取得，本流程存在并不表示目标包验收通过。
+源码、配置、SHA256 和分阶段耗时随小包产物保存 7 天。
+[首次构建 #36746547558](https://github.com/zdabing/luci-zen/actions/runs/36746547558)
+已成功：实际 target GCC 编译 ABI guard 并链接三个 APK，产物 SHA256 全部核实；
+路由器离线 `apk add --simulate --force-reinstall` 只替换三个 Zen 包，依赖及架构满足。
+此产物为修复 IPv6 assigned 子网前的 `cbdbb12`，未实际安装；修复后的 r3 出包、
+安装及真机核验仍未完成。当前文件、配置和 APK 元数据已备份，安装前另取一致
+SQLite 备份；模拟成功不等于部署通过。
+
+首次四任务并行冷构建的阶段耗时：tools 993 秒、toolchain 1477 秒、kernel 607 秒、
+Zen 包阶段 2229 秒（含首次 Rust host 构建）、LuCI app 46 秒、theme 14 秒。
+详细 make 日志显示 Rust host 首次构建 2142.69 秒，Zen daemon 自身 82.47 秒；
+包阶段不能直接当作 daemon 编译成本，也不能与另一完整固件构建直接作加速比较。
 
 - [x] Rust 单元测试与匹配头文件的 x86_64、AArch64/musl 1.2.5 ABI 检查，CI #36741518660 成功。
 - [ ] 匹配固件的目标 SDK 中编译新增 ABI guard、出包并安装；CI 的真实 musl 头文件

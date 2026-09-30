@@ -7,6 +7,9 @@ on:
     paths:
       - '.github/workflows/r5c-acceptance.yml'
       - 'tools/r5c-acceptance-build.sh'
+      - 'zen-traffic/**'
+      - 'luci-app-zen-traffic/**'
+      - 'luci-theme-zen/**'
 
 permissions:
   contents: read
