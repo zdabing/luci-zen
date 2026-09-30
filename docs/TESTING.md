@@ -81,11 +81,12 @@ MAC 与原始日志仅留在忽略目录 `.zcode/`，不放入公开报告。
 | WAN 上行 | 客户端 A 向 Cloudflare 上传 16 MiB，HTTP 200；tx 增量误差 +1.303%（客户端隧道仍参与路径） |
 | 直连 WAN 下行 | 从 USTC 镜像下载已确认存在的文件前 16 MiB，HTTP 206；rx 增量误差 +3.766% |
 | IPv6 LAN | 4 MiB link-local 上行成功，误差 +1.739%；仍归并到客户端 A 的同一个 MAC 条目 |
+| IPv6 WAN 下行 | 客户端 A 用临时公网 IPv6 地址直连镜像，16 MiB / HTTP 206，rx 增量误差 +6.139%；同一 MAC 仅 1 个条目 |
 | 自然跨日/月 | 9 月 30 日 23:58:03 至 10 月 1 日 00:02:52 连续观察；逐设备累计不减，新日/月计数一致且递增，旧历史保留，新历史正常落盘 |
 
 设备增量包括 TCP/IP 与测试控制流量，误差按 `(增量 / 应用载荷 - 1)` 计算。
 两个客户端分别及同时到路由器的 LAN 测试、单客户端 WAN 已测；没有证明
-LAN 桥接对传、全球 IPv6 / IPv6 WAN 或卸载开启时的准确性。TCP 上行 iperf 接收报告少一个发送块，
+LAN 桥接对传、IPv6 WAN 上行或卸载开启时的准确性。TCP 上行 iperf 接收报告少一个发送块，
 本表以发送端已发送的 64 MiB 为载荷基准。
 
 | 性能 | 实测 |
@@ -113,7 +114,15 @@ CPU 由 `/proc/<pid>/stat` 与 `/proc/stat` 差分计算，daemon 百分比按�
 下一跳为 LAN 路由器；不改默认路由或关闭 TUN。国内镜像直连成功，16 MiB 已知
 大小下载通过 ±10% 判据。GitHub 直连 TLS 未完成，Cloudflare 下载返回 403，
 这两项没有作为通过证据。所有临时路由、HTTP 监听和路由器抓包文件均已清理。
-客户端当前仅有 IPv6 link-local 地址，所以 IPv6 测试只证明 LAN/MAC 合并。
+客户端通常仅有 IPv6 link-local 地址；检查发现路由器已取得公网 IPv6 与 LAN
+前缀，但 LAN RA/DHCPv6 均关闭。没有将该配置自动开启。
+
+10 月 1 日另用 delegated LAN 前缀内的随机临时地址验证 IPv6 WAN 下行：地址只放
+Windows ActiveStore，设置 10 分钟有效期和 SkipAsSource，并给已确认的镜像 IPv6
+地址添加一条定向 `/128` 路由；curl 显式绑定测试源地址。没有添加默认 IPv6 路由。
+测试期间只针对该临时地址加一条 WAN 新建入站连接丢弃规则，不影响已建立的
+下载连接；结束后核实测试地址、定向路由及该规则均已删除。16 MiB 下载返回
+HTTP 206，用时 1.671 秒，MAC 归因和 ±10% 误差判据通过；这不证明 IPv6 WAN 上行。
 
 使用的公开测试源为 [Cloudflare 官方测速接口说明](https://github.com/cloudflare/speedtest)
 和 [USTC 镜像目录](https://mirrors.ustc.edu.cn/ubuntu-releases/24.04/)；
@@ -209,7 +218,8 @@ R5C 新增包验证使用 [R5C pinned package acceptance](../.github/workflows/r
   交叉编译通过 C 静态断言，不代替完整目标包编译、链接和部署验收。
 - [x] 两个客户端分别传输、单客户端 WAN 上/下行及 IPv6 link-local 上行已知大小验证。
 - [x] 两客户端同时 LAN 上/下行，各自方向与独立用量已知大小验证。
-- [ ] 全球 IPv6/WAN、LAN 桥接/跨 VLAN 口径。
+- [x] 全球 IPv6 WAN 已知大小下行、同 MAC 归并及临时配置清理。
+- [ ] IPv6 WAN 上行、LAN 桥接/跨 VLAN 口径。
 - [x] 当前 6.12 内核 TCX 两方向正常停止清理、连续重启无重复附着；传统 filter 查询为空。
 - [ ] 旧内核传统 filter 路径和异常退出后的附着清理。
 - [x] 正常服务重启及自然跨日/月连续性、旧历史保留和新历史落盘。
