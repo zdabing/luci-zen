@@ -31,6 +31,8 @@ const callSystemInfo = rpc.declare({
 	method: 'info'
 });
 
+const callRealtimeHistory = rpc.declare({ object: 'zen.traffic', method: 'getRealtimeHistory', params: ['iface', 'start', 'end', 'limit'] });
+
 const callSystemBoard = rpc.declare({ object: 'system', method: 'board' });
 
 const callDevStatus = rpc.declare({
@@ -238,6 +240,8 @@ return baseclass.extend({
 			E('option', { value: 'all' }, _('All'))
 		]);
 		iface.addEventListener('change', () => {
+			this.historyLoadedFor = null;
+			this.historyRequest = (this.historyRequest || 0) + 1;
 			this.ifaceChosen = true;
 			this.iface = iface.value || 'all';
 			this.history = [];
@@ -344,6 +348,20 @@ return baseclass.extend({
 				])
 			])
 		]);
+	},
+
+	async loadRealtimeHistory() {
+		const iface = this.iface;
+		if (!this.wanDevice || iface !== this.wanDevice || this.historyLoadedFor === iface) return;
+		this.historyLoadedFor = iface;
+		const request = this.historyRequest = (this.historyRequest || 0) + 1;
+		const end = Math.floor(Date.now() / 1000);
+		try {
+			const data = await callRealtimeHistory(iface, end - (HISTORY - 1) * POLL_SECS, end, HISTORY);
+			if (request !== this.historyRequest || this.iface !== iface) return;
+			this.history = ((data && data.samples) || []).filter(sample => Number.isFinite(sample.time))
+				.map(sample => ({ t: sample.time * 1000, rx: Number(sample.download) || 0, tx: Number(sample.upload) || 0 })).slice(-HISTORY);
+		} catch (e) { /* Older/unavailable daemon: continue collecting the browser's live samples. */ }
 	},
 
 	setText(root, selector, text) {
@@ -870,12 +888,15 @@ return baseclass.extend({
 		this.wanProto = wan && wan.getProtocol ? String(wan.getProtocol()).toUpperCase().replace('PPPOE', 'PPPoE') : '';
 		if (!this.ifaceChosen && this.wanDevice && this.iface !== this.wanDevice) {
 			this.iface = this.wanDevice;
+			this.historyLoadedFor = null;
 			this.history = [];
 			this.prevNet = null;
 			this.prevAt = 0;
 		}
 
+		await this.loadRealtimeHistory();
 		const stats = this.pickStats(devs || {}, this.iface);
+		const hadBaseline = !!(this.prevNet && this.prevAt);
 		let rxRate = 0, txRate = 0;
 		if (this.prevNet && this.prevAt) {
 			const dt = Math.max((now - this.prevAt) / 1000, 0.001);
@@ -884,7 +905,8 @@ return baseclass.extend({
 		}
 		this.prevNet = { rx: stats.rx, tx: stats.tx };
 		this.prevAt = now;
-		this.history.push({ t: now, rx: rxRate, tx: txRate });
+		if (hadBaseline || !this.history.length)
+			this.history.push({ t: now, rx: rxRate, tx: txRate });
 		if (this.history.length > HISTORY)
 			this.history.shift();
 

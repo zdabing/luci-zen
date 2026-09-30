@@ -69,10 +69,10 @@ function orDash(v) {
 
 function ageStr(sec) {
 	sec = Math.max(0, (Date.now() / 1000) - (Number(sec) || 0));
-	if (sec < 90) return '%ds ago'.format(Math.round(sec));
-	if (sec < 5400) return '%dm ago'.format(Math.round(sec / 60));
-	if (sec < 172800) return '%dh ago'.format(Math.round(sec / 3600));
-	return '%dd ago'.format(Math.round(sec / 86400));
+	if (sec < 90) return _('%d seconds ago').format(Math.round(sec));
+	if (sec < 5400) return _('%d minutes ago').format(Math.round(sec / 60));
+	if (sec < 172800) return _('%d hours ago').format(Math.round(sec / 3600));
+	return _('%d days ago').format(Math.round(sec / 86400));
 }
 
 function connLabel(d) {

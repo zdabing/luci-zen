@@ -24,21 +24,22 @@ pub fn detect_upstream(d: &mut Daemon) {
                 .join(",")
         );
     }
-    d.upstream = idx;
-    d.up_prev.clear();
+    if d.upstream != idx {
+        d.upstream = idx;
+        d.up_prev.clear();
+    }
     d.route_checked_mono = now_mono_ms();
 }
 
 /// 每 tick 调用：差分上游接口 stats64 → 全局实时速率
-pub fn refresh(d: &mut Daemon) {
+pub fn refresh(d: &mut Daemon, links: &[crate::netlink::LinkInfo]) {
     let now_mono = now_mono_ms();
     if now_mono.saturating_sub(d.route_checked_mono) >= REFRESH_ROUTE_SECS * 1000 {
         detect_upstream(d);
     }
 
-    let links = d.nl.links();
     let mut cur: HashMap<u32, (u64, u64)> = HashMap::new();
-    for l in &links {
+    for l in links {
         if d.upstream.contains(&l.ifindex) {
             cur.insert(l.ifindex, (l.rx_bytes, l.tx_bytes));
         }

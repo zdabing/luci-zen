@@ -30,7 +30,7 @@ pub fn rollover_if_needed(d: &mut Daemon) {
     if today != d.cur_day {
         // 保留期清理：daily 90 天
         let before = date_shift(&today, RETENTION_DAYS);
-        if let Err(e) = d.db.prune(&before, "9999-12") {
+        if let Err(e) = d.db.prune_days(&before) {
             eprintln!("[zen-trafficd] daily 清理失败: {e}");
         }
         for s in d.devs.values_mut() {
@@ -44,7 +44,7 @@ pub fn rollover_if_needed(d: &mut Daemon) {
     if month != d.cur_month {
         // 保留期清理：monthly 12 个月
         let before = month_shift(&month, RETENTION_MONTHS);
-        if let Err(e) = d.db.prune("9999-12-31", &before) {
+        if let Err(e) = d.db.prune_months(&before) {
             eprintln!("[zen-trafficd] monthly 清理失败: {e}");
         }
         for s in d.devs.values_mut() {

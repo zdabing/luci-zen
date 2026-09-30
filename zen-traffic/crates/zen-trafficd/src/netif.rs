@@ -14,6 +14,7 @@ use crate::netlink::Netlink;
 /// ubus dump 回调 ↔ 主流程的暂存区（uloop 单线程，Mutex 仅为 static 约束）
 struct DumpScratch {
     ifaces: Vec<IfEntry>,
+    valid: bool,
 }
 
 struct IfEntry {
@@ -23,55 +24,52 @@ struct IfEntry {
     upstream: bool,
 }
 
-static SCRATCH: Mutex<DumpScratch> = Mutex::new(DumpScratch { ifaces: Vec::new() });
+static SCRATCH: Mutex<DumpScratch> = Mutex::new(DumpScratch { ifaces: Vec::new(), valid: false });
 
 /// 刷新 local_prefixes：返回写入条数
-pub unsafe fn refresh(d: &mut Daemon) -> usize {
-    let mut count = 0usize;
-
-    // 1) defaults：IPv4 链路本地 169.254/16、IPv6 链路本地 fe80::/10
-    count += insert(d, false, &Ipv4Addr::new(169, 254, 0, 0).octets(), 16);
-    let mut fe80 = [0u8; 16];
-    fe80[0] = 0xfe;
-    fe80[1] = 0x80;
-    count += insert(d, true, &fe80, 10);
-
-    // 2) UCI/CLI 追加
-    let extra = d.cfg.extra_prefixes.clone();
-    for cidr in &extra {
+pub unsafe fn refresh(d: &mut Daemon) -> Result<usize, String> {
+    let mut desired: Vec<(i32, Vec<u8>, u32)> = vec![
+        (libc::AF_INET, vec![169, 254, 0, 0], 16),
+        (libc::AF_INET6, Ipv6Addr::new(0xfe80, 0, 0, 0, 0, 0, 0, 0).octets().to_vec(), 10),
+    ];
+    for cidr in &d.cfg.extra_prefixes {
         if let Some((v6, bytes, mask)) = parse_cidr(cidr) {
-            count += insert(d, v6, &bytes, mask);
+            desired.push(if v6 { (libc::AF_INET6, bytes.to_vec(), mask as u32) }
+                else { (libc::AF_INET, bytes[12..].to_vec(), mask as u32) });
         }
     }
-
-    // 3) ubus network.interface dump（排除默认路由上游接口）
+    // Gather a complete snapshot before changing the map. A failed dump keeps old prefixes.
     if !d.ubus_ctx.is_null() {
-        if let Some(dump) = unsafe { network_dump(d.ubus_ctx) } {
-            for e in dump {
-                if e.upstream {
-                    continue;
-                }
-                for (a, m) in &e.v4 {
-                    count += insert(d, false, &a.octets(), *m);
-                }
-                for (a, m) in &e.v6 {
-                    count += insert(d, true, &a.octets(), *m);
-                }
-            }
+        let dump = network_dump(d.ubus_ctx).ok_or("network.interface dump 失败，保留现有前缀")?;
+        for e in dump {
+            if e.upstream { continue; }
+            for (a, m) in e.v4 { desired.push((libc::AF_INET, a.octets().to_vec(), m as u32)); }
+            for (a, m) in e.v6 { desired.push((libc::AF_INET6, a.octets().to_vec(), m as u32)); }
         }
     }
-    count
-}
-
-fn insert(d: &mut Daemon, v6: bool, bytes: &[u8], mask: u8) -> usize {
-    let family = if v6 { libc::AF_INET6 } else { libc::AF_INET };
-    match zen_bpf::prefix_insert(&mut d.bpf, family, bytes, mask as u32) {
-        Ok(()) => 1,
-        Err(e) => {
-            eprintln!("[zen-trafficd] 前缀写入失败: {e}");
-            0
+    // Canonicalize host bits: two addresses in the same subnet are one LPM key.
+    for (family, bytes, mask) in &mut desired {
+        let bits = if *family == libc::AF_INET { 32 } else { 128 };
+        if *mask > bits { return Err("非法接口前缀长度，保留现有前缀".into()); }
+        for (i, byte) in bytes.iter_mut().enumerate() {
+            let remaining = mask.saturating_sub(i as u32 * 8).min(8);
+            *byte &= if remaining == 0 { 0 } else { 0xff << (8 - remaining) };
         }
     }
+    desired.sort();
+    desired.dedup();
+    // Install new entries before pruning stale subnets. Track successful inserts for retry.
+    for (family, bytes, mask) in &desired {
+        zen_bpf::prefix_insert(&mut d.bpf, *family, bytes, *mask)?;
+        let prefix = (*family, bytes.clone(), *mask);
+        if !d.local_prefixes.contains(&prefix) { d.local_prefixes.push(prefix); }
+    }
+    let obsolete: Vec<_> = d.local_prefixes.iter().filter(|prefix| !desired.contains(prefix)).cloned().collect();
+    for (family, bytes, mask) in obsolete {
+        zen_bpf::prefix_remove(&mut d.bpf, family, &bytes, mask)?;
+        d.local_prefixes.retain(|prefix| prefix != &(family, bytes.clone(), mask));
+    }
+    Ok(desired.len())
 }
 
 fn parse_cidr(cidr: &str) -> Option<(bool, [u8; 16], u8)> {
@@ -110,7 +108,7 @@ unsafe fn network_dump(ctx: *mut ubus::ubus_context) -> Option<Vec<IfEntry>> {
     drop(nl);
 
     // 2) ubus invoke
-    SCRATCH.lock().ok()?.ifaces = Vec::new();
+    { let mut scratch = SCRATCH.lock().ok()?; scratch.ifaces.clear(); scratch.valid = false; }
     let mut id: u32 = 0;
     if ubus::ubus_lookup_id(ctx, c"network.interface".as_ptr(), &mut id)
         != ubus::UBUS_STATUS_OK
@@ -136,7 +134,11 @@ unsafe fn network_dump(ctx: *mut ubus::ubus_context) -> Option<Vec<IfEntry>> {
     }
 
     // 3) 上游标记
-    let mut ifaces = std::mem::take(&mut SCRATCH.lock().ok()?.ifaces);
+    let mut ifaces = {
+        let mut scratch = SCRATCH.lock().ok()?;
+        if !scratch.valid { return None; }
+        std::mem::take(&mut scratch.ifaces)
+    };
     for e in ifaces.iter_mut() {
         if upstream_names.iter().any(|n| *n == e.name) {
             e.upstream = true;
@@ -155,9 +157,10 @@ unsafe extern "C" fn dump_cb(
     let Ok(mut g) = SCRATCH.lock() else { return };
     let top = ubus::parse_msg(msg);
     for a in &top {
-        if a.name != Some("interface") {
+        if a.name != Some("interface") || a.ty != ubus::BLOBMSG_TYPE_ARRAY as u8 {
             continue;
         }
+        g.valid = true;
         // a.data = 数组载荷：连续的 table 属性（每个有名但名字无关紧要）
         for itf in ubus::attrs_from_slice(a.data) {
             let mut entry = IfEntry {

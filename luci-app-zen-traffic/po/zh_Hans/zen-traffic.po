@@ -1,0 +1,200 @@
+msgid ""
+msgstr ""
+"Language: zh_Hans\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "All devices"
+msgstr "全部设备"
+
+msgid "Cancel"
+msgstr "取消"
+
+msgid "Connection"
+msgstr "连接方式"
+
+msgid "Daily (90 days)"
+msgstr "每日（90天）"
+
+msgid "Daily and monthly usage aggregated from the zen-traffic SQLite database. download = rx, upload = tx."
+msgstr "查看设备每日和每月的上传、下载流量。"
+
+msgid "Details"
+msgstr "详情"
+
+msgid "Device"
+msgstr "设备"
+
+msgid "Device Traffic"
+msgstr "设备流量"
+
+msgid "Device: "
+msgstr "设备："
+
+msgid "Download"
+msgstr "下载"
+
+msgid "Download rate"
+msgstr "下载速率"
+
+msgid "Download ↓"
+msgstr "下载 ↓"
+
+msgid "Edit hostname"
+msgstr "修改主机名"
+
+msgid "Failed to reset: %s"
+msgstr "重置失败：%s"
+
+msgid "Failed to set hostname: %s"
+msgstr "修改主机名失败：%s"
+
+msgid "IP"
+msgstr "IP 地址"
+
+msgid "Last activity"
+msgstr "最后活动时间"
+
+msgid "Monthly (12 months)"
+msgstr "每月（12个月）"
+
+msgid "No history data yet. Usage accumulates as traffic flows and is persisted on checkpoint/day rollover."
+msgstr "暂无历史数据。有流量后会开始累计，并在定期保存或跨日时写入历史记录。"
+
+msgid "Realtime per-device traffic collected by zen-trafficd (eBPF). rx = download, tx = upload. LAN-local traffic is counted per device but does not inflate Internet usage totals."
+msgstr "查看每台设备的实时上传、下载速率。局域网内的流量单独统计，不计入互联网流量总量。"
+
+msgid "Reset all counters for %s?"
+msgstr "确定重置 %s 的全部流量统计？"
+
+msgid "Reset counters"
+msgstr "重置统计"
+
+msgid "Router"
+msgstr "路由器"
+
+msgid "Save"
+msgstr "保存"
+
+msgid "The zen-traffic daemon is not reachable. History is stored in the daemon-side SQLite database."
+msgstr "无法连接流量统计服务，请检查服务是否已启动。历史记录保存在该服务的数据库中。"
+
+msgid "The zen-traffic daemon is not reachable. Install/enable the zen-traffic package, then verify with \"ubus call zen.traffic getStatus\" on the device."
+msgstr "无法连接流量统计服务。请安装并启用 zen-traffic，然后在路由器上执行“ubus call zen.traffic getStatus”检查状态。"
+
+msgid "This month"
+msgstr "本月"
+
+msgid "Today"
+msgstr "今日"
+
+msgid "Total"
+msgstr "累计"
+
+msgid "Traffic History"
+msgstr "流量历史"
+
+msgid "Upload"
+msgstr "上传"
+
+msgid "Upload rate"
+msgstr "上传速率"
+
+msgid "Upload ↑"
+msgstr "上传 ↑"
+
+msgid "Wi-Fi"
+msgstr "无线"
+
+msgid "Wired"
+msgstr "有线"
+
+msgid "Zen Traffic"
+msgstr "Zen 流量"
+
+msgid "Devices"
+msgstr "设备"
+
+msgid "History"
+msgstr "历史"
+
+msgid "%d seconds ago"
+msgstr "%d秒前"
+
+msgid "%d minutes ago"
+msgstr "%d分钟前"
+
+msgid "%d hours ago"
+msgstr "%d小时前"
+
+msgid "%d days ago"
+msgstr "%d天前"
+
+msgid "Realtime History"
+msgstr "实时流量历史"
+
+msgid "Last 5 minutes"
+msgstr "最近5分钟"
+
+msgid "Last hour"
+msgstr "最近1小时"
+
+msgid "Last 24 hours"
+msgstr "最近24小时"
+
+msgid "Last 7 days"
+msgstr "最近7天"
+
+msgid "Custom range"
+msgstr "自定义范围"
+
+msgid "Time range"
+msgstr "时间范围"
+
+msgid "Start time"
+msgstr "开始时间"
+
+msgid "End time"
+msgstr "结束时间"
+
+msgid "Query"
+msgstr "查询"
+
+msgid "Previous"
+msgstr "上一页"
+
+msgid "Next"
+msgstr "下一页"
+
+msgid "Time"
+msgstr "时间"
+
+msgid "Interface"
+msgstr "接口"
+
+msgid "Loading…"
+msgstr "正在加载…"
+
+msgid "WAN rates sampled every 5 seconds and retained for 7 days. Longer ranges show average rates."
+msgstr "每5秒采集 WAN 上传、下载速率，保留最近7天。较长时间范围显示平均速率。"
+
+msgid "Realtime history is unavailable. Update and enable the zen-traffic service."
+msgstr "实时历史功能不可用，请更新并启用 zen-traffic 服务。"
+
+msgid "Choose a valid time range within the last 7 days."
+msgstr "请选择最近7天内有效的起止时间。"
+
+msgid "Unable to query realtime history."
+msgstr "查询实时历史失败，请检查服务状态后重试。"
+
+msgid "Maximum displayed download"
+msgstr "最高显示下载速率"
+
+msgid "Maximum displayed upload"
+msgstr "最高显示上传速率"
+
+msgid "%d points · %d-second intervals"
+msgstr "%d 个数据点 · 每%d秒一组"
+
+msgid "No realtime history yet. Leave the service running to collect samples."
+msgstr "所选范围暂无实时历史，请保持流量统计服务运行以采集数据。"

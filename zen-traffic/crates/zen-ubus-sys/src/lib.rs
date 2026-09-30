@@ -531,10 +531,25 @@ unsafe extern "C" {
 // ubus 客户端侧（新增：network dump / hostapd get_clients 等主动调用）
 // ---------------------------------------------------------------------------
 
-/// `struct ubus_request` — 客户端调用期间由 libubus 管理，回调只透传指针
+/// `struct ubus_request` — libubus.h 完整布局；异步请求必须保持地址稳定。
 #[repr(C)]
 pub struct ubus_request {
-    _opaque: [u8; 0],
+    pub list: list_head,
+    pub pending: list_head,
+    pub status_code: c_int,
+    pub status_msg: bool,
+    pub blocked: bool,
+    pub cancelled: bool,
+    pub notify: bool,
+    pub peer: u32,
+    pub seq: u16,
+    pub raw_data_cb: ubus_data_handler_t,
+    pub data_cb: ubus_data_handler_t,
+    pub fd_cb: Option<unsafe extern "C" fn(req: *mut ubus_request, fd: c_int)>,
+    pub complete_cb: ubus_complete_handler_t,
+    pub fd: c_int,
+    pub ctx: *mut ubus_context,
+    pub priv_: *mut c_void,
 }
 
 pub type ubus_data_handler_t =
@@ -560,6 +575,11 @@ unsafe extern "C" {
         cb: ubus_lookup_handler_t,
         priv_: *mut c_void,
     ) -> c_int;
+
+    pub fn ubus_invoke_async_fd(ctx: *mut ubus_context, obj: u32, method: *const c_char,
+        msg: *mut blob_attr, req: *mut ubus_request, fd: c_int) -> c_int;
+    pub fn ubus_complete_request_async(ctx: *mut ubus_context, req: *mut ubus_request);
+    pub fn ubus_abort_request(ctx: *mut ubus_context, req: *mut ubus_request);
 
     pub fn ubus_lookup_id(ctx: *mut ubus_context, path: *const c_char, id: *mut u32) -> c_int;
 
@@ -645,3 +665,9 @@ pub fn layout_report() {
         std::mem::size_of::<ubus_method>(),
     );
 }
+
+// libubus.h ABI guard for the supported 32/64-bit pointer layouts.
+const _: () = {
+    assert!(std::mem::size_of::<ubus_request>() == if cfg!(target_pointer_width = "64") { 104 } else { 60 });
+    assert!(std::mem::offset_of!(ubus_request, priv_) == if cfg!(target_pointer_width = "64") { 96 } else { 56 });
+};

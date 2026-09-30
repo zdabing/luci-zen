@@ -18,9 +18,11 @@ mod device;
 mod netif;
 mod netlink;
 mod persistence;
+mod realtime;
 mod state;
 mod totals;
 mod ubus;
+mod wifi;
 
 use state::Config;
 
@@ -67,7 +69,12 @@ fn main() {
         }
     };
     // 回填 ctx 供属性合并（hostapd/network dump）使用
-    ubus::with_daemon(|d| d.ubus_ctx = ubus_ctx);
+    ubus::with_daemon(|d| {
+        d.ubus_ctx = ubus_ctx;
+        if let Err(e) = unsafe { netif::refresh(d) } {
+            eprintln!("[zen-trafficd] 启动前缀学习: {e}");
+        }
+    });
 
     println!(
         "[zen-trafficd] running: ifaces={:?} db={:?} interval={:?}ms checkpoint={:?}s",
@@ -85,6 +92,8 @@ fn main() {
         if ubus::shutting_down() {
             println!("[zen-trafficd] 收到 SIGTERM/SIGINT，开始清理");
         }
+        unsafe { d.wifi.cancel(d.ubus_ctx); }
+        d.realtime.flush(&d.db, state::now_mono_ms(), state::now_epoch(), true);
         d.shutdown_checkpoint();
     });
 

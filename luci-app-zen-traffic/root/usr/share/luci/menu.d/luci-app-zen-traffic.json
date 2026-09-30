@@ -2,19 +2,37 @@
 	"admin/status/zen-traffic": {
 		"title": "Zen Traffic",
 		"order": 65,
-		"action": { "type": "firstchild" },
+		"action": {
+			"type": "firstchild"
+		},
 		"depends": {
-			"acl": [ "luci-app-zen-traffic" ]
+			"acl": [
+				"luci-app-zen-traffic"
+			]
 		}
 	},
 	"admin/status/zen-traffic/devices": {
 		"title": "Devices",
 		"order": 1,
-		"action": { "type": "view", "path": "zen-traffic/devices" }
+		"action": {
+			"type": "view",
+			"path": "zen-traffic/devices"
+		}
 	},
 	"admin/status/zen-traffic/history": {
 		"title": "History",
 		"order": 2,
-		"action": { "type": "view", "path": "zen-traffic/history" }
+		"action": {
+			"type": "view",
+			"path": "zen-traffic/history"
+		}
+	},
+	"admin/status/zen-traffic/realtime": {
+		"title": "Realtime History",
+		"order": 3,
+		"action": {
+			"type": "view",
+			"path": "zen-traffic/realtime"
+		}
 	}
 }

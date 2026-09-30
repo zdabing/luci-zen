@@ -29,10 +29,10 @@ function fmtUptime(sec) {
 	      h = Math.floor((sec % 86400) / 3600),
 	      m = Math.floor((sec % 3600) / 60);
 	if (d > 0)
-		return '%dd %dh'.format(d, h);
+		return _('%dd %dh').format(d, h);
 	if (h > 0)
-		return '%dh %dm'.format(h, m);
-	return '%dm'.format(m);
+		return _('%dh %dm').format(h, m);
+	return _('%dm').format(m);
 }
 
 /* 峰值向上取整到 1/2/2.5/5/10 × 10^k，1 KB/s 下限，避免空闲抖动放大 */

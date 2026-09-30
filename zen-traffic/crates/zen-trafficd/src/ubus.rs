@@ -40,11 +40,12 @@ const fn cs(s: &'static [u8]) -> *const c_char {
 // ubus 方法表
 // ---------------------------------------------------------------------------
 
-static METHODS: [ubus::ubus_method; 7] = [
+static METHODS: [ubus::ubus_method; 8] = [
     m(b"getStatus\0", handle_get_status),
     m(b"getDevices\0", handle_get_devices),
     m(b"getTotal\0", handle_get_total),
     m(b"getHistory\0", handle_get_history),
+    m(b"getRealtimeHistory\0", handle_get_realtime_history),
     m(b"setHostname\0", handle_set_hostname),
     m(b"resetDevice\0", handle_reset_device),
     m(b"reloadPrefixes\0", handle_reload_prefixes),
@@ -345,6 +346,56 @@ unsafe extern "C" fn handle_get_history(
     }
 }
 
+/// getRealtimeHistory {iface?, start?, end?, limit?}; timestamps are Unix seconds.
+unsafe extern "C" fn handle_get_realtime_history(
+    ctx: *mut ubus::ubus_context, _obj: *mut ubus::ubus_object,
+    req: *mut ubus::ubus_request_data, _method: *const c_char, msg: *mut ubus::blob_attr,
+) -> c_int {
+    let now = now_epoch();
+    let (mut start, mut end, mut limit) = (now.saturating_sub(300), now, 600usize);
+    let mut interface = None;
+    for a in ubus::parse_msg(msg) {
+        let number = a.as_u64().or_else(|| a.as_u32().map(u64::from));
+        match a.name {
+            Some("iface") => interface = a.as_str().map(str::to_string),
+            Some("start") => match number { Some(n) => start = n, None => return ubus::UBUS_STATUS_INVALID_ARGUMENT },
+            Some("end") => match number { Some(n) => end = n, None => return ubus::UBUS_STATUS_INVALID_ARGUMENT },
+            Some("limit") => match number { Some(n) if n <= 1200 => limit = n as usize, _ => return ubus::UBUS_STATUS_INVALID_ARGUMENT },
+            _ => {}
+        }
+    }
+    let result = with_daemon(|d| d.realtime.query(&d.db, interface.as_deref(), start, end, limit, now));
+    let query = match result {
+        Some(Ok(query)) => query,
+        Some(Err(e)) => {
+            eprintln!("[zen-trafficd] getRealtimeHistory: {e}");
+            return ubus::UBUS_STATUS_INVALID_ARGUMENT;
+        }
+        None => return ubus::UBUS_STATUS_NOT_SUPPORTED,
+    };
+    let mut b = reply(ctx, req);
+    add_str(&mut b, b"interface\0", &query.interface);
+    ubus::blobmsg_add_u64(&mut b, cs(b"start\0"), query.start);
+    ubus::blobmsg_add_u64(&mut b, cs(b"end\0"), query.end);
+    ubus::blobmsg_add_u32(&mut b, cs(b"step\0"), query.step as u32);
+    ubus::blobmsg_add_u32(&mut b, cs(b"retention_days\0"), 7);
+    ubus::blobmsg_add_u32(&mut b, cs(b"sample_seconds\0"), 5);
+    let interfaces = ubus::blobmsg_open_array(&mut b, cs(b"interfaces\0"));
+    for name in &query.interfaces { add_str(&mut b, b"\0", name); }
+    ubus::blobmsg_close_array(&mut b, interfaces);
+    let rows = ubus::blobmsg_open_array(&mut b, cs(b"samples\0"));
+    for sample in query.samples {
+        let row = ubus::blobmsg_open_table(&mut b, std::ptr::null());
+        ubus::blobmsg_add_u64(&mut b, cs(b"time\0"), sample.time);
+        ubus::blobmsg_add_u64(&mut b, cs(b"download\0"), sample.download);
+        ubus::blobmsg_add_u64(&mut b, cs(b"upload\0"), sample.upload);
+        ubus::blobmsg_close_table(&mut b, row);
+    }
+    ubus::blobmsg_close_array(&mut b, rows);
+    send(ctx, req, &mut b);
+    ubus::UBUS_STATUS_OK
+}
+
 fn month_shift_date(date: &str, minus_days: u32) -> String {
     crate::state::date_shift(date, minus_days)
 }
@@ -470,12 +521,22 @@ unsafe extern "C" fn handle_reload_prefixes(
     _method: *const c_char,
     _msg: *mut ubus::blob_attr,
 ) -> c_int {
-    let n = with_daemon(|d| unsafe { crate::netif::refresh(d) });
+    let n = match with_daemon(|d| unsafe {
+        let n = crate::netif::refresh(d)?;
+        crate::totals::detect_upstream(d);
+        d.last_attr_mono = 0;
+        Ok::<usize, String>(n)
+    }) {
+        Some(Ok(n)) => n,
+        Some(Err(e)) => {
+            eprintln!("[zen-trafficd] reloadPrefixes: {e}");
+            return ubus::UBUS_STATUS_UNKNOWN_ERROR;
+        }
+        None => return ubus::UBUS_STATUS_NOT_SUPPORTED,
+    };
     let mut b = reply(ctx, req);
     blobmsg_add_bool(&mut b, cs(b"ok\0"), true);
-    if let Some(n) = n {
-        ubus::blobmsg_add_u32(&mut b, cs(b"prefixes\0"), n as u32);
-    }
+    ubus::blobmsg_add_u32(&mut b, cs(b"prefixes\0"), n as u32);
     send(ctx, req, &mut b);
     ubus::UBUS_STATUS_OK
 }

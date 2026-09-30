@@ -8,7 +8,7 @@
 				"luci": [ "getMountPoints" ],
 				"luci-rpc": [ "getDHCPLeases", "getNetworkDevices", "getHostHints" ],
 				"network.device": [ "status" ],
-				"zen.traffic": [ "getStatus", "getDevices", "getTotal", "getHistory" ]
+				"zen.traffic": [ "getStatus", "getDevices", "getTotal", "getHistory", "getRealtimeHistory" ]
 			},
 			"file": {
 				"/proc/stat": [ "read" ]

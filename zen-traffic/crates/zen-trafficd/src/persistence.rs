@@ -1,7 +1,7 @@
 //! persistence.rs — SQLite 持久化（rusqlite bundled）。
 //!
 //! 设计（用户定案 + ARCHITECTURE §8 改版）：
-//!   - 三张表：devices（属性 + 生命周期累计）、daily_usage、monthly_usage；
+//!   - 四张表：devices、daily_usage、monthly_usage、realtime_usage（WAN 5s 速率）；
 //!   - RAM 是实时态，DB 是批量 checkpoint（默认 300s）+ 日切/月切 + SIGTERM 写入，
 //!     严禁每秒写库；写事务一次性提交（单 transaction）；
 //!   - 写入语义为**绝对值 upsert**（幂等，崩溃重放安全）；
@@ -59,6 +59,14 @@ impl Db {
                  upload_bytes   INTEGER NOT NULL DEFAULT 0,
                  PRIMARY KEY (mac, date)
              );
+             CREATE TABLE IF NOT EXISTS realtime_usage (
+                 interface TEXT NOT NULL,
+                 timestamp INTEGER NOT NULL,
+                 download_rate INTEGER NOT NULL,
+                 upload_rate INTEGER NOT NULL,
+                 PRIMARY KEY (interface, timestamp)
+             );
+             CREATE INDEX IF NOT EXISTS realtime_usage_timestamp ON realtime_usage(timestamp);
              CREATE TABLE IF NOT EXISTS monthly_usage (
                  mac            TEXT NOT NULL,
                  month          TEXT NOT NULL,              -- 本地月份 YYYY-MM
@@ -182,15 +190,65 @@ impl Db {
         tx.commit().map_err(|e| format!("checkpoint 提交失败: {e}"))
     }
 
-    /// 保留期清理（日切/月切时调用）
-    pub fn prune(&self, before_date: &str, before_month: &str) -> Result<(), String> {
+    /// 日切仅清理日记录；保留截止日期本身。
+    pub fn prune_days(&self, before_date: &str) -> Result<(), String> {
         self.conn
             .execute("DELETE FROM daily_usage WHERE date < ?1", params![before_date])
-            .map_err(|e| e.to_string())?;
+            .map(|_| ())
+            .map_err(|e| e.to_string())
+    }
+
+    /// 月切仅清理月记录；保留截止月份本身。
+    pub fn prune_months(&self, before_month: &str) -> Result<(), String> {
         self.conn
             .execute("DELETE FROM monthly_usage WHERE month < ?1", params![before_month])
             .map(|_| ())
             .map_err(|e| e.to_string())
+    }
+
+    /// Persist a batch and prune the seven-day window in the same transaction.
+    pub fn save_realtime(&self, samples: &[crate::realtime::Sample], cutoff: u64) -> Result<(), String> {
+        let tx = self.conn.unchecked_transaction().map_err(|e| e.to_string())?;
+        {
+            let mut insert = tx.prepare_cached(
+                "INSERT INTO realtime_usage (interface, timestamp, download_rate, upload_rate)
+                 VALUES (?1, ?2, ?3, ?4) ON CONFLICT(interface, timestamp) DO UPDATE SET
+                 download_rate = excluded.download_rate, upload_rate = excluded.upload_rate"
+            ).map_err(|e| e.to_string())?;
+            for sample in samples {
+                if sample.time < cutoff { continue; }
+                insert.execute(params![sample.interface, sample.time as i64,
+                    sample.download.min(i64::MAX as u64) as i64,
+                    sample.upload.min(i64::MAX as u64) as i64]).map_err(|e| e.to_string())?;
+            }
+        }
+        tx.execute("DELETE FROM realtime_usage WHERE timestamp < ?1", params![cutoff as i64])
+            .map_err(|e| e.to_string())?;
+        tx.commit().map_err(|e| e.to_string())
+    }
+
+    pub fn realtime_interfaces(&self) -> Result<Vec<String>, String> {
+        let mut stmt = self.conn.prepare("SELECT DISTINCT interface FROM realtime_usage ORDER BY interface")
+            .map_err(|e| e.to_string())?;
+        let rows = stmt.query_map([], |r| r.get(0)).map_err(|e| e.to_string())?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+    }
+
+    /// One interface, at most limit buckets; return sums/counts to merge pending RAM samples.
+    pub fn realtime_buckets(&self, interface: &str, start: u64, end: u64, step: u64,
+        pending_from: u64) -> Result<Vec<(u64, u64, u64, u64)>, String> {
+        let mut stmt = self.conn.prepare(
+            "SELECT ((timestamp - ?2) / ?4) * ?4 + ?2 AS bucket,
+                    SUM(download_rate), SUM(upload_rate), COUNT(*)
+             FROM realtime_usage WHERE interface = ?1 AND timestamp >= ?2
+                  AND timestamp <= ?3 AND timestamp < ?5
+             GROUP BY bucket ORDER BY bucket"
+        ).map_err(|e| e.to_string())?;
+        let rows = stmt.query_map(params![interface, start as i64, end as i64, step as i64, pending_from as i64],
+            |r| Ok((r.get::<_, i64>(0)? as u64, r.get::<_, i64>(1)? as u64,
+                r.get::<_, i64>(2)? as u64, r.get::<_, i64>(3)? as u64)))
+            .map_err(|e| e.to_string())?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
     }
 
     /// setHostname：用户指定名（src=1，合并且优先）

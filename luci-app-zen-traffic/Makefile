@@ -6,6 +6,7 @@ PKG_RELEASE:=1
 
 PKG_MAINTAINER:=luci-zen maintainers
 PKG_LICENSE:=Apache-2.0
+PKG_BUILD_DEPENDS:=luci-base/host
 
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)
 
@@ -33,14 +34,22 @@ define Build/Configure
 endef
 
 define Build/Compile
+	mkdir -p $(PKG_BUILD_DIR)
+	po2lmo $(CURDIR)/po/zh_Hans/zen-traffic.po $(PKG_BUILD_DIR)/zen-traffic.zh-cn.lmo
 endef
 
 define Package/luci-app-zen-traffic/install
+	$(INSTALL_DIR) $(1)/usr/lib/lua/luci/i18n
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/zen-traffic.zh-cn.lmo $(1)/usr/lib/lua/luci/i18n/zen-traffic.zh-cn.lmo
+
 	$(INSTALL_DIR) $(1)/www/luci-static/resources/view/zen-traffic
 	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/zen-traffic/devices.js \
 		$(1)/www/luci-static/resources/view/zen-traffic/devices.js
 	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/zen-traffic/history.js \
 		$(1)/www/luci-static/resources/view/zen-traffic/history.js
+
+	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/zen-traffic/realtime.js \
+		$(1)/www/luci-static/resources/view/zen-traffic/realtime.js
 
 	$(INSTALL_DIR) $(1)/usr/share/luci/menu.d
 	$(INSTALL_DATA) ./root/usr/share/luci/menu.d/luci-app-zen-traffic.json \

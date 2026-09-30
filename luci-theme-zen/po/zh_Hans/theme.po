@@ -313,3 +313,15 @@ msgstr "64位"
 
 msgid "32-bit"
 msgstr "32位"
+
+msgid "Powered by"
+msgstr "技术支持"
+
+msgid "%dd %dh"
+msgstr "%d天 %d小时"
+
+msgid "%dh %dm"
+msgstr "%d小时 %d分钟"
+
+msgid "%dm"
+msgstr "%d分钟"

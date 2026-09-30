@@ -3157,3 +3157,7 @@ header .showSide:focus-visible { outline: 2px solid var(--accent); outline-offse
 
 .zen-dash-traffic-stats .zen-dash-stat.total-tx .k, .zen-dash-traffic-stats .zen-dash-stat.total-tx .v { color: var(--ul); }
 .zen-dash-traffic-stats .zen-dash-stat.total-rx .k, .zen-dash-traffic-stats .zen-dash-stat.total-rx .v { color: var(--dl); }
+
+.zen-dash-device-history svg { height: 180px; }
+.zen-dash-device-history .history-bar.dl { fill: var(--dl); stroke: none; }
+.zen-dash-device-history .history-bar.ul { fill: var(--ul); stroke: none; }

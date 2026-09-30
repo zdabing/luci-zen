@@ -190,6 +190,13 @@ pub fn prefix_insert(bpf: &mut Ebpf, family: i32, bytes: &[u8], mask: u32) -> Re
     let mut trie: LpmTrie<_, [u8; 16], u8> =
         LpmTrie::try_from(map).map_err(|e| format!("local_prefixes 类型不匹配: {e}"))?;
 
+    let key = prefix_key(family, bytes, mask)?;
+    trie.insert(&key, 1, 0)
+        .map_err(|e| format!("LPM 插入失败: {e}"))?;
+    Ok(())
+}
+
+fn prefix_key(family: i32, bytes: &[u8], mask: u32) -> Result<LpmTrieKey<[u8; 16]>, String> {
     let mut data = [0u8; 16];
     let prefix_len;
     if family == libc::AF_INET {
@@ -210,7 +217,13 @@ pub fn prefix_insert(bpf: &mut Ebpf, family: i32, bytes: &[u8], mask: u32) -> Re
         return Err("非法地址族".into());
     }
 
-    trie.insert(&LpmTrieKey::new(prefix_len, data), 1, 0)
-        .map_err(|e| format!("LPM 插入失败: {e}"))?;
-    Ok(())
+    Ok(LpmTrieKey::new(prefix_len, data))
+}
+
+/// Delete one obsolete prefix without resetting the devices counters.
+pub fn prefix_remove(bpf: &mut Ebpf, family: i32, bytes: &[u8], mask: u32) -> Result<(), String> {
+    let key = prefix_key(family, bytes, mask)?;
+    let map = bpf.map_mut("local_prefixes").ok_or("local_prefixes map 未找到")?;
+    let mut trie: LpmTrie<_, [u8; 16], u8> = LpmTrie::try_from(map).map_err(|e| e.to_string())?;
+    trie.remove(&key).map_err(|e| format!("LPM 删除失败: {e}"))
 }

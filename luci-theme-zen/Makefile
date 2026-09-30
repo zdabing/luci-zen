@@ -6,6 +6,7 @@ PKG_RELEASE:=1
 
 PKG_MAINTAINER:=luci-zen maintainers
 PKG_LICENSE:=Apache-2.0
+PKG_BUILD_DEPENDS:=luci-base/host
 
 include $(INCLUDE_DIR)/package.mk
 
@@ -32,16 +33,11 @@ endef
 define Build/Configure
 endef
 
-# i18n：翻译源为标准 .po；.lmo 由 SDK 构建流程用 luci-base 提供的官方
-# po2lmo（$(STAGING_DIR_HOST)/bin/po2lmo，luci.mk 同款路径）生成；
-# 工具不存在时静默跳过，包内不带 lmo（仅英文界面，不影响功能）。
+# 中文语言包随主题安装。po2lmo 由 luci-base/host 提供，使用 SDK 的工具 PATH。
+# 工具或翻译转换失败时必须报错，避免发布缺少语言包的主题。
 define Build/Compile
 	mkdir -p $(PKG_BUILD_DIR)
-	if [ -x $(STAGING_DIR_HOST)/bin/po2lmo ]; then \
-		$(STAGING_DIR_HOST)/bin/po2lmo \
-			$(CURDIR)/po/zh_Hans/theme.po \
-			$(PKG_BUILD_DIR)/theme.zh-cn.lmo; \
-	fi
+	po2lmo $(CURDIR)/po/zh_Hans/theme.po $(PKG_BUILD_DIR)/zen.zh-cn.lmo
 endef
 
 define Package/luci-theme-zen/install
@@ -76,13 +72,7 @@ define Package/luci-theme-zen/install
 	$(INSTALL_DATA) ./root/usr/share/rpcd/acl.d/luci-theme-zen.json $(1)/usr/share/rpcd/acl.d/luci-theme-zen.json
 
 	$(INSTALL_DIR) $(1)/usr/lib/lua/luci/i18n
-	if [ -f $(PKG_BUILD_DIR)/theme.zh-cn.lmo ]; then \
-		$(INSTALL_DATA) $(PKG_BUILD_DIR)/theme.zh-cn.lmo \
-			$(1)/usr/lib/lua/luci/i18n/theme.zh-cn.lmo; \
-	elif [ -f ./po/zh_Hans/theme.lmo ]; then \
-		$(INSTALL_DATA) ./po/zh_Hans/theme.lmo \
-			$(1)/usr/lib/lua/luci/i18n/theme.zh-cn.lmo; \
-	fi
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/zen.zh-cn.lmo $(1)/usr/lib/lua/luci/i18n/zen.zh-cn.lmo
 endef
 
 define Package/luci-theme-zen/postinst

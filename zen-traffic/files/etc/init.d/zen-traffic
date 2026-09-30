@@ -4,7 +4,7 @@
 # 职责（ARCHITECTURE §4）：
 #   - bpffs 自动挂载（BPF 加载前置条件）；
 #   - UCI /etc/config/zen-traffic → daemon 命令行；
-#   - respawn 守护；reload = restart（filter 幂等 + SIGTERM checkpoint 保证累计不丢）。
+#   - 配置 reload 重启以应用挂载设备；网络事件仅更新前缀/上游，不重启。
 
 USE_PROCD=1
 START=95
@@ -76,6 +76,6 @@ reload_service() {
 
 service_triggers() {
 	procd_add_reload_trigger "$NAME"
-	# netifd 接口变更（wan up/down 等）→ reload：local_prefixes 重学习
-	procd_add_raw_trigger "interface.*" 3000 "/etc/init.d/$NAME" reload
+	# 接口子网变化都可能改变本地流量分类；合并事件后仅刷新，不重启 daemon。
+	procd_add_raw_trigger "interface.*" 3000 /usr/bin/ubus call zen.traffic reloadPrefixes
 }

@@ -49,25 +49,40 @@ function drawHistory(ent, res) {
 		return;
 	}
 	const max = fmt.niceMax(Math.max(...rows.map(r => Math.max(r.download || 0, r.upload || 0))));
-	const chart = historySvg('svg', { viewBox: '0 0 640 160', role: 'img', 'aria-label': _('Daily traffic') });
-	const x = i => 62 + (rows.length === 1 ? 560 / 2 : i * 560 / (rows.length - 1));
-	const y = v => 126 - (Number(v) || 0) * 108 / max;
+	const width = Math.max(280, ent.historyChart.clientWidth - 16);
+	const left = 62, right = width - 18, bottom = 136;
+	const chart = historySvg('svg', { viewBox: '0 0 ' + width + ' 180', role: 'img', 'aria-label': _('Daily traffic') });
+	const x = i => left + (rows.length === 1 ? (right - left) / 2 : i * (right - left) / (rows.length - 1));
+	const y = v => bottom - (Number(v) || 0) * 108 / max;
 	for (let i = 0; i <= 2; i++) {
 		const value = max * i / 2;
-		chart.appendChild(historySvg('line', { x1: 62, x2: 622, y1: y(value), y2: y(value), 'class': 'history-grid' }));
-		chart.appendChild(historySvg('text', { x: 54, y: y(value) + 4, 'text-anchor': 'end' }, fmt.fmtBytes(value)));
+		chart.appendChild(historySvg('line', { x1: left, x2: right, y1: y(value), y2: y(value), 'class': 'history-grid' }));
+		chart.appendChild(historySvg('text', { x: left - 8, y: y(value) + 4, 'text-anchor': 'end' }, fmt.fmtBytes(value)));
 	}
 	for (const key of ['download', 'upload']) {
 		const series = key === 'download' ? 'dl' : 'ul';
-		chart.appendChild(historySvg('polyline', { points: rows.map((r, i) => x(i) + ',' + y(r[key])).join(' '), 'class': series }));
-		rows.forEach((r, i) => {
-			const dot = historySvg('circle', { cx: x(i), cy: y(r[key]), r: 3, 'class': series });
-			dot.appendChild(historySvg('title', {}, r.date + ' · ' + (key === 'download' ? _('Download') : _('Upload')) + ': ' + fmt.fmtBytes(r[key])));
-			chart.appendChild(dot);
-		});
+		if (rows.length === 1) {
+			const value = Number(rows[0][key]) || 0;
+			const center = x(0) + (key === 'download' ? -30 : 30);
+			const bar = historySvg('rect', { x: center - 18, y: y(value), width: 36, height: bottom - y(value), rx: 4, 'class': 'history-bar ' + series });
+			bar.appendChild(historySvg('title', {}, rows[0].date + ' · ' + (key === 'download' ? _('Download') : _('Upload')) + ': ' + fmt.fmtBytes(value)));
+			chart.appendChild(bar);
+			chart.appendChild(historySvg('text', { x: center, y: y(value) - 8, 'text-anchor': 'middle' }, fmt.fmtBytes(value)));
+		} else {
+			chart.appendChild(historySvg('polyline', { points: rows.map((r, i) => x(i) + ',' + y(r[key])).join(' '), 'class': series }));
+			rows.forEach((r, i) => {
+				const dot = historySvg('circle', { cx: x(i), cy: y(r[key]), r: 3, 'class': series });
+				dot.appendChild(historySvg('title', {}, r.date + ' · ' + (key === 'download' ? _('Download') : _('Upload')) + ': ' + fmt.fmtBytes(r[key])));
+				chart.appendChild(dot);
+			});
+		}
 	}
-	chart.appendChild(historySvg('text', { x: 62, y: 150 }, rows[0].date));
-	chart.appendChild(historySvg('text', { x: 622, y: 150, 'text-anchor': 'end' }, rows[rows.length - 1].date));
+	if (rows.length === 1) {
+		chart.appendChild(historySvg('text', { x: x(0), y: 168, 'text-anchor': 'middle' }, rows[0].date));
+	} else {
+		chart.appendChild(historySvg('text', { x: left, y: 168 }, rows[0].date));
+		chart.appendChild(historySvg('text', { x: right, y: 168, 'text-anchor': 'end' }, rows[rows.length - 1].date));
+	}
 	ent.historyChart.appendChild(chart);
 }
 

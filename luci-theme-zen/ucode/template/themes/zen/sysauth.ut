@@ -30,7 +30,7 @@
 									name="{{ field.name }}"
 									id="{{ field.name }}"
 									type="{{ field.type ?? 'text' }}"
-									{% if (field.placeholder): %}placeholder="{{ field.placeholder }}"{% endif %}
+									{% if (field.placeholder): %}placeholder="{{ _(field.placeholder) }}"{% endif %}
 									{% if (field.inputmode): %}inputmode="{{ field.inputmode }}"{% endif %}
 									{% if (field.pattern): %}pattern="{{ field.pattern }}"{% endif %}
 									{% if (field.maxlength): %}maxlength="{{ field.maxlength }}"{% endif %}

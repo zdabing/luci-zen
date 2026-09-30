@@ -11,7 +11,7 @@ use zen_ubus_sys as ubus;
 
 use crate::device::{self, AttrSources};
 use crate::netif;
-use crate::netlink::Netlink;
+use crate::netlink::{Netlink, LinkInfo};
 use crate::persistence::Db;
 use crate::state::{now_epoch, now_mono_ms, Config, DevState, HostSrc};
 use crate::{accounting, totals};
@@ -24,6 +24,10 @@ pub struct Daemon {
     pub nl: Netlink,
     /// ubus 上下文（可为 null：ubus 不可用时采集继续，仅发布失效）
     pub ubus_ctx: *mut ubus::ubus_context,
+
+    pub realtime: crate::realtime::RealtimeHistory,
+    pub wifi: crate::wifi::WifiCache,
+    pub local_prefixes: Vec<(i32, Vec<u8>, u32)>,
 
     // ---- tick 簿记 ----
     pub last_tick_mono: u64,
@@ -138,6 +142,9 @@ impl Daemon {
             db,
             nl,
             ubus_ctx: std::ptr::null_mut(),
+            wifi: crate::wifi::WifiCache::default(),
+            realtime: crate::realtime::RealtimeHistory::default(),
+            local_prefixes: Vec::new(),
             last_tick_mono: 0,
             last_attr_mono: 0,
             last_ckpt_mono: now_mono,
@@ -155,7 +162,7 @@ impl Daemon {
 
         // 5) 全局速率基线 + 本地前缀
         totals::detect_upstream(&mut d);
-        let n = unsafe { netif::refresh(&mut d) };
+        let n = unsafe { netif::refresh(&mut d) }?;
         println!("[zen-trafficd] local_prefixes 已写入 {n} 条");
 
         Ok(d)
@@ -237,12 +244,16 @@ impl Daemon {
         accounting::rollover_if_needed(self);
 
         // ---- 4) 全局速率 ----
-        totals::refresh(self);
+        let links = self.nl.links();
+        totals::refresh(self, &links);
+        self.realtime.sample(&self.upstream, &links, now_mono, now);
+        self.realtime.flush(&self.db, now_mono, now, false);
+        unsafe { self.wifi.tick(self.ubus_ctx, now_mono); }
 
         // ---- 5) 属性合并（5s 低频）----
         if now_mono.saturating_sub(self.last_attr_mono) >= 5000 {
             self.last_attr_mono = now_mono;
-            self.refresh_attrs();
+            self.refresh_attrs(links);
         }
 
         // ---- 6) checkpoint ----
@@ -250,12 +261,11 @@ impl Daemon {
     }
 
     /// 属性合并：netlink（links/neigh）+ DHCP 文件 + hostapd
-    fn refresh_attrs(&mut self) {
-        let links = self.nl.links();
+    fn refresh_attrs(&mut self, links: Vec<LinkInfo>) {
         let neigh = self.nl.neighbors();
         let dhcp_v4 = device::parse_dhcp_leases("/tmp/dhcp.leases");
         let dhcp_v6 = device::parse_odhcpd_leases("/tmp/odhcpd.leases");
-        let wifi = unsafe { device::wifi_clients(self.ubus_ctx) };
+        let wifi = self.wifi.clients();
 
         let sources = AttrSources {
             links,

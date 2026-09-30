@@ -9,7 +9,6 @@
 //! conn：router > wifi > wired。合并结果只写 RAM，随 checkpoint 落盘。
 
 use std::collections::HashMap;
-use std::ffi::{CStr, CString};
 
 use zen_ubus_sys as ubus;
 
@@ -192,117 +191,15 @@ fn band_from_freq(f: u32) -> String {
     }
 }
 
-/// ubus 枚举 hostapd.* 对象并逐个 get_clients，汇总已关联客户端。
-/// # Safety
-/// ctx 必须是有效的 ubus_context（uloop 线程内调用）。
-pub unsafe fn wifi_clients(ctx: *mut ubus::ubus_context) -> Vec<(String, Option<String>)> {
-    let mut out: Vec<(String, Option<String>)> = Vec::new();
-    if ctx.is_null() {
-        return out;
-    }
-
-    // 1) 枚举对象：收集 hostapd.<iface> 名字
-    let mut names: Vec<String> = Vec::new();
-    unsafe {
-        SCRATCH.lock().expect("scratch").names = std::mem::take(&mut names);
-        let cb: ubus::ubus_lookup_handler_t = Some(collect_hostapd);
-        ubus::ubus_lookup(ctx, std::ptr::null(), cb, std::ptr::null_mut());
-        names = std::mem::take(&mut SCRATCH.lock().expect("scratch").names);
-    }
-
-    // 2) 逐对象 get_clients
-    for name in names {
-        let cname = match CString::new(name.as_str()) {
-            Ok(c) => c,
-            Err(_) => continue,
-        };
-        let mut id: u32 = 0;
-        if ubus::ubus_lookup_id(ctx, cname.as_ptr(), &mut id) != ubus::UBUS_STATUS_OK {
-            continue;
-        }
-        let mut clients: Vec<(String, Option<String>)> = Vec::new();
-        unsafe {
-            SCRATCH.lock().expect("scratch").clients = std::mem::take(&mut clients);
-            let cb: ubus::ubus_data_handler_t = Some(parse_clients);
-            let mut msg = ubus::empty_blobmsg_msg();
-            ubus::ubus_invoke(
-                ctx,
-                id,
-                c"get_clients".as_ptr(),
-                msg.head,
-                cb,
-                std::ptr::null_mut(),
-                1500,
-            );
-            ubus::blob_buf_free(&mut msg);
-            clients = std::mem::take(&mut SCRATCH.lock().expect("scratch").clients);
-        }
-        out.extend(clients);
-    }
-    out
-}
-
-/// ubus 回调与 Rust 侧数据交换的暂存区（uloop 单线程模型，Mutex 仅满足 static 约束）
-struct Scratch {
-    names: Vec<String>,
-    clients: Vec<(String, Option<String>)>,
-}
-
-static SCRATCH: std::sync::Mutex<Scratch> = std::sync::Mutex::new(Scratch {
-    names: Vec::new(),
-    clients: Vec::new(),
-});
-
-unsafe extern "C" fn collect_hostapd(
-    _ctx: *mut ubus::ubus_context,
-    obj: *mut ubus::ubus_object_data,
-    _priv_: *mut std::os::raw::c_void,
-) {
-    let path = (*obj).path;
-    if path.is_null() {
-        return;
-    }
-    let s = CStr::from_ptr(path).to_string_lossy();
-    let s = s.strip_prefix('/').unwrap_or(&s);
-    if s.starts_with("hostapd.") {
-        if let Ok(mut g) = SCRATCH.lock() {
-            g.names.push(s.to_string());
-        }
-    }
-}
-
-/// 解析 get_clients 回包：
-/// { freq: N, clients: { "<mac>": { assoc: true, ... }, ... } }
-unsafe extern "C" fn parse_clients(
-    _req: *mut ubus::ubus_request,
-    _type_: std::os::raw::c_int,
-    msg: *mut ubus::blob_attr,
-) {
-    let Ok(mut g) = SCRATCH.lock() else { return };
+/// Parse a hostapd response; missing clients is a failed response, not an empty list.
+pub unsafe fn parse_wifi_clients(msg: *mut ubus::blob_attr) -> Option<Vec<(String, Option<String>)>> {
+    if msg.is_null() { return None; }
     let attrs = ubus::parse_msg(msg);
-    let mut freq: Option<u32> = None;
-    let mut clients: Option<Vec<ubus::AttrRef>> = None;
-    for a in &attrs {
-        match a.name {
-            Some("freq") => freq = a.as_u32(),
-            Some("clients") => {
-                // clients 为嵌套 table：a.data 已剥离自身名字头，直接迭代子属性
-                clients = Some(ubus::attrs_from_slice(a.data));
-            }
-            _ => {}
-        }
-    }
+    let freq = attrs.iter().find(|a| a.name == Some("freq")).and_then(|a| a.as_u32());
+    let clients = attrs.iter().find(|a| a.name == Some("clients") && a.ty == ubus::BLOBMSG_TYPE_TABLE as u8)?;
     let band = freq.map(band_from_freq);
-    if let Some(cl) = clients {
-        for c in cl {
-            // clients 表的 key = MAC（AttrRef.name）
-            let mac = match c.name {
-                Some(m) => m.to_ascii_lowercase(),
-                None => continue,
-            };
-            if mac.len() == 17 && mac.matches(':').count() == 5 {
-                g.clients.push((mac, band.clone()));
-            }
-        }
-    }
+    Some(ubus::attrs_from_slice(clients.data).into_iter().filter_map(|c| {
+        let mac = c.name?.to_ascii_lowercase();
+        crate::daemon::parse_mac(&mac).map(|_| (mac, band.clone()))
+    }).collect())
 }
