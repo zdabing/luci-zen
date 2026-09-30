@@ -664,6 +664,19 @@ const _: () = {
     assert!(std::mem::offset_of!(ubus_request, priv_) == if cfg!(target_pointer_width = "64") { 96 } else { 56 });
 };
 
+#[cfg(target_pointer_width = "64")]
+const _: () = {
+    assert!(std::mem::size_of::<ubus_method>() == 48);
+    assert!(std::mem::offset_of!(ubus_method, policy) == 32);
+    assert!(std::mem::size_of::<ubus_object>() == 120);
+    assert!(std::mem::offset_of!(ubus_object, methods) == 104);
+    assert!(std::mem::size_of::<ubus_object_type>() == 32);
+    assert!(std::mem::offset_of!(ubus_context, sock) == 80);
+    assert!(std::mem::size_of::<uloop_fd>() == 16);
+    assert!(std::mem::size_of::<uloop_timeout>() == 48);
+    assert!(std::mem::offset_of!(uloop_timeout, time) == 32);
+};
+
 #[cfg(test)]
 mod blobmsg_tests {
     use super::*;

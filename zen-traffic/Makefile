@@ -65,6 +65,8 @@ define Build/Prepare
 endef
 
 define Build/Configure
+	$(TARGET_CC) $(TARGET_CPPFLAGS) $(TARGET_CFLAGS) -I$(STAGING_DIR)/usr/include \
+		-c $(PKG_BUILD_DIR)/crates/zen-ubus-sys/abi-check.c -o $(PKG_BUILD_DIR)/ubus-abi-check.o
 	$(call CompileBPF,$(BPF_SRC))
 endef
 

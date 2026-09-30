@@ -21,6 +21,7 @@
 # Rust / cargo
 target/
 **/*.rs.bk
+__pycache__/
 
 # eBPF 编译产物
 *.bpf.o

@@ -29,6 +29,36 @@ jobs:
         working-directory: zen-traffic
         run: cargo check --workspace
 
+      - name: Build matching libubox and libubus for unit tests
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake libjson-c-dev
+          PREFIX="$RUNNER_TEMP/zen-ubus"
+          git clone https://github.com/openwrt/libubox.git "$RUNNER_TEMP/libubox"
+          git -C "$RUNNER_TEMP/libubox" checkout 7dd127841e82eb1cfb61185da37dde7b9bd9ba6d
+          cmake -S "$RUNNER_TEMP/libubox" -B "$RUNNER_TEMP/libubox-build" \
+            -DCMAKE_INSTALL_PREFIX="$PREFIX" -DBUILD_LUA=OFF -DBUILD_EXAMPLES=OFF
+          cmake --build "$RUNNER_TEMP/libubox-build" -j2
+          cmake --install "$RUNNER_TEMP/libubox-build"
+          git clone https://github.com/openwrt/ubus.git "$RUNNER_TEMP/ubus"
+          git -C "$RUNNER_TEMP/ubus" checkout 24864e7840b3a02a9ef76284a373f6b2f00b8a9b
+          cmake -S "$RUNNER_TEMP/ubus" -B "$RUNNER_TEMP/ubus-build" \
+            -DCMAKE_INSTALL_PREFIX="$PREFIX" -DCMAKE_PREFIX_PATH="$PREFIX" \
+            -DBUILD_LUA=OFF -DBUILD_EXAMPLES=OFF
+          cmake --build "$RUNNER_TEMP/ubus-build" -j2
+          cmake --install "$RUNNER_TEMP/ubus-build"
+          echo "UBUS_LIB_DIR=$PREFIX/lib" >> "$GITHUB_ENV"
+          echo "LD_LIBRARY_PATH=$PREFIX/lib" >> "$GITHUB_ENV"
+
+      - name: Verify C headers against Rust FFI layout
+        run: |
+          cc -I"$RUNNER_TEMP/zen-ubus/include" -c \
+            zen-traffic/crates/zen-ubus-sys/abi-check.c -o "$RUNNER_TEMP/ubus-abi-check.o"
+
+      - name: cargo test
+        working-directory: zen-traffic
+        run: cargo test --workspace
+
   ebpf-compile:
     name: eBPF compile
     runs-on: ubuntu-latest
@@ -71,3 +101,13 @@ jobs:
 
       - name: Run check-po.js
         run: node tools/check-po.js luci-theme-zen
+
+      - name: App translations and dashboard regression
+        run: |
+          node tools/check-po.js luci-app-zen-traffic
+          node tools/test-dashboard-history.cjs
+
+      - name: SQLite retention and realtime regression
+        run: |
+          python3 tools/test-sqlite-retention.py
+          python3 tools/test-realtime-history.py
