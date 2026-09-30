@@ -199,3 +199,12 @@ msgstr "核心"
 
 msgid "wireless clients"
 msgstr "个无线客户端"
+
+msgid "Sign in to manage your network."
+msgstr "登录以管理你的网络。"
+
+msgid "Show password"
+msgstr "显示密码"
+
+msgid "Hide password"
+msgstr "隐藏密码"

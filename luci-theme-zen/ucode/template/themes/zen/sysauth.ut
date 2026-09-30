@@ -5,7 +5,7 @@
 
 {% include('header', { blank_page: true }) %}
 
-<section hidden>
+<section id="zen-login-source" data-hostname="{{ entityencode(ubus.call('system', 'board')?.hostname ?? 'OpenWrt', true) }}" hidden>
 	<form method="post" class="cbi-map login-form">
 		<div class="cbi-section">
 			<div class="cbi-section-node">

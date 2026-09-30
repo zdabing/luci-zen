@@ -2769,3 +2769,124 @@ body.node-admin-status-overview #maincontent > .container {
 	fill: var(--text-secondary) !important;
 	text-shadow: none;
 }
+
+/* ---------- Standalone login ---------- */
+body.zen-login-page { min-height: 100vh; }
+body.zen-login-page #view { padding: 0; min-height: 100vh; }
+.zen-login-shell {
+	min-height: 100vh;
+	min-height: 100svh;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	padding: 28px 32px;
+	gap: 32px;
+}
+.zen-login-topbar {
+	width: 100%;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+}
+.zen-login-brand { display: flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 650; color: var(--text); }
+.zen-login-mark {
+	display: grid;
+	place-items: center;
+	width: 32px;
+	height: 32px;
+	border-radius: 10px;
+	background: var(--grad-accent);
+	color: #fff;
+	font-size: 22px;
+	font-weight: 500;
+	box-shadow: var(--shadow-glow);
+}
+.zen-login-theme, .zen-login-reveal {
+	font: inherit;
+	font-size: 12px;
+	color: var(--text-secondary);
+	background: transparent;
+	border: 0;
+	border-radius: 8px;
+	cursor: pointer;
+	min-height: 40px;
+	padding: 8px 12px;
+}
+.zen-login-card {
+	width: 100%;
+	max-width: 440px;
+	margin: auto 0;
+	padding: 36px;
+	background: var(--bg-panel);
+	border: 1px solid var(--line);
+	border-radius: 24px;
+	box-shadow: var(--shadow);
+}
+.zen-login-heading { margin-bottom: 28px; }
+.zen-login-host {
+	display: inline-block;
+	max-width: 100%;
+	overflow-wrap: anywhere;
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--text-secondary);
+	padding: 5px 10px;
+	background: var(--row-even);
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	margin-bottom: 16px;
+}
+.zen-login-heading h1 { margin: 0 0 10px; font-size: 28px; line-height: 1.2; letter-spacing: -0.03em; font-weight: 650; color: var(--text); }
+.zen-login-heading p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--text-secondary); }
+.zen-login-card .login-form, .zen-login-card .cbi-section {
+	padding: 0;
+	margin: 0;
+	border: 0;
+	background: transparent;
+	box-shadow: none;
+	backdrop-filter: none;
+}
+.zen-login-card .cbi-value { display: block; padding: 0; margin: 0 0 20px; border: 0; }
+.zen-login-card .cbi-value-title { display: block; padding: 0 0 8px; width: auto; font-size: 13px; font-weight: 600; color: var(--text); }
+.zen-login-card .cbi-value-field { margin: 0; padding: 0; min-width: 0; }
+.zen-login-card input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]) { width: 100%; max-width: none; min-height: 46px; border-radius: 10px; font-size: 15px; }
+.zen-login-password { position: relative; }
+.zen-login-password input { padding-right: 116px; }
+.zen-login-reveal { position: absolute; top: 3px; right: 3px; max-width: 110px; min-height: 40px; }
+.zen-login-card .zen-login-submit {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	min-height: 46px;
+	padding: 12px 16px;
+	margin: 8px 0 0;
+	border: 0;
+	border-radius: 10px;
+	background: var(--grad-accent);
+	color: #fff;
+	font-size: 14px;
+	font-weight: 600;
+	box-shadow: var(--shadow-glow);
+	transition: transform 120ms ease-out;
+}
+.zen-login-submit .spinning { color: #fff; }
+.zen-login-submit .spinning::before { border-color: rgba(255,255,255,.3); border-top-color: #fff; }
+.zen-login-submit:active:not(:disabled) { transform: scale(.98); }
+.zen-login-submit:disabled { opacity: .75; cursor: wait; }
+.zen-login-shell button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.zen-login-card .alert-message { margin: 0 0 20px; font-size: 13px; line-height: 1.6; }
+.zen-login-footer { margin: 0; font-size: 12px; color: var(--text-muted); text-align: center; }
+@media (hover: hover) and (pointer: fine) {
+	.zen-login-theme:hover, .zen-login-reveal:hover { background: var(--accent-soft); color: var(--nav-active-text); }
+}
+@media (max-width: 480px) {
+	.zen-login-shell { padding: 20px 16px; gap: 24px; }
+	.zen-login-card { padding: 28px 24px; border-radius: 20px; }
+	.zen-login-heading h1 { font-size: 26px; }
+	.zen-login-card input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]) { font-size: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+	.zen-login-submit { transition: none; }
+}
