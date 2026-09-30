@@ -2993,11 +2993,19 @@ header .showSide:focus-visible { outline: 2px solid var(--accent); outline-offse
 /* Uptime uses the same tonal surface; layout follows available dashboard width. */
 #zen-dashboard { container-type: inline-size; container-name: zen-dashboard; }
 .zen-dash-gauges { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.zen-dash-uptime { grid-column: 1 / -1; background: var(--bg-nested); }
-.zen-dash-uptime .zen-dash-label { font-size: 15px; font-weight: 500; }
-.zen-dash-uptime .zen-dash-value { font-size: clamp(30px, 3vw, 40px); letter-spacing: -0.035em; white-space: nowrap; }
-.zen-dash-uptime .zen-dash-sub { font-size: 14px; }
-@container zen-dashboard (min-width: 1200px) {
-	.zen-dash-gauges { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.zen-dash-uptime { grid-column: 1 / -1; }
+.zen-dash-gauges .zen-dash-value { font-size: 28px; white-space: nowrap; word-break: normal; }
+.zen-dash-gauges [data-gauge] { flex-direction: row-reverse; }
+.zen-dash-uptime .zen-dash-sub { white-space: normal; overflow: visible; text-overflow: clip; }
+@container zen-dashboard (min-width: 1100px) {
+	.zen-dash-gauges { grid-template-columns: 1.4fr repeat(4, minmax(0, 1fr)); }
 	.zen-dash-uptime { grid-column: auto; }
+	.zen-dash-gauges .zen-dash-card { padding: 14px; gap: 8px; }
+	.zen-dash-gauges .zen-dash-ring svg { width: 56px; height: 56px; }
+	.zen-dash-gauges .zen-dash-value { font-size: 24px; }
+}
+.zen-dash-gauges [data-gauge="load"] .zen-dash-value { white-space: normal; }
+@container zen-dashboard (max-width: 600px) {
+	.zen-dash-gauges { grid-template-columns: minmax(0, 1fr); }
+	.zen-dash-gauges .zen-dash-card { padding: 20px; }
 }

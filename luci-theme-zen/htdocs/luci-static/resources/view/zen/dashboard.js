@@ -235,7 +235,7 @@ return baseclass.extend({
 					E('div', { 'class': 'zen-dash-meta' }, [
 						E('div', { 'class': 'zen-dash-label' }, _('Uptime')),
 						E('div', { 'class': 'zen-dash-value', 'data-uptime': 'value' }, fmt.MISSING),
-						E('div', { 'class': 'zen-dash-sub' }, _('Since last restart'))
+						E('div', { 'class': 'zen-dash-sub', 'data-restart': 'value' }, _('Last restart') + ': ' + fmt.MISSING)
 					])
 				]),
 				this.buildRing('load', _('Load')),
@@ -319,16 +319,25 @@ return baseclass.extend({
 		}
 	},
 
-	setUptime(sec) {
+	setUptime(sec, localtime) {
 		let value = fmt.MISSING;
+		let restart = fmt.MISSING;
 		if (sec != null && sec !== '' && Number.isFinite(Number(sec)) && Number(sec) >= 0) {
 			const minutes = Math.floor(Number(sec) / 60);
 			const days = Math.floor(minutes / 1440);
 			const hours = String(Math.floor(minutes % 1440 / 60)).padStart(2, '0');
 			const mins = String(minutes % 60).padStart(2, '0');
-			value = (days ? _('%dd').format(days) + ' ' : '') + hours + ':' + mins;
+			value = _('%dd').format(days) + ' ' + hours + ':' + mins;
+			if (localtime != null && Number.isFinite(Number(localtime)) && Number(localtime) >= Number(sec)) {
+				// procd localtime already includes the router's timezone offset.
+				// UTC formatting preserves that wall clock without applying the browser's offset again.
+				const date = new Date((Number(localtime) - Number(sec)) * 1000);
+				if (Number.isFinite(date.getTime()))
+					restart = date.toISOString().slice(0, 19).replace('T', ' ');
+			}
 		}
 		this.setText(this.dash, '[data-uptime]', value);
+		this.setText(this.dash, '[data-restart]', _('Last restart') + ': ' + restart);
 	},
 
 	setStrip(host, model, uptime) {
@@ -724,7 +733,7 @@ return baseclass.extend({
 
 		const sys = info || {};
 		this.setStrip(sys.hostname, sys.model, sys.uptime != null ? fmt.fmtUptime(sys.uptime) : fmt.MISSING);
-		this.setUptime(sys.uptime);
+		this.setUptime(sys.uptime, sys.localtime);
 
 		const loadRaw = (sys.load || [0, 0, 0]).map((v) => (Number(v) || 0) / 65535);
 		const perCore = loadRaw[0] / (cpu.cores || 1);
@@ -747,8 +756,8 @@ return baseclass.extend({
 
 		this.setGauge('load', _('Load'), loadHint, loadTxt, loadPct);
 		this.setGauge('cpu', 'CPU', '%d %s'.format(cpu.cores, _('cores')), '', cpu.pct);
-		this.setGauge('ram', 'RAM', '%s / %s'.format(fmt.fmtBytes(memUsed), fmt.fmtBytes(memTotal)), '', memPct);
-		this.setGauge('disk', _('Storage'), '%s / %s'.format(fmt.fmtBytes(diskUsed), fmt.fmtBytes(diskTotal)), '', diskPct);
+		this.setGauge('ram', _('Memory'), fmt.fmtBytes(memUsed), _('Total %s').format(fmt.fmtBytes(memTotal)), memPct);
+		this.setGauge('disk', _('Storage'), fmt.fmtBytes(diskUsed), _('Total %s').format(fmt.fmtBytes(diskTotal)), diskPct);
 
 		const wan = (wans || [])[0];
 		const wanAddrs4 = addrsOf(wan, false);

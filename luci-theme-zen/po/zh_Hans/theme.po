@@ -221,8 +221,14 @@ msgstr "连接方式"
 msgid "Uptime"
 msgstr "运行时间"
 
-msgid "Since last restart"
-msgstr "自上次重启"
+msgid "Last restart"
+msgstr "上次重启时间"
+
+msgid "Memory"
+msgstr "内存"
+
+msgid "Total %s"
+msgstr "共 %s"
 
 msgid "%dd"
 msgstr "%d天"
