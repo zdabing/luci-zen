@@ -208,6 +208,22 @@ LAN 下行计数 33,600,128 字节，WAN 下行仅 1,789 字节。后台 WAN 流
 到路由器的 LAN-local 分类，不代表桥接终端对传、VLAN 或所有交换路径已覆盖。
 测试 HTTP 服务、路由器临时查询程序与 RAM 文件均已清理。
 
+### 已复现：IPv6 assigned LAN 前缀缺失
+
+当前 netifd 把 LAN 的公网 IPv6 和 ULA 子网放在 `ipv6-prefix-assignment`，
+`ipv6-address` 为空。部署版本只读取后者，`reloadPrefixes` 返回 4 条，遗漏
+这两个 LAN 子网。用客户端临时公网 IPv6 地址与路由器 LAN IPv6 地址之间传输
+4 MiB，HTTP 200、载荷完整；只读 map 的 LAN tx 仅增加 1,946 字节，WAN tx
+却增加 4,233,202 字节（载荷的 100.927%）。这是已确认的 LAN-local 分类缺陷，
+此前 IPv6 link-local 和真实 WAN 测试通过，不能证明 assigned LAN 子网也正确。
+临时源地址、入站防护、HTTP 服务和查询程序已清理。
+
+源码现读取 `ipv6-address` 与 `ipv6-prefix-assignment`，保留默认路由上游排除，
+不读取代表上游委派范围的 `ipv6-prefix`。加入 netifd 格式的回归样本，覆盖空地址
+列表、公网/ULA assigned 子网、上游委派不导入、默认路由标记和非法 mask 拒绝。
+daemon 包 release 增为 3。当前运行的目标包构建基于修复前提交，不能作为这项
+修复的出包或部署证据；新包编译、安装和 IPv6 LAN/WAN 再验仍待完成。
+
 ### 当前拓扑的终端对传边界
 
 另让客户端 B 的 curl 显式绑定 LAN 地址，关闭代理，与客户端 A 的临时 HTTP 服务

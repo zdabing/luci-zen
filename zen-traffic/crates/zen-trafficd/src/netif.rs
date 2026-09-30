@@ -187,18 +187,20 @@ unsafe extern "C" fn dump_cb(
                             }
                         }
                     }
-                    Some("ipv6-address") => {
+                    // netifd puts delegated LAN subnets here even when ipv6-address
+                    // is empty. Do not import ipv6-prefix: that is the upstream PD.
+                    Some("ipv6-address") | Some("ipv6-prefix-assignment") => {
                         for item in ubus::attrs_from_slice(f.data) {
-                            let (mut addr, mut mask) = (None, 255u8);
+                            let (mut addr, mut mask) = (None, 255u32);
                             for p in ubus::attrs_from_slice(item.data) {
                                 match p.name {
                                     Some("address") => addr = p.as_str().and_then(|s| s.parse().ok()),
-                                    Some("mask") => mask = p.as_u32().unwrap_or(255) as u8,
+                                    Some("mask") => mask = p.as_u32().unwrap_or(255),
                                     _ => {}
                                 }
                             }
-                            if let Some(a) = addr {
-                                entry.v6.push((a, mask));
+                            if let Some(a) = addr.filter(|_| mask <= 128) {
+                                entry.v6.push((a, mask as u8));
                             }
                         }
                     }
@@ -224,5 +226,71 @@ unsafe extern "C" fn dump_cb(
             }
             g.ifaces.push(entry);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn wire(id: u8, name: Option<&str>, data: &[u8]) -> Vec<u8> {
+        let mut body = Vec::new();
+        if let Some(name) = name {
+            body.extend_from_slice(&(name.len() as u16).to_be_bytes());
+            body.extend_from_slice(name.as_bytes());
+            body.push(0);
+            while body.len() % 4 != 0 { body.push(0); }
+        }
+        body.extend_from_slice(data);
+        let header = ((id as u32) << 24) | (body.len() as u32 + 4)
+            | if name.is_some() { 0x8000_0000 } else { 0 };
+        let mut bytes = header.to_be_bytes().to_vec();
+        bytes.extend_from_slice(&body);
+        while bytes.len() % 4 != 0 { bytes.push(0); }
+        bytes
+    }
+
+    fn subnet(address: &str, mask: u32) -> Vec<u8> {
+        wire(2, Some(""), &[
+            wire(3, Some("address"), format!("{address}\0").as_bytes()),
+            wire(5, Some("mask"), &mask.to_be_bytes()),
+        ].concat())
+    }
+
+    #[test]
+    fn learns_assigned_ipv6_subnets_without_importing_upstream_pd() {
+        // Match netifd's assigned-prefix layout, including an empty address list.
+        let lan = wire(2, Some(""), &[
+            wire(3, Some("interface"), b"lan\0"),
+            wire(1, Some("ipv6-address"), &[]),
+            wire(1, Some("ipv6-prefix-assignment"), &[
+                subnet("2001:db8:42::", 62), subnet("fd00:42::", 60),
+                subnet("2001:db8:bad::", 256),
+            ].concat()),
+            wire(1, Some("ipv6-prefix"), &subnet("2001:db8::", 48)),
+        ].concat());
+        let wan = wire(2, Some(""), &[
+            wire(3, Some("interface"), b"wan_6\0"),
+            wire(1, Some("ipv6-address"), &subnet("2001:db8:ffff::1", 64)),
+            wire(1, Some("route"), &wire(2, Some(""), &[
+                wire(3, Some("target"), b"::\0"),
+                wire(5, Some("mask"), &0u32.to_be_bytes()),
+            ].concat())),
+        ].concat());
+        let bytes = wire(7, None, &wire(1, Some("interface"), &[lan, wan].concat()));
+        let mut words = vec![0u32; bytes.len().div_ceil(4)];
+        unsafe {
+            std::ptr::copy_nonoverlapping(bytes.as_ptr(), words.as_mut_ptr().cast::<u8>(), bytes.len());
+            { let mut scratch = SCRATCH.lock().unwrap(); scratch.ifaces.clear(); scratch.valid = false; }
+            dump_cb(std::ptr::null_mut(), 0, words.as_mut_ptr().cast());
+        }
+        let scratch = SCRATCH.lock().unwrap();
+        assert!(scratch.valid);
+        assert_eq!(scratch.ifaces.len(), 2);
+        let lan = &scratch.ifaces[0];
+        assert!(!lan.upstream);
+        assert_eq!(lan.v6, vec![("2001:db8:42::".parse().unwrap(), 62), ("fd00:42::".parse().unwrap(), 60)]);
+        assert!(scratch.ifaces[1].upstream);
+        assert_eq!(scratch.ifaces[1].v6, vec![("2001:db8:ffff::1".parse().unwrap(), 64)]);
     }
 }
