@@ -7,6 +7,9 @@
  * stdout is raw netlink messages; ingress sequence=1, egress sequence=2.
  * Add `tcx` for two binary TCX query records: u32 attach_type/count, i64 result,
  * u64 revision, then count u32 program IDs and count u32 link IDs.
+ * Add `stats` to read the Zen devices map through its ingress TCX program.
+ * Output: u32 magic/map_id/count/record_size, then 6 MAC bytes + 9 u64 counters.
+ * This mode contains private client identifiers and traffic counters.
  */
 typedef unsigned int u32;
 typedef unsigned short u16;
@@ -51,6 +54,78 @@ static void query_tcx(int index) {
         write_all(ids,out.count*4); write_all(links,out.count*4);
     }
 }
+static int equal(const char *a, const char *b) {
+    for (int i=0; ; i++) { if (a[i]!=b[i]) return 0; if (!a[i]) return 1; }
+}
+static long object_fd(u32 command, u32 id) {
+    u32 attr[4]={id,0,0,0};
+    long fd=call(280,command,(long)attr,sizeof(attr),0,0,0);
+    if (fd<0) finish(14);
+    return fd;
+}
+static void object_info(long fd, void *info, u32 size) {
+    struct { u32 fd, size; unsigned long ptr; } attr={fd,size,(unsigned long)info};
+    if (call(280,15,(long)&attr,sizeof(attr),0,0,0)<0) finish(15);
+}
+struct device_record { unsigned char key[6]; unsigned long stats[9]; };
+static struct device_record records[4096];
+static void query_stats(int index) {
+    u32 prog_ids[64]={0};
+    struct { u32 index, type, flags, attach_flags;
+             unsigned long ids; u32 count, pad;
+             unsigned long prog_flags, links, link_flags, revision;
+    } q={index,46,0,0,(unsigned long)prog_ids,64,0,0,0,0,0};
+    if (call(280,16,(long)&q,sizeof(q),0,0,0)<0 || q.count!=1) finish(16);
+    long prog_fd=object_fd(13,prog_ids[0]); u32 map_ids[64]={0};
+    struct { u32 type,id; unsigned char tag[8]; u32 jited_len,xlated_len;
+             unsigned long jited,xlated,load_time; u32 uid,map_count;
+             unsigned long map_ids; char name[16];
+    } info={0};
+    _Static_assert(__builtin_offsetof(__typeof__(info),map_count)==52, "prog map count");
+    _Static_assert(__builtin_offsetof(__typeof__(info),map_ids)==56, "prog map IDs");
+    info.map_count=64; info.map_ids=(unsigned long)map_ids;
+    object_info(prog_fd,&info,sizeof(info));
+    if (info.map_count!=2 || (info.name[0] && !equal(info.name,"zen_ingress"))) finish(17);
+    long map_fd=-1; u32 map_id=0, prefix_map=0;
+    for (u32 i=0; i<info.map_count; i++) {
+        long fd=object_fd(14,map_ids[i]);
+        struct { u32 type,id,key_size,value_size,max_entries,flags;
+                 char name[16]; unsigned char rest[88]; } map={0};
+        object_info(fd,&map,sizeof(map));
+        if ((equal(map.name,"devices") || !map.name[0]) && map.type==1 &&
+            map.key_size==6 && map.value_size==72 && map.max_entries==4096) {
+            if (map_fd!=-1) finish(18);
+            map_fd=fd; map_id=map.id;
+        } else {
+            if ((equal(map.name,"local_prefixes") || !map.name[0]) && map.type==11 &&
+                map.key_size==20 && map.value_size==1 && map.max_entries==256) prefix_map++;
+            call(57,fd,0,0,0,0,0);
+        }
+    }
+    if (map_fd<0 || prefix_map!=1) finish(19);
+    unsigned char key[6]={0}, next[6]={0}; u32 count=0, have_key=0;
+    struct { u32 fd,pad; unsigned long key,value,flags; } attr={map_fd,0,0,(unsigned long)next,0};
+    for (u32 tries=0; ; tries++) {
+        if (tries>4096) finish(20);
+        attr.key=have_key?(unsigned long)key:0; attr.value=(unsigned long)next;
+        long rc=call(280,4,(long)&attr,sizeof(attr),0,0,0);
+        if (rc==-2) break;
+        if (rc<0 || count==4096) finish(20);
+        for (int i=0; i<6; i++) key[i]=next[i];
+        have_key=1; attr.key=(unsigned long)key; attr.value=(unsigned long)records[count].stats;
+        rc=call(280,1,(long)&attr,sizeof(attr),0,0,0);
+        if (rc==-2) continue; /* entry removed during the read */
+        if (rc<0) finish(21);
+        for (int i=0; i<6; i++) records[count].key[i]=key[i];
+        count++;
+    }
+    u32 header[4]={0x4154535a,map_id,count,78}; /* little-endian ZSTA */
+    write_all(header,sizeof(header));
+    for (u32 i=0; i<count; i++) {
+        write_all(records[i].key,6); write_all(records[i].stats,72);
+    }
+    call(57,map_fd,0,0,0,0,0); call(57,prog_fd,0,0,0,0,0);
+}
 void dump_main(long *stack) {
     if (stack[0]!=2 && stack[0]!=3) finish(2);
     char *arg=(char *)stack[2]; int index=0;
@@ -59,8 +134,10 @@ void dump_main(long *stack) {
     if (index<=0) finish(2);
     if (stack[0]==3) {
         char *mode=(char *)stack[3];
-        if (mode[0]!='t'||mode[1]!='c'||mode[2]!='x'||mode[3]) finish(2);
-        query_tcx(index); finish(0);
+        if (equal(mode,"tcx")) query_tcx(index);
+        else if (equal(mode,"stats")) query_stats(index);
+        else finish(2);
+        finish(0);
     }
     long fd=call(198,16,3,0,0,0,0); if (fd<0) finish(3);
     struct address addr={16,0,0,0};

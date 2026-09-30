@@ -1,4 +1,4 @@
-"""Decode read-only AArch64 helper output; identifiers contain no client traffic."""
+"""Decode read-only AArch64 output. stats contains private MACs/traffic counters."""
 import argparse
 import json
 import struct
@@ -18,6 +18,20 @@ def attributes(data):
 
 
 def decode(data, mode):
+    if mode == 'stats':
+        magic, map_id, count, record_size = struct.unpack_from('<IIII', data)
+        if magic != 0x4154535a or count > 4096 or record_size != 78 or len(data) != 16 + count * 78:
+            raise ValueError('invalid or incomplete devices map dump')
+        names = ['last_seen_ns', 'wan_rx_bytes', 'wan_rx_packets', 'wan_tx_bytes',
+                 'wan_tx_packets', 'lan_rx_bytes', 'lan_rx_packets', 'lan_tx_bytes', 'lan_tx_packets']
+        rows = []
+        for pos in range(16, len(data), 78):
+            row = dict(zip(names, struct.unpack_from('<9Q', data, pos + 6)))
+            row.update(mac=':'.join(f'{v:02x}' for v in data[pos:pos + 6]), map_id=map_id)
+            rows.append(row)
+        if len({row['mac'] for row in rows}) != count:
+            raise ValueError('map changed during enumeration; repeat the read')
+        return rows
     rows = []
     pos = 0
     done = []
@@ -64,7 +78,7 @@ def decode(data, mode):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('mode', choices=['tcx', 'netlink'])
+    parser.add_argument('mode', choices=['tcx', 'netlink', 'stats'])
     parser.add_argument('path', type=Path)
     args = parser.parse_args()
     print(json.dumps(decode(args.path.read_bytes(), args.mode), indent=2))

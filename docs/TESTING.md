@@ -72,6 +72,7 @@ MAC 与原始日志仅留在忽略目录 `.zcode/`，不放入公开报告。
 | B 测试时其他 MAC | 最大同方向增量分别为测试载荷的 0.126% / 3.047%，低于 10% 判据 |
 | 两客户端同时上行，各 64 MiB | 载荷传输重叠 6.805 秒；A HTTP / B TCP 的 tx 增量误差 +0.318% / +0.218% |
 | 两客户端同时下行，各 64 MiB | 载荷传输重叠 6.730 秒；A HTTP / B TCP 的 rx 增量误差 +1.747% / +0.187% |
+| LAN/WAN 分开计数 | 客户端 A ↔ 路由器各 32 MiB；只读 map 的 LAN tx/rx 误差 +0.624% / +0.136%，对应 WAN 增量仅占载荷 0.00184% / 0.00533% |
 | 正常服务重启 | 22 台设备累计、今日、本月计数均 after ≥ before；正常退出 checkpoint 完成 |
 | TC/BPF 附着清理 | Linux 6.12 实际使用 TCX；运行时 ingress/egress 各 1 个，停止后各 0 个，启动及连续 3 次重启后始终各 1 个 |
 | WAN 历史 | pppoe-wan 可查询，约 5 秒采样，包含最近未落盘样本 |
@@ -166,6 +167,26 @@ python tools/tc-attachment-report.py tcx filters.tcx
 
 查询结束后删除路由器上的临时程序与结果。两个方向都必须查询完整；工具对响应长度、
 错误状态、超时及中断检查，TCX 不支持时报告错误而不会将其当作零附着。
+
+### LAN/WAN 分开计数
+
+`getDevices` 的今日/本月/累计是 WAN+LAN 合计，不能据它单独判断 LAN 是否误入
+WAN。只读查询工具增加 `stats` 模式，从当前 ingress TCX 程序找到 devices map，
+按 map 类型、key/value 大小、容量以及配套 LPM map 形状核对 ABI 后读取。
+当前内核返回的程序名为空，工具允许空名，但仍要求唯一 TCX ingress 和两个
+符合 Zen ABI 的 map；不匹配则拒绝读取。该模式不加载、更新或删除程序与 map。
+
+```sh
+/tmp/tc-filter-dump "$(cat /sys/class/net/br-lan/ifindex)" stats > /tmp/devices.stats
+python tools/tc-attachment-report.py stats devices.stats
+```
+
+结果包含真实 MAC 和原始 WAN/LAN 字节/包计数，只应私下保留。2026-10-01 用
+32 MiB 已知大小传输验证：LAN 上行计数 33,763,749 字节，WAN 上行仅 617 字节；
+LAN 下行计数 33,600,128 字节，WAN 下行仅 1,789 字节。后台 WAN 流量没有清零。
+两个方向的 LAN 计数均通过 ±10%，WAN 增量远低于载荷的 10%。此项证明客户端
+到路由器的 LAN-local 分类，不代表桥接终端对传、VLAN 或所有交换路径已覆盖。
+测试 HTTP 服务、路由器临时查询程序与 RAM 文件均已清理。
 
 ### 可复现基线
 
