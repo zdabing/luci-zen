@@ -30,6 +30,69 @@ const callDevices = rpc.declare({
 	method: 'getDevices'
 });
 
+const callHistory = rpc.declare({
+	object: 'zen.traffic', method: 'getHistory', params: ['agg', 'mac']
+});
+
+function historySvg(tag, attrs, text) {
+	const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+	for (const key in attrs) el.setAttribute(key, attrs[key]);
+	if (text != null) el.textContent = text;
+	return el;
+}
+
+function drawHistory(ent, res) {
+	const rows = ((res && res.days) || []).slice(-14);
+	ent.historyChart.textContent = '';
+	if (!rows.length) {
+		ent.historyChart.textContent = _('No history data yet');
+		return;
+	}
+	const max = fmt.niceMax(Math.max(...rows.map(r => Math.max(r.download || 0, r.upload || 0))));
+	const chart = historySvg('svg', { viewBox: '0 0 640 160', role: 'img', 'aria-label': _('Daily traffic') });
+	const x = i => 62 + (rows.length === 1 ? 560 / 2 : i * 560 / (rows.length - 1));
+	const y = v => 126 - (Number(v) || 0) * 108 / max;
+	for (let i = 0; i <= 2; i++) {
+		const value = max * i / 2;
+		chart.appendChild(historySvg('line', { x1: 62, x2: 622, y1: y(value), y2: y(value), 'class': 'history-grid' }));
+		chart.appendChild(historySvg('text', { x: 54, y: y(value) + 4, 'text-anchor': 'end' }, fmt.fmtBytes(value)));
+	}
+	for (const key of ['download', 'upload']) {
+		const series = key === 'download' ? 'dl' : 'ul';
+		chart.appendChild(historySvg('polyline', { points: rows.map((r, i) => x(i) + ',' + y(r[key])).join(' '), 'class': series }));
+		rows.forEach((r, i) => {
+			const dot = historySvg('circle', { cx: x(i), cy: y(r[key]), r: 3, 'class': series });
+			dot.appendChild(historySvg('title', {}, r.date + ' · ' + (key === 'download' ? _('Download') : _('Upload')) + ': ' + fmt.fmtBytes(r[key])));
+			chart.appendChild(dot);
+		});
+	}
+	chart.appendChild(historySvg('text', { x: 62, y: 150 }, rows[0].date));
+	chart.appendChild(historySvg('text', { x: 622, y: 150, 'text-anchor': 'end' }, rows[rows.length - 1].date));
+	ent.historyChart.appendChild(chart);
+}
+
+function refreshHistory(ent, force) {
+	if (!ent.d || ent.historyLoading || (!force && Date.now() - (ent.historyAt || 0) < 60000)) return;
+	if (!ent.historyChart) {
+		ent.historyChart = E('div', { 'class': 'zen-dash-device-history', 'aria-live': 'polite' }, _('Loading history…'));
+		const refresh = E('button', { type: 'button', 'class': 'zen-dash-history-refresh' }, _('Refresh'));
+		refresh.addEventListener('click', () => refreshHistory(ent, true));
+		ent.detail.appendChild(E('div', { 'class': 'zen-dash-history-head' }, [E('strong', {}, _('Daily traffic')), refresh]));
+		ent.detail.appendChild(E('div', { 'class': 'zen-dash-chart-legend' }, [
+			E('span', { 'class': 'dl' }, [E('span', { 'class': 'swatch' }), _('Download (solid)')]),
+			E('span', { 'class': 'ul' }, [E('span', { 'class': 'swatch' }), _('Upload (dashed)')])
+		]));
+		ent.detail.appendChild(ent.historyChart);
+	}
+	ent.historyLoading = true;
+	return callHistory('day', ent.d.mac).then(res => {
+		drawHistory(ent, res);
+		ent.historyAt = Date.now();
+	}).catch(() => {
+		if (!ent.historyAt) ent.historyChart.textContent = _('Unable to load history');
+	}).finally(() => { ent.historyLoading = false; });
+}
+
 /* 'ok' | 'missing'（权限/异常也归并为 missing，降级语义一致） */
 async function probeState() {
 	try {
@@ -73,9 +136,14 @@ function buildRow() {
 	const ip = E('span', { 'class': 'zen-dash-dev-ip' }, '');
 	const mac = E('span', { 'class': 'zen-dash-dev-mac' }, '');
 
-	const conn = E('span', { 'class': 'zen-dash-dev-conn' }, '');
-	const dl = E('span', { 'class': 'zen-dash-dev-rate dl' }, '');
-	const ul = E('span', { 'class': 'zen-dash-dev-rate ul' }, '');
+	const connLabel = E('span', {}, '');
+	const conn = E('span', { 'class': 'zen-dash-dev-conn' }, [connLabel]);
+	const rate = (direction, arrow, label) => E('span', { 'class': 'zen-dash-dev-rate ' + direction, 'aria-label': label }, [
+		E('span', { 'class': 'zen-dash-dev-direction', 'aria-hidden': 'true' }, arrow),
+		E('span', { 'class': 'zen-dash-dev-rate-value' }, '')
+	]);
+	const dl = rate('dl', '↓', _('Download'));
+	const ul = rate('ul', '↑', _('Upload'));
 	const chev = E('span', { 'class': 'zen-dash-dev-chev' }, [icons.icon('zen-i-chev', 16)]);
 
 	const detail = E('div', { 'class': 'zen-dash-dev-detail' },
@@ -91,7 +159,8 @@ function buildRow() {
 	li.appendChild(detail);
 
 	const ent = {
-		li, iconBox, ov, ip, mac, conn, dl, ul, detail,
+		li, iconBox, ov, ip, mac, conn: connLabel, connBox: conn,
+		dl: dl.lastChild, ul: ul.lastChild, detail,
 		grid: detail.firstChild,
 		name: id.firstChild,
 		d: null
@@ -124,7 +193,8 @@ function updateDetail(ent, d) {
 		[_('MAC'), d.mac],
 		[_('Today'), '↓ ' + fmt.fmtBytes(d.rx_today) + '  ↑ ' + fmt.fmtBytes(d.tx_today)],
 		[_('Month'), '↓ ' + fmt.fmtBytes(d.rx_month) + '  ↑ ' + fmt.fmtBytes(d.tx_month)],
-		[_('Total'), '↓ ' + fmt.fmtBytes(d.rx_total) + '  ↑ ' + fmt.fmtBytes(d.tx_total)]
+		[_('Total'), '↓ ' + fmt.fmtBytes(d.rx_total) + '  ↑ ' + fmt.fmtBytes(d.tx_total)],
+		[_('Last activity'), d.last > 0 ? new Date(d.last * 1000).toLocaleString() : fmt.MISSING]
 	];
 	if (!grid.firstChild) {
 		for (const [k] of cells)
@@ -135,6 +205,7 @@ function updateDetail(ent, d) {
 	}
 	const vs = grid.querySelectorAll('.v');
 	cells.forEach((c, i) => setText(vs[i], c[1]));
+	refreshHistory(ent, false);
 }
 
 return baseclass.extend({
@@ -152,7 +223,7 @@ return baseclass.extend({
 		const section = E('section', { 'class': 'zen-dash-panel zen-dash-devices' }, [
 			E('div', { 'class': 'zen-dash-dev-head' }, [
 				E('h3', {}, _('Device Traffic')),
-				E('span', { 'class': 'zen-dash-dev-count' }, '')
+			E('span', { 'class': 'zen-dash-dev-count', 'aria-live': 'polite' }, '')
 			])
 		]);
 
@@ -255,8 +326,17 @@ return baseclass.extend({
 			ent.name.title = devName(d);
 			ent.ip.title = d.ip4 || d.ip6 || '';
 			setText(ent.conn, connText(d));
-			setText(ent.dl, '↓ ' + fmt.fmtRate(d.rx_r || 0));
-			setText(ent.ul, '↑ ' + fmt.fmtRate(d.tx_r || 0));
+			const connIcon = { wifi: 'zen-i-wifi', wired: 'zen-i-eth', router: 'zen-i-router' }[d.conn];
+			if (ent.connIconType !== connIcon) {
+				if (ent.connGlyph)
+					ent.connGlyph.remove();
+				ent.connGlyph = connIcon ? icons.icon(connIcon, 14) : null;
+				if (ent.connGlyph)
+					ent.connBox.insertBefore(ent.connGlyph, ent.conn);
+				ent.connIconType = connIcon;
+			}
+			setText(ent.dl, fmt.fmtRate(d.rx_r || 0));
+			setText(ent.ul, fmt.fmtRate(d.tx_r || 0));
 
 			if (ent.li.classList.contains('open'))
 				updateDetail(ent, d);
@@ -272,7 +352,7 @@ return baseclass.extend({
 
 		this.applyVisibility();
 		setText(this.count,
-			devs.length ? '%d devices'.format(devs.length) : _('No devices yet'));
+			devs.length ? _('%d devices').format(devs.length) : _('No devices yet'));
 	},
 
 	applyVisibility() {

@@ -221,8 +221,8 @@ msgstr "连接方式"
 msgid "Uptime"
 msgstr "运行时间"
 
-msgid "Last restart"
-msgstr "上次重启时间"
+msgid "Startup time"
+msgstr "启动时间"
 
 msgid "Memory"
 msgstr "内存"
@@ -230,5 +230,86 @@ msgstr "内存"
 msgid "Total %s"
 msgstr "共 %s"
 
+msgid "Protocol"
+msgstr "协议"
+
+msgid "Address"
+msgstr "地址"
+
+msgid "Status"
+msgstr "状态"
+
+msgid "DHCP client"
+msgstr "DHCP 客户端"
+
+msgid "Static address"
+msgstr "静态地址"
+
+msgid "Running"
+msgstr "运行中"
+
+msgid "Last 5 minutes"
+msgstr "最近5分钟"
+
+msgid "5-second updates"
+msgstr "每5秒更新"
+
+msgid "Download (solid)"
+msgstr "下载（实线）"
+
+msgid "Upload (dashed)"
+msgstr "上传（虚线）"
+
+msgid "5 minutes ago"
+msgstr "5分钟前"
+
+msgid "Now"
+msgstr "现在"
+
+msgid "%d devices"
+msgstr "%d 台设备"
+
 msgid "%dd"
 msgstr "%d天"
+
+msgid "Daily traffic"
+msgstr "每日流量"
+
+msgid "No history data yet"
+msgstr "暂无历史数据"
+
+msgid "Loading history…"
+msgstr "正在加载历史…"
+
+msgid "Refresh"
+msgstr "刷新"
+
+msgid "Unable to load history"
+msgstr "无法加载历史数据"
+
+msgid "Last activity"
+msgstr "最后活动时间"
+
+msgid "Open process list"
+msgstr "打开进程列表"
+
+msgid "Used %s"
+msgstr "已用 %s"
+
+msgid "Close"
+msgstr "关闭"
+
+msgid "Architecture"
+msgstr "架构"
+
+msgid "Firmware version"
+msgstr "固件版本"
+
+msgid "System time"
+msgstr "系统时间"
+
+msgid "64-bit"
+msgstr "64位"
+
+msgid "32-bit"
+msgstr "32位"

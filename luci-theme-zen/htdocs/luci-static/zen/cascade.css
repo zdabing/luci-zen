@@ -24,8 +24,14 @@
 	--warn-soft: #ededed;
 	--info: #262626;
 	--info-soft: #ededed;
-	--dl: #262626;
-	--ul: #737373;
+	--dl: #15803d;
+	--connected-bg: #dcfce7;
+	--connected-text: #166534;
+	--ul: #ea580c;
+	--gauge: #2563eb;
+	--gauge-warn: #d97706;
+	--gauge-danger: #dc2626;
+	--status-online: #16a34a;
 	--shadow: none;
 	--shadow-sm: none;
 	--shadow-glow: none;
@@ -84,8 +90,14 @@
 	--warn-soft: #2c2c2c;
 	--info: #e5e5e5;
 	--info-soft: #2c2c2c;
-	--dl: #f5f5f5;
-	--ul: #a3a3a3;
+	--dl: #4ade80;
+	--connected-bg: #143524;
+	--connected-text: #86efac;
+	--ul: #fb923c;
+	--gauge: #60a5fa;
+	--gauge-warn: #fbbf24;
+	--gauge-danger: #f87171;
+	--status-online: #4ade80;
 	--aside-bg: linear-gradient(rgba(27,27,27,.94), rgba(27,27,27,.94));
 	--header-bg: rgba(16,16,16,.88);
 	--modal-mask: rgba(0,0,0,.6);
@@ -2237,13 +2249,13 @@ body.node-admin-status-overview #maincontent > .container {
 }
 
 .zen-dash-ring circle.arc {
-	stroke: var(--accent);
+	stroke: var(--gauge);
 	stroke-linecap: round;
 	transition: stroke-dashoffset 0.28s cubic-bezier(0.25, 1, 0.3, 1), stroke 0.18s ease;
 }
 
-.zen-dash-card[data-level="warn"] circle.arc { stroke: var(--warn); }
-.zen-dash-card[data-level="danger"] circle.arc { stroke: var(--danger); }
+.zen-dash-card[data-level="warn"] circle.arc { stroke: var(--gauge-warn); }
+.zen-dash-card[data-level="danger"] circle.arc { stroke: var(--gauge-danger); }
 
 .zen-dash-ring text.pct {
 	fill: var(--text);
@@ -2324,7 +2336,7 @@ body.node-admin-status-overview #maincontent > .container {
 	flex-shrink: 0;
 }
 
-.zen-dash-ov-dot.up { background: var(--ok); }
+.zen-dash-ov-dot.up { background: var(--status-online); }
 .zen-dash-ov-dot.down { background: var(--danger); }
 
 .zen-dash-ov-value {
@@ -3009,3 +3021,139 @@ header .showSide:focus-visible { outline: 2px solid var(--accent); outline-offse
 	.zen-dash-gauges { grid-template-columns: minmax(0, 1fr); }
 	.zen-dash-gauges .zen-dash-card { padding: 20px; }
 }
+
+/* Network summary shares the device list's tonal header and row separators. */
+.zen-dash-network-table { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; font-size: 13px; }
+.zen-dash-network-table th, .zen-dash-network-table td { padding: 18px 10px; text-align: left; vertical-align: middle; border: 0; }
+.zen-dash-network-table thead th { background: var(--bg-nested); color: var(--text-secondary); font-size: 12px; font-weight: 600; padding-top: 14px; padding-bottom: 14px; }
+.zen-dash-network-table thead th:first-child { width: 15%; border-radius: 12px 0 0 12px; }
+.zen-dash-network-table thead th:nth-child(2) { width: 22%; }
+.zen-dash-network-table thead th:nth-child(3) { width: 36%; }
+.zen-dash-network-table thead th:last-child { width: 27%; border-radius: 0 12px 12px 0; }
+.zen-dash-network-table tbody tr + tr > * { border-top: 1px solid var(--line); }
+.zen-dash-network-table tbody th { font-weight: 650; }
+.zen-dash-network-table tbody tr, .zen-dash-network-table tbody th, .zen-dash-network-table tbody td { background: transparent; color: var(--text); }
+.zen-dash-network-table td { overflow-wrap: anywhere; }
+.zen-dash-network-table [data-network-field="address"] { white-space: pre-line; font-variant-numeric: tabular-nums; }
+.zen-dash-net-status { display: flex; align-items: baseline; gap: 7px; }
+.zen-dash-net-status .zen-dash-ov-dot { flex-shrink: 0; }
+@media (max-width: 560px) {
+	.zen-dash-network-table th, .zen-dash-network-table td { padding: 14px 6px; font-size: 12px; }
+}
+
+/* Compact system summary and a chart that fills the shared network row. */
+.zen-dash-strip { align-items: center; gap: 8px 14px; }
+.zen-dash-strip .zen-dash-uptime { margin-left: auto; display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; color: var(--text-secondary); font-size: 12px; }
+.zen-dash-strip .zen-dash-uptime .zen-dash-label { margin: 0; }
+.zen-dash-strip .zen-dash-uptime strong { color: var(--text); font-size: 16px; font-variant-numeric: tabular-nums; }
+.zen-dash-gauges .zen-dash-card { min-height: 104px; padding: 16px; gap: 12px; }
+.zen-dash-gauges .zen-dash-ring svg { width: 64px; height: 64px; }
+.zen-dash-gauges .zen-dash-value { font-size: 24px; }
+.zen-dash-traffic { display: flex; flex-direction: column; }
+.zen-dash-traffic .zen-dash-chart { flex: 1; min-height: 150px; height: auto; }
+.zen-dash-traffic .zen-dash-svg { position: absolute; inset: 0; }
+@container zen-dashboard (min-width: 1100px) {
+	.zen-dash-gauges { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@container zen-dashboard (max-width: 600px) {
+	.zen-dash-strip .zen-dash-uptime { width: 100%; margin-left: 0; }
+}
+
+/* Realtime rates lead; lifetime totals remain secondary. */
+.zen-dash-traffic-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 12px; }
+.zen-dash-stat:is(.rx, .tx) { padding: 14px 16px; }
+.zen-dash-stat:is(.rx, .tx) .v { font-size: 32px; font-weight: 750; line-height: 1.2; }
+.zen-dash-stat:not(.rx):not(.tx) { display: flex; flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; padding: 2px 4px; background: transparent; border-radius: 0; }
+.zen-dash-stat:not(.rx):not(.tx) .v { font-size: 13px; font-weight: 500; color: var(--text-secondary); }
+.zen-dash-net-status { display: inline-flex; align-items: center; border-radius: 999px; padding: 5px 9px; font-size: 11px; font-weight: 600; background: var(--bg-nested); color: var(--text-secondary); }
+.zen-dash-net-status[data-state="connected"] { background: var(--connected-bg); color: var(--connected-text); }
+.zen-dash-net-status .zen-dash-ov-dot { display: none; }
+@media (max-width: 560px) {
+	.zen-dash-stat:is(.rx, .tx) { padding: 12px; }
+	.zen-dash-stat:is(.rx, .tx) .v { font-size: clamp(18px, 4.5vw, 26px); }
+	.zen-dash-net-status { padding: 4px 6px; }
+}
+
+/* Light identifiers and aligned per-device directions. */
+.zen-dash-dev-row .zen-dash-dev-mac { background: transparent; border: 0; border-radius: 0; padding: 0; color: var(--text-muted); }
+.zen-dash-dev-rates { width: 100%; max-width: 128px; }
+.zen-dash-dev-rates .zen-dash-dev-rate { display: grid; grid-template-columns: 12px minmax(0, 1fr); column-gap: 8px; align-items: baseline; }
+.zen-dash-dev-rate-value { text-align: right; font-variant-numeric: tabular-nums; }
+.zen-dash-dev-direction { text-align: center; font-weight: 600; }
+.zen-dash-dev-row .zen-dash-dev-conn { align-items: center; gap: 6px; }
+.zen-dash-dev-conn svg { flex-shrink: 0; }
+
+.zen-dash-chart-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 4px 4px 6px; font-size: 12px; color: var(--text-secondary); }
+.zen-dash-chart-legend > span { display: inline-flex; align-items: center; gap: 6px; }
+.zen-dash-chart-legend .swatch { width: 18px; border-top: 2px solid var(--dl); }
+.zen-dash-chart-legend .ul .swatch { border-top-color: var(--ul); border-top-style: dashed; }
+.zen-dash-svg .xaxis text { fill: var(--text-muted); font-size: 10px; }
+
+.zen-dash-gauges [data-gauge="load"] .zen-dash-value { font-size: 26px; font-weight: 700; }
+.zen-dash-ring text.pct { font-weight: 700; }
+.zen-dash-network-table .zen-dash-net-ipv6 [data-network-field="address"] { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.zen-dash-dev-count { display: inline-flex; align-items: center; padding: 5px 10px; border-radius: 999px; background: var(--bg-nested); color: var(--text); font-size: 13px; font-weight: 650; font-variant-numeric: tabular-nums; }
+
+.zen-dash-card-action { color: var(--text); text-decoration: none; font-family: inherit; text-align: left; cursor: pointer; }
+.zen-dash-card-action:focus-visible { outline: 2px solid var(--gauge); outline-offset: 3px; }
+@media (hover: hover) { .zen-dash-card-action:hover { background: var(--bg-nested); } }
+.zen-dash-iface-control { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-secondary); }
+.zen-dash-iface-control select { min-width: 100px; border: 1px solid var(--line-strong); }
+.zen-dash-history-head { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; gap: 12px; }
+.zen-dash-history-refresh { font-size: 12px; padding: 4px 10px; }
+.zen-dash-device-history { padding: 8px; background: var(--bg-nested); border-radius: 12px; color: var(--text-secondary); font-size: 12px; }
+.zen-dash-device-history svg { display: block; width: 100%; height: auto; }
+.zen-dash-device-history text { font-size: 11px; fill: var(--text-muted); }
+.zen-dash-device-history .history-grid { stroke: var(--line-strong); stroke-dasharray: 3 4; }
+.zen-dash-device-history polyline { fill: none; stroke-width: 2; }
+.zen-dash-device-history .dl { stroke: var(--dl); }
+.zen-dash-device-history .ul { stroke: var(--ul); }
+.zen-dash-device-history polyline.ul { stroke-dasharray: 5 5; }
+.zen-dash-device-history circle.dl { fill: var(--dl); }
+.zen-dash-device-history circle.ul { fill: var(--ul); }
+.zen-dash-disk-dialog { max-width: min(420px, calc(100vw - 32px)); padding: 24px; border: 1px solid var(--line); border-radius: 20px; background: var(--bg-panel); color: var(--text); }
+.zen-dash-disk-dialog::backdrop { background: var(--modal-mask); }
+@media (max-width: 560px) { .zen-dash-traffic-head { flex-wrap: wrap; gap: 10px; } }
+
+.zen-dash-iface-control select { background: var(--bg-input); color: var(--text); }
+:root[data-theme="dark"] .main-left a, :root[data-darkmode="true"] .main-left a { color: var(--text-secondary); }
+:root[data-theme="dark"] .main-left .active > a, :root[data-darkmode="true"] .main-left .active > a { color: var(--text); background: var(--bg-nested); }
+
+.zen-dash-system-info { display: grid; grid-template-columns: .9fr .9fr 1.2fr 1.5fr; gap: 14px 24px; width: min(100%, 900px); margin-left: auto; }
+.zen-dash-system-item { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.zen-dash-system-item svg { width: 24px; height: 24px; flex-shrink: 0; fill: none; stroke: var(--text-secondary); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.zen-dash-system-item > div { min-width: 0; }
+.zen-dash-system-label { display: block; color: var(--text-secondary); font-size: 12px; margin-bottom: 3px; }
+.zen-dash-system-item strong { display: block; color: var(--text); font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+@container zen-dashboard (max-width: 800px) { .zen-dash-system-info { width: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 18px; } }
+@container zen-dashboard (max-width: 380px) { .zen-dash-system-item { gap: 6px; } .zen-dash-system-item svg { width: 20px; height: 20px; } .zen-dash-system-item strong { font-size: 12px; } }
+
+/* All six system facts share one compact desktop row. */
+.zen-dash-system-info { width: 100%; margin-left: 0; grid-template-columns: .8fr .85fr 1.05fr 1.3fr .85fr 1.3fr; gap: 12px; }
+.zen-dash-system-item { gap: 7px; }
+.zen-dash-system-item svg { width: 20px; height: 20px; }
+.zen-dash-system-item strong { font-size: 13px; }
+@container zen-dashboard (max-width: 1099px) { .zen-dash-system-info { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@container zen-dashboard (max-width: 600px) { .zen-dash-system-info { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* Interface summary and four metrics share a compact row; the trend spans both. */
+.zen-dash-body { align-items: stretch; gap: 16px; }
+.zen-dash-trend { grid-column: 1 / -1; }
+.zen-dash-trend .zen-dash-chart { height: 190px; min-height: 190px; margin-top: 8px; }
+.zen-dash-trend .zen-dash-chart-legend { justify-content: flex-end; margin: 0 4px; }
+.zen-dash-traffic .zen-dash-hint { display: block; margin: 4px 0 0; font-size: 11px; }
+.zen-dash-traffic-stats { flex: 1; gap: 12px; }
+.zen-dash-stat:not(.rx):not(.tx) { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 8px; padding: 14px 16px; border-radius: 16px; background: var(--bg-nested); }
+.zen-dash-stat:not(.rx):not(.tx) .v { font-size: 28px; font-weight: 700; line-height: 1.2; color: var(--text); }
+.zen-dash-iface-control { position: relative; flex-shrink: 0; }
+.zen-dash-iface-control::after { content: ''; position: absolute; right: 14px; width: 6px; height: 6px; border-right: 1.5px solid var(--text-secondary); border-bottom: 1.5px solid var(--text-secondary); transform: translateY(-2px) rotate(45deg); pointer-events: none; }
+.zen-dash-iface-control select { appearance: none; min-width: 138px; padding: 8px 30px 8px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--bg-nested); color: var(--text); font: inherit; font-weight: 600; cursor: pointer; }
+.zen-dash-iface-control select:focus-visible { outline: 2px solid var(--gauge); outline-offset: 2px; }
+@container zen-dashboard (max-width: 600px) {
+ .zen-dash-stat:not(.rx):not(.tx) { padding: 12px; }
+ .zen-dash-stat:not(.rx):not(.tx) .v { font-size: 24px; }
+ .zen-dash-trend .zen-dash-chart { height: 160px; min-height: 160px; }
+}
+
+.zen-dash-traffic-stats .zen-dash-stat.total-tx .k, .zen-dash-traffic-stats .zen-dash-stat.total-tx .v { color: var(--ul); }
+.zen-dash-traffic-stats .zen-dash-stat.total-rx .k, .zen-dash-traffic-stats .zen-dash-stat.total-rx .v { color: var(--dl); }

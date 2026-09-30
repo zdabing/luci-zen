@@ -4,7 +4,7 @@
 		"read": {
 			"ubus": {
 				"file": [ "read" ],
-				"system": [ "info" ],
+				"system": [ "info", "board" ],
 				"luci": [ "getMountPoints" ],
 				"luci-rpc": [ "getDHCPLeases", "getNetworkDevices", "getHostHints" ],
 				"network.device": [ "status" ],

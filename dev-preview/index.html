@@ -114,19 +114,12 @@
 				<!-- ===== dashboard.js build() 结构复刻 ===== -->
 				<div id="zen-dashboard">
 					<div class="zen-dash-strip">
-						<span class="zen-dash-host" data-strip="host">OpenWrt</span>
-						<span data-strip="model">Xiaomi AX3000T</span>
-						<span data-strip="uptime">运行 3 天 4 小时</span>
+						<div class="zen-dash-system-info"><div class="zen-dash-system-item"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10 12 3l9 7v11H3z"/></svg><div><span class="zen-dash-system-label">主机名</span><strong>OpenWrt</strong></div></div><div class="zen-dash-system-item"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6h12v12H6zM9 9h6v6H9zM9 2v4m6-4v4M9 18v4m6-4v4"/></svg><div><span class="zen-dash-system-label">架构</span><strong>ARMv8 · 64位</strong></div></div><div class="zen-dash-system-item"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h16v12H4zM8 9V6a4 4 0 0 1 8 0v3"/></svg><div><span class="zen-dash-system-label">固件版本</span><strong>OpenWrt 25.12.5</strong></div></div><div class="zen-dash-system-item"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18M12 7v5l3 2"/></svg><div><span class="zen-dash-system-label">系统时间</span><strong>2026-09-30 10:24:35</strong></div></div><div class="zen-dash-system-item"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5a9 9 0 1 1-2 9M12 7v5l3 2"/></svg><div><span class="zen-dash-system-label">运行时间</span><strong data-uptime>3天 04:18</strong></div></div><div class="zen-dash-system-item"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v9M7 5a9 9 0 1 0 10 0"/></svg><div><span class="zen-dash-system-label">启动时间</span><strong data-restart>2026-09-10 23:23:23</strong></div></div></div>
+
 					</div>
 
 					<div class="zen-dash-gauges">
-						<article class="zen-dash-card zen-dash-uptime">
-							<div class="zen-dash-meta">
-								<div class="zen-dash-label">运行时间</div>
-								<div class="zen-dash-value" data-uptime>3天 04:18</div>
-								<div class="zen-dash-sub" data-restart>上次重启时间: 2026-09-10 23:23:23</div>
-							</div>
-						</article>
+
 						<article class="zen-dash-card" data-gauge="load" data-level="ok">
 							<div class="zen-dash-meta">
 								<div class="zen-dash-label">系统负载</div>
@@ -187,46 +180,24 @@
 
 					<div class="zen-dash-body">
 						<section class="zen-dash-panel zen-dash-overview">
-							<h3>网络状态 <span class="zen-dash-hint">WAN · LAN · DHCP</span></h3>
-							<div class="zen-dash-netgrid">
-								<div class="zen-dash-ov-cell" data-ov="wan">
-									<div class="zen-dash-ov-title"><span class="zen-dash-ov-dot up"></span><span>WAN 状态</span></div>
-									<div class="zen-dash-ov-value">已连接</div>
-								</div>
-								<div class="zen-dash-ov-cell" data-ov="wan4">
-									<div class="zen-dash-ov-title"><span>WAN IPv4</span></div>
-									<div class="zen-dash-ov-value">10.99.99.2</div>
-								</div>
-								<div class="zen-dash-ov-cell" data-ov="wan6">
-									<div class="zen-dash-ov-title"><span>WAN IPv6</span></div>
-									<div class="zen-dash-ov-value">2408:8207:1851:1a40::1</div>
-								</div>
-								<div class="zen-dash-ov-cell" data-ov="lan">
-									<div class="zen-dash-ov-title"><span>LAN IP</span></div>
-									<div class="zen-dash-ov-value">192.168.1.1</div>
-									<div class="zen-dash-ov-sub">lan</div>
-								</div>
-								<div class="zen-dash-ov-cell" data-ov="wifi">
-									<div class="zen-dash-ov-title"><span>在线设备</span></div>
-									<div class="zen-dash-ov-value">14</div>
-									<div class="zen-dash-ov-sub">个无线客户端</div>
-								</div>
-								<div class="zen-dash-ov-cell" data-ov="dhcp">
-									<div class="zen-dash-ov-title"><span>DHCP 租约</span></div>
-									<div class="zen-dash-ov-value">21</div>
-									<div class="zen-dash-ov-sub">个租约</div>
-								</div>
-							</div>
-						</section>
+							<h3>网络</h3>
+							<table class="zen-dash-network-table">
+<thead><tr><th scope="col">接口</th><th scope="col">协议</th><th scope="col">地址</th><th scope="col">状态</th></tr></thead>
+<tbody>
+<tr><th scope="row">WAN</th><td>PPPoE</td><td>58.240.140.66/32</td><td><span class="zen-dash-net-status" data-state="connected"><span class="zen-dash-ov-dot up"></span>已连接 3天</span></td></tr>
+<tr><th scope="row">LAN</th><td>静态地址</td><td>10.0.0.1/24</td><td><span class="zen-dash-net-status" data-state="running"><span class="zen-dash-ov-dot up"></span>运行中</span></td></tr>
+<tr class="zen-dash-net-ipv6"><th scope="row">WAN6</th><td>DHCPv6</td><td data-network-field="address" title="2001:db8::1/64">2001:db8::1/64</td><td><span class="zen-dash-net-status" data-state="connected"><span class="zen-dash-ov-dot up"></span>已连接</span></td></tr>
+</tbody></table>
+</section>
 
 						<section class="zen-dash-panel zen-dash-traffic">
 							<header class="zen-dash-traffic-head">
-								<h3>实时流量 <span class="zen-dash-hint">近 5 分钟 · 每 5s 采样</span></h3>
-								<select id="zen-dash-iface" aria-label="接口">
+								<h3>实时流量 <span class="zen-dash-hint">最近5分钟 · 每5秒更新</span></h3>
+								<label class="zen-dash-iface-control"><span>接口</span><select id="zen-dash-iface" aria-label="接口">
 									<option value="all">全部</option>
-									<option value="wan">wan</option>
+									<option value="pppoe-wan" selected>WAN · PPPoE</option>
 									<option value="br-lan">br-lan</option>
-								</select>
+								</select></label>
 							</header>
 							<div class="zen-dash-traffic-stats">
 								<div class="zen-dash-stat tx">
@@ -237,15 +208,16 @@
 									<span class="k">↓ 下载</span>
 									<span class="v" data-k="rxRate">—</span>
 								</div>
-								<div class="zen-dash-stat">
+								<div class="zen-dash-stat total-tx">
 									<span class="k">↑ 累计上传</span>
 									<span class="v" data-k="txTotal">—</span>
 								</div>
-								<div class="zen-dash-stat">
+								<div class="zen-dash-stat total-rx">
 									<span class="k">↓ 累计下载</span>
 									<span class="v" data-k="rxTotal">—</span>
 								</div>
 							</div>
+							</section><section class="zen-dash-panel zen-dash-trend"><div class="zen-dash-chart-legend"><span class="dl"><span class="swatch"></span>下载（实线）</span><span class="ul"><span class="swatch"></span>上传（虚线）</span></div>
 							<div class="zen-dash-chart">
 								<svg viewBox="0 0 640 220" class="zen-dash-svg">
 									<g class="grid"></g>
@@ -265,7 +237,7 @@
 					<section class="zen-dash-panel zen-dash-devices">
 						<div class="zen-dash-dev-head">
 							<h3>设备流量 <span class="zen-dash-hint">w_rx_r = ↓ 下载 · w_tx_r = ↑ 上传（与 Bandix 原版一致）</span></h3>
-							<span class="zen-dash-dev-count" id="dev-count">—</span>
+							<span class="zen-dash-dev-count" id="dev-count">5 台设备</span>
 						</div>
 						<div class="zen-dash-dev-columns" aria-hidden="true"><span></span><span>主机名</span><span class="zen-dash-dev-ip">IPv4</span><span class="zen-dash-dev-mac">MAC 地址</span><span class="zen-dash-dev-conn">连接方式</span><span class="zen-dash-dev-rates">实时流量</span><span></span></div>
 <ul class="zen-dash-dev-list" id="dev-list"></ul>
@@ -367,14 +339,14 @@ function buildRow(d) {
 	conn.appendChild(el('span', null, d.conn === 'wifi' ? d.band : (d.conn === 'router' ? '下级路由' : '有线')));
 
 	var dl = el('span', 'zen-dash-dev-rate dl');
-	var dlV = el('span', null, '—');
+	var dlV = el('span', 'zen-dash-dev-rate-value', '—');
 	var dlT = el('span', 'rt');
-	dl.appendChild(dlV); dl.appendChild(dlT);
+	dl.appendChild(el('span', 'zen-dash-dev-direction', '↓')); dl.appendChild(dlV);
 
 	var ulr = el('span', 'zen-dash-dev-rate ul');
-	var ulV = el('span', null, '—');
+	var ulV = el('span', 'zen-dash-dev-rate-value', '—');
 	var ulT = el('span', 'rt');
-	ulr.appendChild(ulV); ulr.appendChild(ulT);
+	ulr.appendChild(el('span', 'zen-dash-dev-direction', '↑')); ulr.appendChild(ulV);
 
 	var chev = el('span', 'zen-dash-dev-chev');
 	chev.appendChild(useIcon('zen-i-chev', 16));
@@ -457,6 +429,7 @@ var chart = document.querySelector('.zen-dash-svg');
 var parts = {
 	grid: chart.querySelector('g.grid'),
 	yaxis: chart.querySelector('g.yaxis'),
+	xaxis: chart.appendChild(svgEl('g', { 'class': 'xaxis' })),
 	lineRx: chart.querySelector('polyline.line.rx'),
 	lineTx: chart.querySelector('polyline.line.tx'),
 	fillRx: chart.querySelector('path.fill.rx'),
@@ -468,13 +441,14 @@ function renderTraffic() {
 	var host = document.querySelector('.zen-dash-chart');
 	var w = Math.max(host.clientWidth || 0, 320);
 	var h = Math.max(host.clientHeight || 0, 160);
-	var padL = 58, padR = 12, padT = 12, padB = 18;
+	var padL = 58, padR = 12, padT = 12, padB = 28;
 	var innerW = Math.max(w - padL - padR, 10);
 	var innerH = Math.max(h - padT - padB, 10);
 
 	var peak = 0;
 	samples.forEach(function (s) { if (s.rx > peak) peak = s.rx; if (s.tx > peak) peak = s.tx; });
-	var max = niceMax(peak);
+	var scaleUnit = Math.pow(10, Math.floor(Math.log10(Math.max(peak, 1)))) / 5;
+	var max = Math.max(64, Math.ceil(peak * 1.05 / scaleUnit) * scaleUnit);
 	var step = innerW / (HISTORY - 1);
 	var DIV = 4;
 
@@ -482,6 +456,11 @@ function renderTraffic() {
 		chart.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
 		parts.grid.textContent = '';
 		parts.yaxis.textContent = '';
+		parts.xaxis.textContent = '';
+		var oldestLabel = svgEl('text', { x: padL, y: h - 6, 'text-anchor': 'start' });
+		oldestLabel.textContent = '5分钟前'; parts.xaxis.appendChild(oldestLabel);
+		var nowLabel = svgEl('text', { x: padL + innerW, y: h - 6, 'text-anchor': 'end' });
+		nowLabel.textContent = '现在'; parts.xaxis.appendChild(nowLabel);
 		yLabels = [];
 		for (var i = 0; i <= DIV; i++) {
 			var gy = padT + (innerH * i) / DIV;
@@ -541,9 +520,9 @@ function tick() {
 	devices.forEach(function (d) {
 		var r = rowMap[d.mac];
 		document.getElementById('dev-list').appendChild(r.li);
-		r.dlV.textContent = '↓ ' + fmtRate(d.rx);
+		r.dlV.textContent = fmtRate(d.rx);
 		r.dlT.textContent = 'WAN ↓ ' + fmtBytes(d.wanRx);
-		r.ulV.textContent = '↑ ' + fmtRate(d.ul);
+		r.ulV.textContent = fmtRate(d.ul);
 		r.ulT.textContent = 'WAN ↑ ' + fmtBytes(d.wanUl);
 		d.spark.push(d.rx);
 		if (d.spark.length > 40) d.spark.shift();
