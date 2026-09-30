@@ -18,7 +18,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=zen-traffic
 PKG_VERSION:=0.2.0
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 PKG_MAINTAINER:=luci-zen maintainers
 PKG_LICENSE:=GPL-2.0
 
@@ -29,6 +29,14 @@ RUST_PKG_LOCKED:=0
 include $(INCLUDE_DIR)/package.mk
 include $(INCLUDE_DIR)/bpf.mk
 include $(TOPDIR)/feeds/packages/lang/rust/rust-package.mk
+
+# Rust 会读取 bundled SQLite 静态库的符号；仅含 GCC LTO 中间码的对象
+# 在此路径下可能丢失 sqlite3_* 符号。保留机器码和 LTO 数据，并在最终
+# GCC 链接阶段启用 LTO 插件，不关闭 Rust 或 C LTO。
+ifeq ($(CONFIG_USE_LTO),y)
+  TARGET_CFLAGS := $(filter-out -fno-fat-lto-objects,$(TARGET_CFLAGS)) -ffat-lto-objects
+  CARGO_RUSTFLAGS += -Clink-arg=-flto=auto -Clink-arg=-fuse-linker-plugin
+endif
 
 define Package/zen-traffic
   SECTION:=net
