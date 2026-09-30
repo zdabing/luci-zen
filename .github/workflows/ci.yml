@@ -32,7 +32,7 @@ jobs:
       - name: Build matching libubox and libubus for unit tests
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake libjson-c-dev
+          sudo apt-get install -y cmake libjson-c-dev clang
           PREFIX="$RUNNER_TEMP/zen-ubus"
           git clone https://github.com/openwrt/libubox.git "$RUNNER_TEMP/libubox"
           git -C "$RUNNER_TEMP/libubox" checkout 7dd127841e82eb1cfb61185da37dde7b9bd9ba6d
@@ -54,6 +54,23 @@ jobs:
         run: |
           cc -I"$RUNNER_TEMP/zen-ubus/include" -c \
             zen-traffic/crates/zen-ubus-sys/abi-check.c -o "$RUNNER_TEMP/ubus-abi-check.o"
+
+      - name: Verify AArch64 musl FFI layout
+        run: |
+          # Same libc release/hash as the deployed OpenWrt 6ad13aa toolchain.
+          curl -fsSL --retry 3 https://musl.libc.org/releases/musl-1.2.5.tar.gz \
+            -o "$RUNNER_TEMP/musl-1.2.5.tar.gz"
+          printf '%s  %s\n' \
+            a9a118bbe84d8764da0ea0d28b3ab3fae8477fc7e4085d90102b8596fc7c75e4 \
+            "$RUNNER_TEMP/musl-1.2.5.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/musl-1.2.5.tar.gz" -C "$RUNNER_TEMP"
+          make -C "$RUNNER_TEMP/musl-1.2.5" ARCH=aarch64 \
+            prefix="$RUNNER_TEMP/musl-aarch64" install-headers
+          clang --target=aarch64-linux-musl -nostdinc \
+            -isystem "$(clang -print-resource-dir)/include" \
+            -isystem "$RUNNER_TEMP/musl-aarch64/include" \
+            -I"$RUNNER_TEMP/zen-ubus/include" -c \
+            zen-traffic/crates/zen-ubus-sys/abi-check.c -o "$RUNNER_TEMP/ubus-abi-aarch64.o"
 
       - name: cargo test
         working-directory: zen-traffic
