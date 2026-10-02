@@ -289,6 +289,30 @@ NAS 原有 SSH 关闭；本次经用户确认临时启用并设置 10 分钟自�
 证明七天连续采集、所有页面的响应式布局或设备连接方式识别准确。截图保存在本地
 忽略的验收目录，未将家庭设备标识提交到仓库。
 
+### 修复版 r3 的安装与真机回归（2026-10-02）
+
+[构建 #36759057318](https://github.com/zdabing/luci-zen/actions/runs/36759057318)
+以 `e90ca07` 成功编译匹配 R5C 的三个 APK。下载后核实产物 ZIP 与三个包的 SHA256，
+离线安装仅替换三个 Zen 包。安装前正常停止采集，保存配置、APK 元数据及一致的
+SQLite 备份，`integrity_check` 为 `ok`；安装后配置字节不变，28 台设备的累计、
+今日及本月用量不倒退。已安装 `zen-traffic 0.2.0-r3`，app/theme 保持 `0.2.0-r1`。
+LAN 前缀由 4 个增至 6 个，TCX ingress/egress 各一条。临时安装文件已清理。
+
+相同的全球 IPv6 LAN 本地 4 MiB 传输返回 HTTP 200、完整有效载荷：LAN TX 增量
+4,218,201 字节，误差 +0.56975%；WAN TX 背景增量 14,850 字节，仅为有效载荷的
+0.35405%。此前 r2 把同类传输的约 4 MiB 错分进 WAN，此次修复后有效载荷正确
+计入 LAN。临时 IPv6 地址、查询程序及入站保护规则均已清理。
+
+定向回归还包括 IPv4 LAN 本地 32 MiB 上/下行，误差分别 +0.90845% / +0.41088%；
+全球 IPv6 WAN 16 MiB 下载 HTTP 206、上传 HTTP 200，误差分别 +0.97479% /
++1.29954%，均只有同一 MAC 的一条设备记录。临时地址、路由和保护规则全部清理。
+正常重启服务后累计及日/月用量不倒退。28.51 秒常态采样中，daemon CPU 为
+0.3514% 单核、RSS 3992–3996 KiB；这是当时 28 台设备及背景流量下的基线，
+不是与先前 22 台设备环境严格对照的性能提升证明。
+
+这些结果完成了目标出包、安装和 IPv6 修复的定向真机验证；仍需补齐真实经过路由器
+的数据面桥接/跨 VLAN 拓扑，以及下列 P1 稳定性和兼容测试。
+
 ### P0/P1 剩余证据
 
 R5C 新增包验证使用 [R5C pinned package acceptance](../.github/workflows/r5c-acceptance.yml)，
@@ -300,9 +324,8 @@ R5C 新增包验证使用 [R5C pinned package acceptance](../.github/workflows/r
 [首次构建 #36746547558](https://github.com/zdabing/luci-zen/actions/runs/36746547558)
 已成功：实际 target GCC 编译 ABI guard 并链接三个 APK，产物 SHA256 全部核实；
 路由器离线 `apk add --simulate --force-reinstall` 只替换三个 Zen 包，依赖及架构满足。
-此产物为修复 IPv6 assigned 子网前的 `cbdbb12`，未实际安装；修复后的 r3 出包、
-安装及真机核验仍未完成。当前文件、配置和 APK 元数据已备份，安装前另取一致
-SQLite 备份；模拟成功不等于部署通过。
+此产物为修复 IPv6 assigned 子网前的 `cbdbb12`，首次验收时未实际安装。
+后续修复版出包与安装结果见下文；模拟成功不等于部署通过。
 
 首次四任务并行冷构建的阶段耗时：tools 993 秒、toolchain 1477 秒、kernel 607 秒、
 Zen 包阶段 2229 秒（含首次 Rust host 构建）、LuCI app 46 秒、theme 14 秒。
@@ -310,8 +333,7 @@ Zen 包阶段 2229 秒（含首次 Rust host 构建）、LuCI app 46 秒、theme
 包阶段不能直接当作 daemon 编译成本，也不能与另一完整固件构建直接作加速比较。
 
 - [x] Rust 单元测试与匹配头文件的 x86_64、AArch64/musl 1.2.5 ABI 检查，CI #36741518660 成功。
-- [ ] 匹配固件的目标 SDK 中编译新增 ABI guard、出包并安装；CI 的真实 musl 头文件
-  交叉编译通过 C 静态断言，不代替完整目标包编译、链接和部署验收。
+- [x] 匹配固件的目标 SDK 中编译新增 ABI guard、出包并安装，r3 真机部署及定向回归通过。
 - [x] 两个客户端分别传输、单客户端 WAN 上/下行及 IPv6 link-local 上行已知大小验证。
 - [x] 两客户端同时 LAN 上/下行，各自方向与独立用量已知大小验证。
 - [x] 全球 IPv6 WAN 已知大小上/下行、同 MAC 归并及临时配置清理。
