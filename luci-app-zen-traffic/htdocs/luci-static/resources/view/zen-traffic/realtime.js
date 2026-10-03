@@ -1,6 +1,7 @@
 'use strict';
 'require view';
 'require rpc';
+'require view.zen-traffic.style as trafficStyle';
 
 const callHistory = rpc.declare({ object: 'zen.traffic', method: 'getRealtimeHistory', params: ['iface', 'start', 'end', 'limit'] });
 const DAY = 86400;
@@ -33,7 +34,7 @@ return view.extend({
   return callHistory('', now - 300, now, 600).then(data => ({data})).catch(() => ({error:true}));
  },
  render(initial) {
-  styles(); this.requestId = 0; this.page = 0;
+  styles(); trafficStyle.inject(); this.requestId = 0; this.page = 0;
   this.iface = E('select', { 'aria-label': _('Interface') });
   this.range = E('select', {}, [
    ['300', _('Last 5 minutes')], ['3600', _('Last hour')], ['86400', _('Last 24 hours')],
@@ -42,6 +43,8 @@ return view.extend({
   this.start = E('input', {type:'datetime-local',step:'1'});
   this.end = E('input', {type:'datetime-local',step:'1'});
   const field = (label, input) => E('label', {'class':'zen-rt-field'},[E('span',{},label),input]);
+  this.startField = field(_('Start time'),this.start);
+  this.endField = field(_('End time'),this.end);
   this.button = E('button', {type:'button','class':'cbi-button cbi-button-action'},_('Query'));
   this.error = E('p', {'class':'zen-rt-error',role:'alert'});
   this.summary = E('div', {'class':'zen-rt-summary'});
@@ -57,12 +60,12 @@ return view.extend({
   this.iface.addEventListener('change', () => this.query());
   this.range.addEventListener('change', () => this.setRange());
   this.setRange();
-  const root = E('div', {'class':'cbi-map',id:'zen-realtime-history'},[
+  const root = E('div', {'class':'cbi-map zen-traffic-page',id:'zen-realtime-history'},[
    E('h2',{},_('Realtime History')),
    E('p',{'class':'cbi-map-descr'},_('WAN rates sampled every 5 seconds and retained for 7 days. Longer ranges show average rates.')),
    E('section',{'class':'cbi-section zen-rt-controls'},[
     field(_('Interface'),this.iface),field(_('Time range'),this.range),
-    field(_('Start time'),this.start),field(_('End time'),this.end),this.button
+    this.startField,this.endField,this.button
    ]),this.error,
    E('section',{'class':'cbi-section'},[this.summary,
     E('div',{'class':'zen-rt-legend'},[E('span',{'class':'zen-rt-ul'},'┄ '+_('Upload')),E('span',{'class':'zen-rt-dl'},'— '+_('Download')),E('span',{},_('Independent scales'))]),
@@ -88,6 +91,7 @@ return view.extend({
  setRange() {
   const now = Math.floor(Date.now()/1000), custom=this.range.value==='custom';
   this.start.disabled = !custom; this.end.disabled = !custom;
+  this.startField.hidden = !custom; this.endField.hidden = !custom;
   for(const input of [this.start,this.end]) {input.min=localInput(now-7*DAY);input.max=localInput(now);}
   if(!custom) {this.start.value=localInput(now-Number(this.range.value));this.end.value=localInput(now);}
  },
@@ -124,7 +128,7 @@ return view.extend({
   if(!this.data) return;
   this.chart.replaceChildren();const samples=this.data.samples;
   if(!samples.length) {this.chart.appendChild(E('p',{},_('No realtime history yet. Leave the service running to collect samples.')));return;}
-  const width=Math.max(280,this.chart.clientWidth||960), left=86,right=width-86,top=28,bottom=205;
+  const width=Math.max(280,this.chart.clientWidth||960), margin=width<600?64:86,left=margin,right=width-margin,top=28,bottom=205;
   const start=this.data.start??samples[0].time,end=this.data.end??samples[samples.length-1].time;
   const peaks={};
   for(const key of ['upload','download']) peaks[key]=Math.max(64,...samples.map(s=>s[key]||0))*1.05;

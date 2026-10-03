@@ -3,6 +3,7 @@
 'require poll';
 'require rpc';
 'require ui';
+'require view.zen-traffic.style as trafficStyle';
 
 /*
  * view.zen-traffic.devices — luci-app-zen-traffic 设备流量页。
@@ -37,12 +38,14 @@ const callTotal = rpc.declare({
 
 const callSetHostname = rpc.declare({
 	object: 'zen.traffic',
-	method: 'setHostname'
+	method: 'setHostname',
+	params: ['mac', 'host']
 });
 
 const callReset = rpc.declare({
 	object: 'zen.traffic',
-	method: 'resetDevice'
+	method: 'resetDevice',
+	params: ['mac']
 });
 
 /* ---- 格式化（与 zen-format 同口径，独立实现避免跨包 require）---- */
@@ -91,29 +94,10 @@ function setText(el, s) {
 		el.textContent = s;
 }
 
-/* 样式自包含：主题未安装时页面仍完整可用（幂等注入） */
-const CSS_ID = 'zen-traffic-css';
-function injectStyles() {
-	if (document.getElementById(CSS_ID))
-		return;
-	const style = document.createElement('style');
-	style.id = CSS_ID;
-	style.textContent = [
-		'.zen-tf-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 1.2em; }',
-		'.zen-tf-sum-label { font-size: 12px; opacity: .65; margin-bottom: 2px; }',
-		'.zen-tf-sum-value { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }',
-		'.zen-tf-row.zen-tf-offline { opacity: .5; }',
-		'.zen-tf-detail td { background: rgba(127,127,127,.06); }',
-		'.zen-tf-detail { display: flex; justify-content: space-between; gap: 16px; padding: 8px 4px; font-size: 13px; }',
-		'.zen-tf-detail-actions { display: flex; gap: 8px; align-items: flex-start; }',
-		'.zen-tf-expand { min-width: 2.4em; }',
-		'.th-right, .td-right { text-align: right; }',
-		'.zen-tf-table td { white-space: nowrap; }'
-	].join('\n');
-	document.head.appendChild(style);
-}
-
 return view.extend({
+	handleSaveApply: null,
+	handleSave: null,
+	handleReset: null,
 	rows: null,     /* Map<mac, row>；row = {tr, cells, detailCells, detail, expanded, d} */
 	tbody: null,
 	summary: null,
@@ -123,31 +107,33 @@ return view.extend({
 	},
 
 	render(status) {
+		trafficStyle.inject();
 		if (!status)
 			return this.renderDegraded();
 
-		injectStyles();
-
-		const root = E('div', { 'class': 'cbi-map', 'id': 'zen-traffic-devices' }, [
+		const root = E('div', { 'class': 'cbi-map zen-traffic-page', 'id': 'zen-traffic-devices' }, [
 			E('h2', {}, _('Device Traffic')),
 			E('div', { 'class': 'cbi-map-descr' },
 				_('Device rates and usage include internet and local traffic passing through the router. Internet-only upload and download shares are shown on the overview page.')),
 
 			/* 汇总条 */
 			this.summary = E('div', { 'class': 'cbi-section zen-tf-summary' }, []),
+			this.statusText = E('p', { 'class': 'zen-tf-status', role: 'status' }),
 			/* 设备表 */
-			E('div', { 'class': 'cbi-section' }, [
+			E('div', { 'class': 'cbi-section zen-tf-list' }, [
+				E('div', { 'class': 'zen-tf-list-head' }, [E('h3', {}, _('Devices')),
+					this.count = E('span', { 'class': 'zen-tf-count' })]),
 				E('table', { 'class': 'table zen-tf-table' }, [
 					E('thead', {}, E('tr', {}, [
-						E('th', {}, _('Device')),
-						E('th', {}, _('Connection')),
-						E('th', { 'class': 'th-right' }, _('Download ↓')),
-						E('th', { 'class': 'th-right' }, _('Upload ↑')),
-						E('th', { 'class': 'th-right' }, _('Today')),
-						E('th', {}, '')
+						E('th', { scope: 'col' }, _('Device')),
+						E('th', { scope: 'col' }, _('Connection')),
+						E('th', { scope: 'col', 'class': 'th-right' }, _('Download ↓')),
+						E('th', { scope: 'col', 'class': 'th-right' }, _('Upload ↑')),
+						E('th', { scope: 'col', 'class': 'th-right' }, _('Today')),
+						E('th', { scope: 'col' }, '')
 					])),
 					(this.tbody = E('tbody', {}))
-				])
+				]), this.empty = E('p', { 'class': 'zen-tf-empty' }, _('Loading devices…'))
 			])
 		]);
 
@@ -158,11 +144,11 @@ return view.extend({
 	},
 
 	renderDegraded() {
-		return E('div', { 'class': 'cbi-map', 'id': 'zen-traffic-devices' }, [
+		return E('div', { 'class': 'cbi-map zen-traffic-page', 'id': 'zen-traffic-devices' }, [
 			E('h2', {}, _('Device Traffic')),
 			E('div', { 'class': 'cbi-section' }, [
 				E('p', { 'class': 'alert-message warning' },
-					_('The zen-traffic daemon is not reachable. Install/enable the zen-traffic package, then verify with "ubus call zen.traffic getStatus" on the device.'))
+					_('Device traffic is unavailable. Enable the traffic service and refresh this page.'))
 			])
 		]);
 	},
@@ -176,7 +162,9 @@ return view.extend({
 		return callDevices().then(L.bind((data) => {
 			const devs = (data && Array.isArray(data.dev)) ? data.dev : [];
 			this.renderRows(devs);
+			setText(this.statusText, '');
 		}, this)).catch((e) => {
+			setText(this.statusText, _('Unable to refresh device traffic; showing the last result.'));
 			console.warn('zen-traffic', e);
 		});
 	},
@@ -186,16 +174,16 @@ return view.extend({
 			if (!t || !this.summary)
 				return;
 			const items = [
-				[_('Download rate'), fmtRate(t.rx_r)],
-				[_('Upload rate'), fmtRate(t.tx_r)],
-				[_('Today'), fmtBytes((t.rx_today || 0) + (t.tx_today || 0))],
-				[_('This month'), fmtBytes((t.rx_month || 0) + (t.tx_month || 0))]
+				[_('Internet download rate'), fmtRate(t.rx_r), 'zen-tf-dl'],
+				[_('Internet upload rate'), fmtRate(t.tx_r), 'zen-tf-ul'],
+				[_('Device usage today'), fmtBytes((t.rx_today || 0) + (t.tx_today || 0)), ''],
+				[_('Device usage this month'), fmtBytes((t.rx_month || 0) + (t.tx_month || 0)), '']
 			];
 			if (!this.summary.firstChild) {
-				for (const [label] of items)
+				for (const [label, , cls] of items)
 					this.summary.appendChild(E('div', { 'class': 'zen-tf-sum-item' }, [
 						E('div', { 'class': 'zen-tf-sum-label' }, label),
-						E('div', { 'class': 'zen-tf-sum-value' }, '')
+						E('div', { 'class': 'zen-tf-sum-value ' + cls }, '')
 					]));
 			}
 			const vals = this.summary.querySelectorAll('.zen-tf-sum-value');
@@ -206,6 +194,9 @@ return view.extend({
 	renderRows(devs) {
 		if (!this.tbody || !this.rows)
 			return;
+		this.empty.hidden = devs.length > 0;
+		setText(this.empty, _('No devices detected yet.'));
+		setText(this.count, _('%d devices · %d online').format(devs.length, devs.filter(d => d.online).length));
 
 		/* Top-N：按（下行+上行实时速率）降序，其次今日累计 */
 		devs.sort((a, b) =>
@@ -246,22 +237,28 @@ return view.extend({
 	},
 
 	buildRow() {
+		const name = E('strong', { 'class': 'zen-tf-device-name' });
+		const address = E('span', { 'class': 'zen-tf-address' });
+		const conn = E('span', { 'class': 'zen-tf-online' });
+		const value = (label, cls) => E('td', { 'class': 'td-right ' + cls }, [
+			E('span', { 'class': 'zen-tf-mobile-label' }, label), E('span', { 'class': 'zen-tf-number' })]);
 		const cells = {
-			name: E('td', {}, ''),
-			conn: E('td', {}, ''),
-			down: E('td', { 'class': 'td-right' }, ''),
-			up: E('td', { 'class': 'td-right' }, ''),
-			today: E('td', { 'class': 'td-right' }, '')
+			name: E('td', { 'class': 'zen-tf-name' }, [name, address]),
+			conn: E('td', { 'class': 'zen-tf-conn' }, conn),
+			down: value(_('Download'), 'zen-tf-down zen-tf-dl'),
+			up: value(_('Upload'), 'zen-tf-up zen-tf-ul'),
+			today: value(_('Today'), 'zen-tf-today')
 		};
 		const expandBtn = E('button', {
 			'class': 'cbi-button zen-tf-expand',
+			type: 'button', 'aria-expanded': 'false',
 			'title': _('Details')
 		}, '▸');
 		const tr = E('tr', { 'class': 'zen-tf-row' }, [
 			cells.name, cells.conn, cells.down, cells.up, cells.today,
-			E('td', { 'class': 'td-right' }, [expandBtn])
+			E('td', { 'class': 'td-right zen-tf-action' }, [expandBtn])
 		]);
-		const row = { tr, cells, expanded: false, detail: null, detailCells: null, d: null };
+		const row = { tr, cells, name, address, conn, expandBtn, expanded: false, detail: null, detailCells: null, d: null };
 		/* 绑定按钮 → row（避免闭包捕获陈旧设备数据；d 始终经 row.d 取最新） */
 		expandBtn.addEventListener('click', L.bind(function (ev) {
 			ev.preventDefault();
@@ -272,11 +269,13 @@ return view.extend({
 
 	updateRow(row, d) {
 		const c = row.cells;
-		setText(c.name, devName(d));
-		setText(c.conn, connLabel(d));
-		setText(c.down, fmtRate(d.rx_r));
-		setText(c.up, fmtRate(d.tx_r));
-		setText(c.today, fmtBytes((d.rx_today || 0) + (d.tx_today || 0)));
+		setText(row.name, devName(d)); row.name.title = devName(d);
+		setText(row.address, d.ip4 || d.ip6 || d.mac);
+		setText(row.conn, connLabel(d) + ' · ' + (d.online ? _('Online') : _('Offline')));
+		setText(c.down.lastChild, fmtRate(d.rx_r));
+		setText(c.up.lastChild, fmtRate(d.tx_r));
+		setText(c.today.lastChild, fmtBytes((d.rx_today || 0) + (d.tx_today || 0)));
+		row.expandBtn.setAttribute('aria-label', _('Details for %s').format(devName(d)));
 
 		row.tr.classList.toggle('zen-tf-offline', !d.online);
 
@@ -286,6 +285,9 @@ return view.extend({
 
 	toggleExpand(row) {
 		row.expanded = !row.expanded;
+		row.tr.classList.toggle('zen-tf-expanded', row.expanded);
+		row.expandBtn.setAttribute('aria-expanded', String(row.expanded));
+		setText(row.expandBtn, row.expanded ? '▾' : '▸');
 		if (row.expanded && !row.detail) {
 			row.detail = this.buildDetail();
 			row.detailCells = row.detail.__cells;
@@ -299,31 +301,31 @@ return view.extend({
 
 	buildDetail() {
 		const ip = E('div', {}, '');
-		const today = E('div', {}, '');
-		const month = E('div', {}, '');
-		const total = E('div', {}, '');
-
-		const edit = E('button', { 'class': 'cbi-button' }, _('Edit hostname'));
-		edit.addEventListener('click', L.bind(function () { this.editHostname(this); }, null));
+		const mac = E('div', {});
+		const last = E('p', { 'class': 'zen-tf-detail-last' });
+		const metric = label => ({ label: E('strong', {}, label), down: E('span', { 'class': 'zen-tf-dl' }), up: E('span', { 'class': 'zen-tf-ul' }) });
+		const today = metric(_('Today')), month = metric(_('This month')), total = metric(_('Total'));
 
 		const detail = E('tr', { 'class': 'zen-tf-detail-row' },
 			E('td', { 'colspan': 6 },
 				E('div', { 'class': 'zen-tf-detail' }, [
-					E('div', { 'class': 'zen-tf-detail-col' }, [ip, today, month, total]),
+					E('div', { 'class': 'zen-tf-detail-identities' }, [ip, mac]),
+					E('div', { 'class': 'zen-tf-detail-stats' }, [today, month, total].map(m => E('div', {}, [m.label, m.down, m.up]))), last,
 					E('div', { 'class': 'zen-tf-detail-actions' })
 				])));
 
-		detail.__cells = { ip, today, month, total, actions: detail.querySelectorAll('.zen-tf-detail-actions')[0] };
+		detail.__cells = { ip, mac, last, today, month, total, actions: detail.querySelectorAll('.zen-tf-detail-actions')[0] };
 		return detail;
 	},
 
 	updateDetail(row, d) {
 		const c = row.detailCells;
 		setText(c.ip, _('IP') + ': ' + orDash(d.ip4) + (d.ip6 ? ' / ' + d.ip6 : ''));
-		setText(c.today, _('Today') + ': ↓ ' + fmtBytes(d.rx_today) + '  ↑ ' + fmtBytes(d.tx_today));
-		setText(c.month, _('This month') + ': ↓ ' + fmtBytes(d.rx_month) + '  ↑ ' + fmtBytes(d.tx_month));
-		setText(c.total, _('Total') + ': ↓ ' + fmtBytes(d.rx_total) + '  ↑ ' + fmtBytes(d.tx_total)
-			+ '  ·  ' + _('Last activity') + ': ' + ageStr(d.last));
+		setText(c.mac, 'MAC: ' + d.mac);
+		for (const [metric, rx, tx] of [[c.today, d.rx_today, d.tx_today], [c.month, d.rx_month, d.tx_month], [c.total, d.rx_total, d.tx_total]]) {
+			setText(metric.down, '↓ ' + fmtBytes(rx)); setText(metric.up, '↑ ' + fmtBytes(tx));
+		}
+		setText(c.last, _('Last activity') + ': ' + ageStr(d.last));
 
 		/* 操作按钮只挂一次（MAC 唯一，事件转发到当前 row） */
 		if (!c.actions.firstChild) {
@@ -342,14 +344,14 @@ return view.extend({
 			return;
 		ui.showModal(_('Edit hostname'), [
 			E('p', {}, devName(d) + ' (' + d.mac + ')'),
-			E('div', { 'class': 'cbi-value' },
+			E('label', { 'class': 'zen-tf-name-field' }, [E('span', {}, _('Hostname')),
 				E('input', {
 					'type': 'text',
 					'id': 'zen-tf-host-input',
 					'class': 'cbi-input-text',
 					'value': d.host || ''
-				})),
-			E('div', { 'class': 'right' }, [
+				})]),
+			E('div', { 'class': 'zen-tf-modal-actions' }, [
 				E('button', {
 					'class': 'btn',
 					'click': ui.hideModal
@@ -360,7 +362,7 @@ return view.extend({
 					'click': L.bind(() => {
 						const host = document.getElementById('zen-tf-host-input').value.trim();
 						ui.hideModal();
-						callSetHostname({ mac: d.mac, host: host }).then(L.bind(() => {
+						callSetHostname(d.mac, host).then(L.bind(() => {
 							this.tick();
 						}, this)).catch(L.bind((e) => {
 							ui.addNotification(null, E('p', {}, _('Failed to set hostname: %s').format(e.message || e)));
@@ -375,14 +377,17 @@ return view.extend({
 		const d = row.d;
 		if (!d)
 			return;
-		ui.confirm(_('Reset all counters for %s?').format(devName(d)), (ok) => {
-			if (!ok)
-				return;
-			callReset({ mac: d.mac }).then(L.bind(() => {
-				this.tick();
-			}, this)).catch(L.bind((e) => {
-				ui.addNotification(null, E('p', {}, _('Failed to reset: %s').format(e.message || e)));
-			}, this));
-		});
+		ui.showModal(_('Reset counters'), [
+			E('p', {}, _('Reset all counters for %s?').format(devName(d))),
+			E('div', { 'class': 'zen-tf-modal-actions' }, [
+				E('button', { type: 'button', 'class': 'btn', click: ui.hideModal }, _('Cancel')),
+				E('button', { type: 'button', 'class': 'btn cbi-button-negative', click: L.bind(() => {
+					ui.hideModal();
+					callReset(d.mac).then(() => this.tick()).catch((e) => {
+						ui.addNotification(null, E('p', {}, _('Failed to reset: %s').format(e.message || e)));
+					});
+				}, this) }, _('Reset counters'))
+			])
+		]);
 	}
 });

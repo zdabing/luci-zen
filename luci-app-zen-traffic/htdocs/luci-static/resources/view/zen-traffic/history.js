@@ -1,6 +1,7 @@
 'use strict';
 'require view';
 'require rpc';
+'require view.zen-traffic.style as trafficStyle';
 
 /*
  * view.zen-traffic.history — luci-app-zen-traffic 历史曲线页。
@@ -116,9 +117,10 @@ return view.extend({
 		const devs = (data[1] && data[1].dev) || [];
 
 		injectStyles();
+		trafficStyle.inject();
 
 		if (!status)
-			return E('div', { 'class': 'cbi-map' }, [
+			return E('div', { 'class': 'cbi-map zen-traffic-page' }, [
 				E('h2', {}, _('Traffic History')),
 				E('div', { 'class': 'cbi-section' }, [
 					E('p', { 'class': 'alert-message warning' },
@@ -127,7 +129,7 @@ return view.extend({
 			]);
 
 		/* 设备选择（单选 + 全设备） */
-		const sel = E('select', { 'class': 'cbi-input-select', 'change': L.bind(function (ev) {
+		const sel = E('select', { id: 'zen-tf-history-device', 'class': 'cbi-input-select', 'change': L.bind(function (ev) {
 			this.mac = ev.target.value;
 			this.refresh();
 		}, this) }, [
@@ -139,12 +141,12 @@ return view.extend({
 			this.tabBtn('month', _('Monthly (12 months)'))
 		]);
 
-		const root = E('div', { 'class': 'cbi-map', 'id': 'zen-traffic-history' }, [
+		const root = E('div', { 'class': 'cbi-map zen-traffic-page', 'id': 'zen-traffic-history' }, [
 			E('h2', {}, _('Traffic History')),
 			E('div', { 'class': 'cbi-map-descr' },
-				_('Daily and monthly usage aggregated from the zen-traffic SQLite database. download = rx, upload = tx.')),
+				_('Daily and monthly device usage, including internet and local traffic seen by the router.')),
 			E('div', { 'class': 'cbi-section zen-tf-controls' }, [
-				E('label', {}, _('Device')), sel,
+				E('label', { 'for': 'zen-tf-history-device' }, _('Device')), sel,
 				tabs
 			]),
 			E('div', { 'class': 'cbi-section' },
@@ -166,14 +168,18 @@ return view.extend({
 
 	tabBtn(agg, label) {
 		const btn = E('button', {
+			type: 'button', 'aria-pressed': String(this.agg === agg),
 			'class': 'cbi-button' + (this.agg === agg ? ' cbi-button-action important' : ''),
 			'click': L.bind(function (ev) {
 				ev.preventDefault();
 				this.agg = agg;
 				/* 同级 tab 互斥高亮 */
-				for (const b of ev.target.parentElement.querySelectorAll('.cbi-button'))
+				for (const b of ev.target.parentElement.querySelectorAll('.cbi-button')) {
 					b.classList.remove('cbi-button-action', 'important');
+					b.setAttribute('aria-pressed', 'false');
+				}
 				ev.target.classList.add('cbi-button-action', 'important');
+				ev.target.setAttribute('aria-pressed', 'true');
 				this.refresh();
 			}, this)
 		}, label);

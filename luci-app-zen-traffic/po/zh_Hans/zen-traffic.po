@@ -201,3 +201,45 @@ msgstr "所选范围暂无实时历史，请保持流量统计服务运行以采
 
 msgid "Independent scales"
 msgstr "左右轴独立刻度"
+
+msgid "Loading devices…"
+msgstr "正在加载设备…"
+
+msgid "No devices detected yet."
+msgstr "暂未发现设备，产生流量后会出现在这里。"
+
+msgid "%d devices · %d online"
+msgstr "%d 台设备 · %d 台在线"
+
+msgid "Online"
+msgstr "在线"
+
+msgid "Offline"
+msgstr "离线"
+
+msgid "Details for %s"
+msgstr "查看 %s 的详情"
+
+msgid "Internet download rate"
+msgstr "互联网下载速率"
+
+msgid "Internet upload rate"
+msgstr "互联网上传速率"
+
+msgid "Device usage today"
+msgstr "今日设备用量"
+
+msgid "Device usage this month"
+msgstr "本月设备用量"
+
+msgid "Device traffic is unavailable. Enable the traffic service and refresh this page."
+msgstr "设备流量暂时不可用，请启用流量统计服务后刷新页面。"
+
+msgid "Unable to refresh device traffic; showing the last result."
+msgstr "暂时无法刷新设备流量，正在显示上次结果。"
+
+msgid "Daily and monthly device usage, including internet and local traffic seen by the router."
+msgstr "按日、按月查看设备用量，包含经过路由器采集的互联网与局域网流量。"
+
+msgid "Hostname"
+msgstr "主机名"
