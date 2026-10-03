@@ -7,6 +7,7 @@ class Element {
   setAttribute(key, value) { this.attrs[key] = String(value); }
   appendChild(child) { this.children.push(child); return child; }
   addEventListener(event, callback) { this.events[event] = callback; }
+  getBoundingClientRect() { return {left: 0, width: Number(this.attrs.viewBox.split(' ')[2])}; }
   set textContent(value) { this.text = value; this.children = []; }
   get textContent() { return this.text || this.children.map(c => c.textContent).join(''); }
 }
@@ -39,6 +40,11 @@ for (const count of [1,4,14,20]) {
   const readout=ent.historyChart.children.at(-1);
   bars[0].events.click();assert.ok(readout.textContent.startsWith(kept[0].date+' · ↑'));
   bars.at(-1).events.focus();assert.ok(readout.textContent.startsWith(kept.at(-1).date+' · ↑'));
+  const chart=find(ent.historyChart,'svg')[0],tip=ent.historyChart.children[0];
+  chart.events.pointermove({clientX:63}); assert.ok(tip.textContent.startsWith(kept[0].date+' · ↑'));
+  assert.equal(tip.hidden,false);chart.events.pointerleave();assert.equal(tip.hidden,true);
+  chart.events.pointerdown({clientX:Number(chart.attrs.viewBox.split(' ')[2])-19});
+  assert.ok(tip.textContent.startsWith(kept.at(-1).date+' · ↑'),'Tap selects the last date');
   if(count>=14) assert.ok(parseFloat(find(ent.historyChart,'svg')[0].style.width)>320,'Long history scrolls instead of squeezing bars');
 }
 const empty={historyChart:new Element('div')};draw(empty,{days:[]});

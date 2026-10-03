@@ -63,7 +63,13 @@ function drawHistory(ent, res) {
 		chart.appendChild(historySvg('text', { x: left - 8, y: y(value) + 4, 'text-anchor': 'end' }, fmt.fmtBytes(value)));
 	}
 	const readout = E('p', { 'class': 'zen-dash-history-readout', role: 'status' });
-	const select = row => { readout.textContent = row.date + ' · ↑ ' + fmt.fmtBytes(row.upload) + ' · ↓ ' + fmt.fmtBytes(row.download); };
+	const tip = E('div', { 'class': 'zen-history-tip', role: 'tooltip', hidden: true });
+	const select = (row, active) => {
+		readout.textContent = row.date + ' · ↑ ' + fmt.fmtBytes(row.upload) + ' · ↓ ' + fmt.fmtBytes(row.download);
+		tip.textContent = readout.textContent;
+		tip.style.left = ((ent.historyChart.scrollLeft || 0) + 8) + 'px';
+		tip.hidden = !active;
+	};
 	rows.forEach((row, i) => {
 		for (const key of ['upload', 'download']) {
 			const value = Math.max(0, Number(row[key]) || 0);
@@ -72,7 +78,7 @@ function drawHistory(ent, res) {
 				width: barWidth, height: bottom - y(value), rx: 3, tabindex: 0, 'aria-label': label,
 				'class': 'history-bar ' + (key === 'upload' ? 'ul' : 'dl') });
 			bar.appendChild(historySvg('title', {}, label));
-			for (const event of ['mouseenter', 'focus', 'click']) bar.addEventListener(event, () => select(row));
+			for (const event of ['mouseenter', 'focus', 'click']) bar.addEventListener(event, () => select(row, true));
 			chart.appendChild(bar);
 		}
 	});
@@ -83,6 +89,15 @@ function drawHistory(ent, res) {
 			i === 0 ? 'start' : i === rows.length - 1 ? 'end' : 'middle' }, width < 480 ? rows[i].date.slice(5) : rows[i].date));
 	}
 	select(rows[rows.length - 1]);
+	const inspect = ev => {
+		const bounds = chart.getBoundingClientRect();
+		const px = (ev.clientX - bounds.left) * width / Math.max(1, bounds.width);
+		if (px < left || px > right) { tip.hidden = true; return; }
+		select(rows[Math.min(rows.length - 1, Math.max(0, Math.floor((px - left) / slot)))], true);
+	};
+	for (const event of ['pointermove', 'pointerdown', 'click']) chart.addEventListener(event, inspect);
+	chart.addEventListener('pointerleave', () => { tip.hidden = true; });
+	ent.historyChart.appendChild(tip);
 	ent.historyChart.appendChild(chart);
 	ent.historyChart.appendChild(readout);
 }

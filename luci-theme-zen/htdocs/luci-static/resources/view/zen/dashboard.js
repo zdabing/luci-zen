@@ -285,6 +285,8 @@ return baseclass.extend({
 		this.lastH = 0;
 		this.yLabels = [];
 		chart.addEventListener('pointermove', (ev) => this.onChartHover(ev));
+		chart.addEventListener('pointerdown', (ev) => this.onChartHover(ev));
+		chart.addEventListener('click', (ev) => this.onChartHover(ev));
 		chart.addEventListener('pointerleave', () => this.hideHover());
 
 		return E('div', { id: 'zen-dashboard' }, [

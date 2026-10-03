@@ -263,8 +263,12 @@ return view.extend({
 			}, [document.createTextNode(rows[i].k)]));
 		}
 
-		const readout = E('div', { 'class': 'zen-tf-readout' });
-		const showRow = (r) => { readout.textContent = r.k + ' · ↑ ' + fmtBytes(r.ul) + ' · ↓ ' + fmtBytes(r.dl); };
+		const tip = E('div', { 'class': 'zen-history-tip', role: 'tooltip', hidden: true });
+		const readout = E('div', { 'class': 'zen-tf-readout', role: 'status' });
+		const showRow = (r, active) => {
+			readout.textContent = r.k + ' · ↑ ' + fmtBytes(r.ul) + ' · ↓ ' + fmtBytes(r.dl);
+			tip.textContent = readout.textContent; tip.hidden = !active;
+		};
 		showRow(rows[n - 1]);
 		const points = [];
 		rows.forEach((r, i) => {
@@ -276,7 +280,7 @@ return view.extend({
 					rx: Math.min(4, barWidth / 4), tabindex: 0, 'aria-label': label, 'class': 'zen-tf-bar-' + key },
 					[svg('title', {}, [document.createTextNode(label)])]);
 				for (const event of ['mouseenter', 'focus', 'click'])
-					bar.addEventListener(event, () => showRow(r));
+					bar.addEventListener(event, () => showRow(r, true));
 				points.push(bar);
 				if (n === 1)
 					points.push(svg('text', { x: center, y: top - 8, 'text-anchor': 'middle', 'class': 'zen-tf-ax' }, [document.createTextNode(fmtBytes(r[key]))]));
@@ -295,6 +299,15 @@ return view.extend({
 			'class': 'zen-tf-chart-svg', style: 'width: ' + W + 'px; max-width: none;'
 		}, [].concat(grid, ytexts, xticks, points));
 
+		const inspect = ev => {
+			const bounds = chartSvg.getBoundingClientRect();
+			const px = (ev.clientX - bounds.left) * W / Math.max(1, bounds.width);
+			if (px < PAD_L || px > W - PAD_R) { tip.hidden = true; return; }
+			showRow(rows[Math.min(n - 1, Math.max(0, Math.floor((px - PAD_L) / slot)))], true);
+		};
+		for (const event of ['pointermove', 'pointerdown', 'click']) chartSvg.addEventListener(event, inspect);
+		chartSvg.addEventListener('pointerleave', () => { tip.hidden = true; });
+		el.appendChild(tip);
 		el.appendChild(E('div', { 'class': 'zen-tf-chart-scroll', tabindex: 0 }, [chartSvg]));
 		el.appendChild(legend);
 		if (W > viewportW)

@@ -7,6 +7,7 @@ class Element {
   setAttribute(k, v) { this.attrs[k] = String(v); }
   appendChild(c) { this.children.push(c); return c; }
   addEventListener(k, fn) { this.events[k] = fn; }
+  getBoundingClientRect() { return {left: 0, width: Number(this.attrs.viewBox.split(' ')[2])}; }
   set textContent(v) { this.text = v; this.children = []; }
   get textContent() { return this.text || this.children.map(c => c.textContent).join(''); }
 }
@@ -49,6 +50,13 @@ for (const [agg, count] of [['day', 90], ['month', 12], ['day', 1]]) {
   assert.ok(view.chart.children.at(-1).textContent.startsWith((agg === 'day' ? 'day-' : 'month-') + '0 ·'));
   bars.at(-1).events.focus();
   assert.ok(view.chart.children.at(-1).textContent.startsWith((agg === 'day' ? 'day-' : 'month-') + (count - 1) + ' ·'));
+  const chart = find(view.chart, 'svg')[0], tip = view.chart.children[0];
+  chart.events.pointermove({clientX: 87});
+  assert.ok(tip.textContent.startsWith((agg === 'day' ? 'day-' : 'month-') + '0 ·'), 'Hovering the plot selects zero-height bars too');
+  assert.equal(tip.hidden, false);
+  chart.events.pointerleave(); assert.equal(tip.hidden, true);
+  chart.events.pointerdown({clientX: Number(chart.attrs.viewBox.split(' ')[2]) - 21});
+  assert.ok(tip.textContent.startsWith((agg === 'day' ? 'day-' : 'month-') + (count - 1) + ' ·'), 'Touch selects the last group');
   if (count === 90) assert.ok(Number(find(view.chart, 'svg')[0].attrs.viewBox.split(' ')[2]) > 320);
 }
 view.chart = new Element('div'); view.draw({agg: 'day', days: []});

@@ -145,6 +145,14 @@ return view.extend({
   for(const key of ['upload','download']) peaks[key]=Math.max(64,...samples.map(s=>s[key]||0))*1.05;
   const x=t=>left+(t-start)/Math.max(1,end-start)*(right-left),y=(v,key)=>bottom-v/peaks[key]*(bottom-top);
   const chart=svg('svg',{viewBox:'0 0 '+width+' 240',role:'img','aria-label':_('Realtime History')});
+  const tip=E('div',{'class':'zen-history-tip',role:'tooltip',hidden:true});
+  const readout=E('p',{'class':'zen-rt-readout',role:'status'});
+  const cross=svg('line',{y1:top,y2:bottom,'class':'zen-rt-cross',visibility:'hidden'});
+  const select=s=>{
+   readout.textContent=new Date(s.time*1000).toLocaleString()+' · ↑ '+rate(s.upload)+' · ↓ '+rate(s.download);
+   tip.textContent=readout.textContent;tip.hidden=false;
+   cross.setAttribute('x1',x(s.time));cross.setAttribute('x2',x(s.time));cross.setAttribute('visibility','visible');
+  };
   for(let i=0;i<=4;i++) {
    const gy=bottom-i/4*(bottom-top);
    chart.appendChild(svg('line',{x1:left,x2:right,y1:gy,y2:gy,'class':'zen-rt-grid'}));
@@ -159,14 +167,26 @@ return view.extend({
    samples.forEach((s,i)=>{
     if(i&&s.time-samples[i-1].time>this.data.step*1.5) flush();
     segment.push(s);
-    const dot=svg('circle',{cx:x(s.time),cy:y(s[key],key),r:samples.length===1?4:2,fill:cls==='dl'?'var(--dl,#15803d)':'var(--ul,#ea580c)'});
+    const dot=svg('circle',{cx:x(s.time),cy:y(s[key],key),r:samples.length===1?4:2,tabindex:0,'aria-label':new Date(s.time*1000).toLocaleString()+' · '+rate(s[key]),fill:cls==='dl'?'var(--dl,#15803d)':'var(--ul,#ea580c)'});
+    for(const event of ['focus','click'])dot.addEventListener(event,()=>select(s));
     dot.appendChild(svg('title',{},new Date(s.time*1000).toLocaleString()+' · '+(key==='upload'?_('Upload'):_('Download'))+': '+rate(s[key])));chart.appendChild(dot);
    });flush();
   }
   const timeLabel=t=>width<600?new Date(t*1000).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',hour12:false}):new Date(t*1000).toLocaleString();
   chart.appendChild(svg('text',{x:left,y:232},timeLabel(start)));
   chart.appendChild(svg('text',{x:right,y:232,'text-anchor':'end'},timeLabel(end)));
-  this.chart.appendChild(chart);
+  chart.appendChild(cross);
+  const inspect=ev=>{
+   const bounds=chart.getBoundingClientRect(),px=(ev.clientX-bounds.left)*width/Math.max(1,bounds.width);
+   if(px<left||px>right){tip.hidden=true;cross.setAttribute('visibility','hidden');return;}
+   const time=start+(px-left)/(right-left)*(end-start);
+   const nearest=samples.reduce((best,s)=>Math.abs(s.time-time)<Math.abs(best.time-time)?s:best,samples[0]);
+   select(nearest);
+  };
+  for(const event of ['pointermove','pointerdown','click'])chart.addEventListener(event,inspect);
+  chart.addEventListener('pointerleave',()=>{tip.hidden=true;cross.setAttribute('visibility','hidden');});
+  select(samples[samples.length-1]);tip.hidden=true;cross.setAttribute('visibility','hidden');
+  this.chart.appendChild(tip);this.chart.appendChild(chart);this.chart.appendChild(readout);
  },
  drawTable() {
   const samples=this.data.samples, pages=Math.max(1,Math.ceil(samples.length/20));
