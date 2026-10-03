@@ -26,6 +26,7 @@ pub struct Daemon {
     pub ubus_ctx: *mut ubus::ubus_context,
 
     pub realtime: crate::realtime::RealtimeHistory,
+    pub wan: crate::wan::WanUsage,
     pub wifi: crate::wifi::WifiCache,
     pub local_prefixes: Vec<(i32, Vec<u8>, u32)>,
 
@@ -62,6 +63,7 @@ impl Daemon {
         let now_mono = now_mono_ms();
 
         let db = Db::open(&cfg.db_path)?;
+        let wan = crate::wan::WanUsage::load(&db, now)?;
 
         let mut devs: HashMap<MacKey, DevState> = HashMap::new();
         let mut user_hosts: HashMap<String, String> = HashMap::new();
@@ -144,6 +146,7 @@ impl Daemon {
             ubus_ctx: std::ptr::null_mut(),
             wifi: crate::wifi::WifiCache::default(),
             realtime: crate::realtime::RealtimeHistory::default(),
+            wan,
             local_prefixes: Vec::new(),
             last_tick_mono: 0,
             last_attr_mono: 0,
@@ -172,6 +175,8 @@ impl Daemon {
     pub fn tick(&mut self) {
         let now_mono = now_mono_ms();
         let now = now_epoch();
+        let wan_started = self.wan.begin_if_synced(now);
+        if wan_started { self.up_prev.clear(); }
         let dt = if self.last_tick_mono > 0 {
             now_mono.saturating_sub(self.last_tick_mono)
         } else {
@@ -200,6 +205,7 @@ impl Daemon {
                     let wan_tx = dd(s.cur.wan_tx_b, s.prev.wan_tx_b);
                     let lan_rx = dd(s.cur.lan_rx_b, s.prev.lan_rx_b);
                     let lan_tx = dd(s.cur.lan_tx_b, s.prev.lan_tx_b);
+                    if !wan_started { self.wan.device_delta(row.mac, wan_rx, wan_tx); }
 
                     s.wan_rx_r = wan_rx * 1000 / dt;
                     s.wan_tx_r = wan_tx * 1000 / dt;

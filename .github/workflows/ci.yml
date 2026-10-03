@@ -129,6 +129,7 @@ jobs:
         run: |
           node tools/check-po.js luci-app-zen-traffic
           node tools/test-dashboard-history.cjs
+          node tools/test-wan-share.cjs
 
       - name: SQLite retention and realtime regression
         run: |

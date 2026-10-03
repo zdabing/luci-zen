@@ -23,6 +23,7 @@ mod state;
 mod totals;
 mod ubus;
 mod wifi;
+mod wan;
 
 use state::Config;
 

@@ -131,7 +131,7 @@ return view.extend({
 		const root = E('div', { 'class': 'cbi-map', 'id': 'zen-traffic-devices' }, [
 			E('h2', {}, _('Device Traffic')),
 			E('div', { 'class': 'cbi-map-descr' },
-				_('Realtime per-device traffic collected by zen-trafficd (eBPF). rx = download, tx = upload. LAN-local traffic is counted per device but does not inflate Internet usage totals.')),
+				_('Device rates and usage include internet and local traffic passing through the router. Internet-only upload and download shares are shown on the overview page.')),
 
 			/* 汇总条 */
 			this.summary = E('div', { 'class': 'cbi-section zen-tf-summary' }, []),

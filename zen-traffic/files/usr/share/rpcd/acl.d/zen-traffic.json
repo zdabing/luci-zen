@@ -3,7 +3,7 @@
 		"description": "zen-traffic daemon ubus access",
 		"read": {
 			"ubus": {
-				"zen.traffic": [ "getStatus", "getDevices", "getTotal", "getHistory", "getRealtimeHistory" ]
+				"zen.traffic": [ "getStatus", "getDevices", "getTotal", "getHistory", "getRealtimeHistory", "getWanUsage" ]
 			}
 		},
 		"write": {

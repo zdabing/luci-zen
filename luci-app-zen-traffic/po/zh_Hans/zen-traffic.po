@@ -61,8 +61,8 @@ msgstr "每月（12个月）"
 msgid "No history data yet. Usage accumulates as traffic flows and is persisted on checkpoint/day rollover."
 msgstr "暂无历史数据。有流量后会开始累计，并在定期保存或跨日时写入历史记录。"
 
-msgid "Realtime per-device traffic collected by zen-trafficd (eBPF). rx = download, tx = upload. LAN-local traffic is counted per device but does not inflate Internet usage totals."
-msgstr "查看每台设备的实时上传、下载速率。局域网内的流量单独统计，不计入互联网流量总量。"
+msgid "Device rates and usage include internet and local traffic passing through the router. Internet-only upload and download shares are shown on the overview page."
+msgstr "设备速率和用量包含经过路由器的互联网与局域网流量。仅互联网的上传、下载占比显示在概览页。"
 
 msgid "Reset all counters for %s?"
 msgstr "确定重置 %s 的全部流量统计？"

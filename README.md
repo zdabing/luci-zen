@@ -116,8 +116,12 @@ P0 尚未全部通过，详细范围、限制及剩余证据见
 | WAN 实时速率、累计发送/接收 | netlink 上游接口计数器；累计受接口/系统计数器重置影响，不是终身用量 |
 | 7 天实时历史 | 默认路由上游接口的上传/下载速率，每 5 秒采样 |
 | 设备日/月历史 | SQLite 用量汇总，查询窗口最近 90 天 / 12 个月 |
+| 新版设备互联网占比 | `getWanUsage` 独立 WAN 账目；从新采集起点累计，分别显示上传、下载环形图 |
 
 - **设备合计不必等于 WAN 总量**：采集位置、协议开销、路由器自身流量及 LAN-local 流量的口径不同。
+- 新版首页互联网环形图保留未归属部分，并显示设备侧超过接口侧时的口径差异；
+  旧的混合用量不会补算成互联网历史。服务停止期间不采集，设备清零后的历史会归入
+  未归属部分。该功能正在分支中进行 CI、出包与真机验证，尚未部署到当前 r3。
 - 硬件交换/卸载和加速路径可能绕过 TC，首次验收先关闭相关加速。不能凭“支持多个接口”认定复杂拓扑已验证。
 - eBPF 不丢包、不限速、不改路由，但仍有逐包开销；低负载结果不能证明高 PPS 满速性能。
 - 前缀学习失败时保留旧前缀；启动时若只剩默认前缀，本地流量分类可能不准确，应检查日志。
@@ -318,6 +322,7 @@ ubus -v list zen.traffic
 ubus call zen.traffic getStatus
 ubus call zen.traffic getDevices
 ubus call zen.traffic getTotal
+ubus call zen.traffic getWanUsage
 ubus call zen.traffic getHistory '{"agg":"day","mac":"38:65:04:6a:c0:9b"}'
 ubus call zen.traffic getRealtimeHistory '{}'
 ubus call network.interface dump

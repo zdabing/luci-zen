@@ -5,7 +5,7 @@
 //!   - 跨天/跨月立即写；
 //!   - daemon 正常退出（SIGTERM）立即写。
 //! 写入为绝对值 upsert，崩溃重放安全。
-//! 全局 today/month 汇总由 ubus.rs 查询 DB 聚合，不在 RAM 另立口径。
+//! 全局当前用量由 ubus.rs 汇总设备 RAM，持久化仍保持批量事务。
 
 use crate::daemon::Daemon;
 use crate::state::{date_shift, local_date, local_month, month_shift, now_epoch, time_synced, now_mono_ms, RETENTION_DAYS, RETENTION_MONTHS};
@@ -65,7 +65,7 @@ pub fn checkpoint(d: &Daemon) -> Result<(), String> {
         .values()
         .filter(|s| now.saturating_sub(s.last_active) <= d.cfg.offline_timeout)
         .collect();
-    d.db.checkpoint(&active, &d.cur_day, &d.cur_month, now as i64)
+    d.db.checkpoint_with_wan(&active, &d.cur_day, &d.cur_month, now as i64, &d.wan)
 }
 
 /// 定期 checkpoint 入口（带时间戳去重）

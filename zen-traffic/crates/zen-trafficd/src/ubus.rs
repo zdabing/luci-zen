@@ -40,10 +40,11 @@ const fn cs(s: &'static [u8]) -> *const c_char {
 // ubus 方法表
 // ---------------------------------------------------------------------------
 
-static METHODS: [ubus::ubus_method; 8] = [
+static METHODS: [ubus::ubus_method; 9] = [
     m(b"getStatus\0", handle_get_status),
     m(b"getDevices\0", handle_get_devices),
     m(b"getTotal\0", handle_get_total),
+    m(b"getWanUsage\0", handle_get_wan_usage),
     m(b"getHistory\0", handle_get_history),
     m(b"getRealtimeHistory\0", handle_get_realtime_history),
     m(b"setHostname\0", handle_set_hostname),
@@ -186,6 +187,44 @@ unsafe extern "C" fn handle_get_devices(
             ubus::blobmsg_close_array(&mut b, arr);
         }
     }
+    send(ctx, req, &mut b);
+    ubus::UBUS_STATUS_OK
+}
+
+/// Internet-only usage since the persisted collection window began.
+unsafe extern "C" fn handle_get_wan_usage(
+    ctx: *mut ubus::ubus_context, _obj: *mut ubus::ubus_object,
+    req: *mut ubus::ubus_request_data, _method: *const c_char, _msg: *mut ubus::blob_attr,
+) -> c_int {
+    let mut b = reply(ctx, req);
+    with_daemon(|d| {
+        let attributed = d.wan.attributed();
+        let interface = d.wan.interface;
+        for (name, value) in [
+            (b"since\0".as_slice(), d.wan.since),
+            (b"interface_download\0", interface.download),
+            (b"interface_upload\0", interface.upload),
+            (b"attributed_download\0", attributed.download),
+            (b"attributed_upload\0", attributed.upload),
+            (b"unassigned_download\0", interface.download.saturating_sub(attributed.download)),
+            (b"unassigned_upload\0", interface.upload.saturating_sub(attributed.upload)),
+            (b"excess_download\0", attributed.download.saturating_sub(interface.download)),
+            (b"excess_upload\0", attributed.upload.saturating_sub(interface.upload)),
+        ] { ubus::blobmsg_add_u64(&mut b, cs(name), value); }
+        let arr = ubus::blobmsg_open_array(&mut b, cs(b"dev\0"));
+        let mut rows: Vec<_> = d.wan.devices.iter().collect();
+        rows.sort_by_key(|(mac, _)| mac.b);
+        for (mac, bytes) in rows {
+            if bytes.download == 0 && bytes.upload == 0 { continue; }
+            let row = ubus::blobmsg_open_table(&mut b, std::ptr::null());
+            add_str(&mut b, b"mac\0", &mac_str(&mac.b));
+            if let Some(device) = d.devs.get(mac) { add_opt_str(&mut b, b"host\0", &device.host); }
+            ubus::blobmsg_add_u64(&mut b, cs(b"download\0"), bytes.download);
+            ubus::blobmsg_add_u64(&mut b, cs(b"upload\0"), bytes.upload);
+            ubus::blobmsg_close_table(&mut b, row);
+        }
+        ubus::blobmsg_close_array(&mut b, arr);
+    });
     send(ctx, req, &mut b);
     ubus::UBUS_STATUS_OK
 }
@@ -453,6 +492,7 @@ unsafe extern "C" fn handle_reset_device(
 
     match with_daemon(|d| -> Result<(), String> {
         d.db.reset_device(&mac_l)?;
+        d.wan.devices.remove(&m);
         if let Some(s) = d.devs.get_mut(&m) {
             s.rx_today = 0;
             s.tx_today = 0;

@@ -3,7 +3,7 @@
 		"description": "Grant ubus access for luci-app-zen-traffic",
 		"read": {
 			"ubus": {
-				"zen.traffic": [ "getStatus", "getDevices", "getTotal", "getHistory", "getRealtimeHistory" ]
+				"zen.traffic": [ "getStatus", "getDevices", "getTotal", "getHistory", "getRealtimeHistory", "getWanUsage" ]
 			}
 		},
 		"write": {

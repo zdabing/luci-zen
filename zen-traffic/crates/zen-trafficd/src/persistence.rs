@@ -29,6 +29,29 @@ pub struct DeviceRow {
     pub tx_total: i64,
 }
 
+#[cfg(test)]
+mod transaction_tests {
+    use super::*;
+    use crate::wan::WanUsage;
+    use zen_bpf::{DevStats, MacKey};
+
+    #[test]
+    fn failed_wan_write_rolls_back_legacy_and_window_counters_together() {
+        let db = Db::open(":memory:").unwrap();
+        let mac = MacKey { b: [2, 0, 0, 0, 0, 3] };
+        let mut device = DevState::new(mac, DevStats::default(), 1, 10, 20);
+        db.checkpoint(&[&device], "2026-10-03", "2026-10", 1).unwrap();
+        let mut wan = WanUsage::load(&db, crate::state::MIN_SYNC_EPOCH).unwrap();
+        wan.device_delta(mac, 30, 40);
+        device.rx_total = 100;
+        db.conn.execute_batch("CREATE TRIGGER reject_wan BEFORE INSERT ON wan_devices BEGIN SELECT RAISE(ABORT,'test full storage'); END;").unwrap();
+        assert!(db.checkpoint_with_wan(&[&device], "2026-10-03", "2026-10", 2, &wan).is_err());
+        assert_eq!(db.lifetime_totals(), (10, 20));
+        assert!(db.wan_window().unwrap().is_none());
+        assert!(db.wan_devices().unwrap().is_empty());
+    }
+}
+
 impl Db {
     pub fn open(path: &str) -> Result<Db, String> {
         if let Some(dir) = Path::new(path).parent() {
@@ -73,6 +96,17 @@ impl Db {
                  download_bytes INTEGER NOT NULL DEFAULT 0,
                  upload_bytes   INTEGER NOT NULL DEFAULT 0,
                  PRIMARY KEY (mac, month)
+             );
+             CREATE TABLE IF NOT EXISTS wan_devices (
+                 mac TEXT PRIMARY KEY,
+                 download_bytes INTEGER NOT NULL DEFAULT 0,
+                 upload_bytes INTEGER NOT NULL DEFAULT 0
+             );
+             CREATE TABLE IF NOT EXISTS wan_window (
+                 id INTEGER PRIMARY KEY CHECK (id = 1),
+                 since INTEGER NOT NULL,
+                 download_bytes INTEGER NOT NULL DEFAULT 0,
+                 upload_bytes INTEGER NOT NULL DEFAULT 0
              );",
         )
         .map_err(|e| format!("建表失败: {e}"))?;
@@ -138,6 +172,20 @@ impl Db {
         month: &str,
         _now_epoch: i64,
     ) -> Result<(), String> {
+        self.checkpoint_inner(devs, date, month, None)
+    }
+
+    pub fn checkpoint_with_wan(
+        &self, devs: &[&DevState], date: &str, month: &str, _now_epoch: i64,
+        wan: &crate::wan::WanUsage,
+    ) -> Result<(), String> {
+        self.checkpoint_inner(devs, date, month, Some(wan))
+    }
+
+    fn checkpoint_inner(
+        &self, devs: &[&DevState], date: &str, month: &str,
+        wan: Option<&crate::wan::WanUsage>,
+    ) -> Result<(), String> {
         let tx = self.conn.unchecked_transaction().map_err(|e| e.to_string())?;
         for d in devs {
             let mac = mac_str(&d.mac.b);
@@ -187,7 +235,35 @@ impl Db {
             )
             .map_err(|e| e.to_string())?;
         }
+        if let Some(wan) = wan {
+            let integer = |value: u64| value.min(i64::MAX as u64) as i64;
+            tx.execute(
+                "INSERT INTO wan_window (id,since,download_bytes,upload_bytes) VALUES (1,?1,?2,?3)
+                 ON CONFLICT(id) DO UPDATE SET since=excluded.since,
+                 download_bytes=excluded.download_bytes,upload_bytes=excluded.upload_bytes",
+                params![integer(wan.since), integer(wan.interface.download), integer(wan.interface.upload)],
+            ).map_err(|e| e.to_string())?;
+            for (mac, download, upload) in wan.rows() {
+                tx.execute(
+                    "INSERT INTO wan_devices (mac,download_bytes,upload_bytes) VALUES (?1,?2,?3)
+                     ON CONFLICT(mac) DO UPDATE SET download_bytes=excluded.download_bytes,
+                     upload_bytes=excluded.upload_bytes",
+                    params![mac, integer(download), integer(upload)],
+                ).map_err(|e| e.to_string())?;
+            }
+        }
         tx.commit().map_err(|e| format!("checkpoint 提交失败: {e}"))
+    }
+
+    pub fn wan_window(&self) -> Result<Option<(u64, u64, u64)>, String> {
+        self.conn.query_row("SELECT since,download_bytes,upload_bytes FROM wan_window WHERE id=1", [],
+            |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?))).optional().map_err(|e| e.to_string())
+    }
+
+    pub fn wan_devices(&self) -> Result<Vec<(String, u64, u64)>, String> {
+        let mut query = self.conn.prepare("SELECT mac,download_bytes,upload_bytes FROM wan_devices").map_err(|e| e.to_string())?;
+        let rows = query.query_map([], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?))).map_err(|e| e.to_string())?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
     }
 
     /// 日切仅清理日记录；保留截止日期本身。
@@ -265,16 +341,18 @@ impl Db {
 
     /// resetDevice：删除设备及其全部累计
     pub fn reset_device(&self, mac: &str) -> Result<(), String> {
-        self.conn
+        let tx = self.conn.unchecked_transaction().map_err(|e| e.to_string())?;
+        tx
             .execute("DELETE FROM devices WHERE mac = ?1", params![mac])
             .map_err(|e| e.to_string())?;
-        self.conn
+        tx
             .execute("DELETE FROM daily_usage WHERE mac = ?1", params![mac])
             .map_err(|e| e.to_string())?;
-        self.conn
+        tx
             .execute("DELETE FROM monthly_usage WHERE mac = ?1", params![mac])
-            .map(|_| ())
-            .map_err(|e| e.to_string())
+            .map_err(|e| e.to_string())?;
+        tx.execute("DELETE FROM wan_devices WHERE mac=?1", params![mac]).map_err(|e| e.to_string())?;
+        tx.commit().map_err(|e| e.to_string())
     }
 
     /// getHistory：按日聚合（mac=None 时全设备 SUM），范围 [start,end]（含端点）
