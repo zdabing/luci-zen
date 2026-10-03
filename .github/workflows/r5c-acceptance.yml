@@ -2,6 +2,12 @@ name: R5C pinned package acceptance
 
 on:
   workflow_dispatch:
+    inputs:
+      package_scope:
+        description: 'all packages, or only the architecture-independent theme'
+        type: choice
+        options: [all, theme]
+        default: all
   push:
     branches: [codex/router-acceptance]
     paths:
@@ -24,6 +30,8 @@ jobs:
     timeout-minutes: 240
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
       - name: Prepare build host
         run: |
           sudo rm -rf /usr/local/lib/android /usr/share/dotnet /usr/share/swift
@@ -35,6 +43,8 @@ jobs:
             file zstd curl ca-certificates bc
           df -h
       - name: Build with deployed OpenWrt and feed revisions
+        env:
+          ZEN_PACKAGE_SCOPE: ${{ inputs.package_scope || 'auto' }}
         run: bash tools/r5c-acceptance-build.sh
       - name: Retain package and timing evidence
         if: always()

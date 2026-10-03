@@ -138,6 +138,7 @@ jobs:
 
       - name: App translations and dashboard regression
         run: |
+          python3 tools/test-package-assets.py
           node tools/check-po.js luci-app-zen-traffic
           node tools/test-dashboard-history.cjs
           node tools/test-wan-share.cjs

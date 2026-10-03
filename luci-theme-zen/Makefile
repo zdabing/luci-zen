@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-theme-zen
 PKG_VERSION:=0.2.0
-PKG_RELEASE:=2
+PKG_RELEASE:=3
 
 PKG_MAINTAINER:=luci-zen maintainers
 PKG_LICENSE:=Apache-2.0
@@ -51,11 +51,7 @@ define Package/luci-theme-zen/install
 	$(INSTALL_DATA) ./htdocs/luci-static/resources/menu-zen.js $(1)/www/luci-static/resources/menu-zen.js
 
 	$(INSTALL_DIR) $(1)/www/luci-static/resources/view/zen
-	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/zen/sysauth.js $(1)/www/luci-static/resources/view/zen/sysauth.js
-	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/zen/dashboard.js $(1)/www/luci-static/resources/view/zen/dashboard.js
-	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/zen/zen-format.js $(1)/www/luci-static/resources/view/zen/zen-format.js
-	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/zen/zen-icons.js $(1)/www/luci-static/resources/view/zen/zen-icons.js
-	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/zen/zen-devices.js $(1)/www/luci-static/resources/view/zen/zen-devices.js
+	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/zen/*.js $(1)/www/luci-static/resources/view/zen/
 
 	$(INSTALL_DIR) $(1)/usr/share/ucode/luci/template/themes/zen
 	$(INSTALL_DATA) ./ucode/template/themes/zen/header.ut $(1)/usr/share/ucode/luci/template/themes/zen/header.ut
