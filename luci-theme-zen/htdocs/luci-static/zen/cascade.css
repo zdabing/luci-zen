@@ -3208,5 +3208,7 @@ header .showSide:focus-visible { outline: 2px solid var(--accent); outline-offse
 }
 @container zen-dashboard (max-width: 400px) {
  .zen-share-card { padding: 16px; }
- .zen-share-content { grid-template-columns: minmax(115px, .9fr) minmax(0, 1.1fr); gap: 10px; }
+ .zen-share-content { grid-template-columns: 1fr; gap: 16px; }
+ .zen-share-ring { max-width: 180px; }
+ .zen-share-legend { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
 }
