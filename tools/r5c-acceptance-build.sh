@@ -111,9 +111,11 @@ fi
 printf 'OpenWrt\t%s\npackages\t%s\nluci\t%s\nZen\t%s\n' \
     "$openwrt_rev" "$packages_rev" "$luci_rev" "$(git -C "$zen_root" rev-parse HEAD)" > "$out/sources.tsv"
 phase tools/compile
+# OpenWrt prepares libgcc package metadata even for PKGARCH=all packages.
+# Keep its target toolchain available; theme scope still skips kernel and Rust.
+phase toolchain/compile
 names=(luci-theme-zen)
 if [[ $scope == all ]]; then
-phase toolchain/compile
 # bpf-headers reads the target kernel config. Build it without image packaging.
 phase target/linux/compile
 phase package/zen-traffic/compile

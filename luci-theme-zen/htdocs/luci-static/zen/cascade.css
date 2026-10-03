@@ -3176,13 +3176,13 @@ header .showSide:focus-visible { outline: 2px solid var(--accent); outline-offse
 .zen-wan-share > h3 { margin-bottom: 8px; }
 .zen-share-description, .zen-share-help, .zen-share-status { color: var(--text-secondary); font-size: 13px; line-height: 1.6; }
 .zen-share-description { margin: 0 0 20px; }
-.zen-share-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.zen-share-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
 .zen-share-grid[hidden], .zen-share-more[hidden] { display: none; }
 .zen-share-card { min-width: 0; padding: 22px; border-radius: 24px; background: var(--bg-nested); }
 .zen-share-card h4 { margin: 0 0 18px; font-size: 15px; font-weight: 650; }
 .zen-share-card.upload h4 { color: var(--ul); }
 .zen-share-card.download h4 { color: var(--dl); }
-.zen-share-content { display: grid; grid-template-columns: minmax(130px, .8fr) minmax(0, 1.2fr); align-items: center; gap: 18px; }
+.zen-share-content { display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; gap: 20px; }
 .zen-share-ring { position: relative; width: 100%; max-width: 200px; justify-self: center; }
 .zen-share-ring svg { width: 100%; height: auto; display: block; }
 .zen-share-track { fill: none; stroke: var(--line); stroke-width: 15; }
@@ -3196,7 +3196,7 @@ header .showSide:focus-visible { outline: 2px solid var(--accent); outline-offse
 .zen-share-tooltip span { color: var(--text-secondary); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .zen-share-ring [role="button"] { cursor: pointer; outline: none; }
 .zen-share-ring [role="button"]:focus-visible { stroke-width: 19; }
-.zen-share-legend { list-style: none; padding: 0; margin: 0; min-width: 0; }
+.zen-share-legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 4px 12px; list-style: none; padding: 0; margin: 0; min-width: 0; }
 .zen-share-legend button { display: grid; grid-template-columns: 8px minmax(0, 1fr); gap: 3px 9px; width: 100%; padding: 7px 4px; border: 0; border-radius: 8px; background: transparent; color: var(--text); text-align: left; font: inherit; cursor: pointer; }
 .zen-share-legend button:hover { background: var(--bg-card); }
 .zen-share-legend button:focus-visible { outline: 2px solid var(--gauge); outline-offset: 2px; }
@@ -3210,12 +3210,9 @@ header .showSide:focus-visible { outline: 2px solid var(--accent); outline-offse
 .zen-share-help summary { cursor: pointer; }
 .zen-share-help p { margin: 8px 0; }
 .zen-share-status:empty { display: none; }
-@container zen-dashboard (max-width: 900px) {
- .zen-share-grid { grid-template-columns: 1fr; }
-}
 @container zen-dashboard (max-width: 400px) {
  .zen-share-card { padding: 16px; }
- .zen-share-content { grid-template-columns: 1fr; gap: 16px; }
+ .zen-share-content { gap: 16px; }
  .zen-share-ring { max-width: 180px; }
- .zen-share-legend { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+ .zen-share-legend { grid-template-columns: 1fr; gap: 4px; }
 }
