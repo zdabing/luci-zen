@@ -337,7 +337,7 @@ fn send_command(name: &str, channel: &Channel, text: &str, epoch: u64, command: 
         let _ = child.kill(); let _ = child.wait(); return Err("Unable to start HTTPS request".into());
     }
     let output = child.wait_with_output().map_err(|_| "HTTPS delivery failed".to_owned())?;
-    if !output.status.success() { return Err("HTTPS delivery failed; check network, certificate and webhook".into()); }
+    if !output.status.success() { return Err(format!("HTTPS delivery failed (curl code {}); check network, certificate and webhook", output.status.code().unwrap_or(-1))); }
     response(name, &output.stdout)
 }
 
@@ -455,7 +455,7 @@ print(server.server_port,flush=True);server.serve_forever()
             let make_command = |trusted: bool| { let mut c = Command::new("/usr/bin/curl"); c.arg("--disable");
                 c.args(["--connect-to",&format!("{host}:443:127.0.0.1:{port}")]);
                 if trusted { c.arg("--cacert").arg(&cert); } c };
-            assert!(send_command(name,&channel,"Zen 中文\n\"quotes\" \\slashes",1700000000,&mut make_command(true)).is_ok());
+            assert_eq!(send_command(name,&channel,"Zen 中文\n\"quotes\" \\slashes",1700000000,&mut make_command(true)),Ok(()));
             assert!(send_command(name,&channel,"Zen",1700000000,&mut make_command(false)).is_err(),"Untrusted certificate must fail");
             channel.webhook=format!("{prefix}reject");
             assert!(send_command(name,&channel,"Zen",1700000000,&mut make_command(true)).is_err(),"HTTP 200 with provider error is not success");

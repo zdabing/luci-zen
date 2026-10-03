@@ -182,8 +182,8 @@ return view.extend({
 			if (!t || !this.summary)
 				return;
 			const items = [
-				[_('Internet download rate'), fmtRate(t.rx_r), 'zen-tf-dl'],
 				[_('Internet upload rate'), fmtRate(t.tx_r), 'zen-tf-ul'],
+				[_('Internet download rate'), fmtRate(t.rx_r), 'zen-tf-dl'],
 				[_('Online devices'), String(this.onlineCount || 0), '']
 			];
 			if (!this.summary.firstChild) {
