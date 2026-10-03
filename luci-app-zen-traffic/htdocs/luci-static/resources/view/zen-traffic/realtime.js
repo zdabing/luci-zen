@@ -160,34 +160,33 @@ return view.extend({
 		]);
 	},
 
-	tick() {
-		if (document.hidden)
+	async tick() {
+		if (document.hidden || this.refreshing)
 			return;
-
-		this.renderSummary();
-		if (Date.now() - this.lastLive >= 5000) {
-			this.lastLive = Date.now();
-			callLiveHistory().then(data => { this.live.data = data; this.live.drawChart(); }).catch(() => {});
-		}
-
-		return callDevices().then(L.bind((data) => {
-			const devs = (data && Array.isArray(data.dev)) ? data.dev : [];
-			this.renderRows(devs);
-			setText(this.statusText, '');
-		}, this)).catch((e) => {
-			setText(this.statusText, _('Unable to refresh device traffic; showing the last result.'));
-			console.warn('zen-traffic', e);
-		});
+		this.refreshing = true;
+		try {
+			const requests = [callDevices(), callTotal()];
+			if (Date.now() - this.lastLive >= 5000) {
+				this.lastLive = Date.now(); requests.push(callLiveHistory());
+			}
+			const results = await Promise.allSettled(requests);
+			if (results[0].status === 'fulfilled') this.renderRows(results[0].value.dev || []);
+			if (results[1].status === 'fulfilled') this.renderSummary(results[1].value);
+			if (results[2] && results[2].status === 'fulfilled') {
+				this.live.data = results[2].value; this.live.drawChart();
+			}
+			setText(this.statusText, results.some(r => r.status === 'rejected') ?
+				_('Some traffic data could not be refreshed; showing the last result.') : '');
+		} finally { this.refreshing = false; }
 	},
 
-	renderSummary() {
-		callTotal().then(L.bind((t) => {
+	renderSummary(t) {
 			if (!t || !this.summary)
 				return;
 			const items = [
 				[_('Internet upload rate'), fmtRate(t.tx_r), 'zen-tf-ul'],
 				[_('Internet download rate'), fmtRate(t.rx_r), 'zen-tf-dl'],
-				[_('Online devices'), String(this.onlineCount || 0), '']
+				[_('Online devices'), this.onlineCount == null ? '—' : String(this.onlineCount), '']
 			];
 			if (!this.summary.firstChild) {
 				for (const [label, , cls] of items)
@@ -198,7 +197,6 @@ return view.extend({
 			}
 			const vals = this.summary.querySelectorAll('.zen-tf-sum-value');
 			items.forEach((it, i) => setText(vals[i], it[1]));
-		}, this)).catch(() => {});
 	},
 
 	renderRows(devs) {
@@ -340,7 +338,7 @@ return view.extend({
 			const edit = E('button', { 'class': 'cbi-button' }, _('Edit hostname'));
 			edit.addEventListener('click', L.bind(() => this.editHostname(row), this));
 			c.actions.appendChild(edit);
-			c.actions.appendChild(E('a', { 'class': 'cbi-button', href: L.url('admin/status/zen-traffic/history') + '?mac=' + encodeURIComponent(d.mac) }, _('View usage history')));
+			c.actions.appendChild(E('a', { 'class': 'cbi-button', href: L.url('admin', 'status', 'zen-traffic', 'history') + '?mac=' + encodeURIComponent(d.mac) }, _('View usage history')));
 		}
 	},
 

@@ -73,7 +73,7 @@ impl Settings {
         let mut ids = std::collections::HashSet::new();
         for rule in &self.rules {
             if rule.id.is_empty() || rule.id.len() > 40 || !rule.id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-')
-                || !ids.insert(&rule.id) { return Err("Invalid or duplicate rule ID".into()); }
+                || rule.id == "daily-report" || rule.id.starts_with("test-") || !ids.insert(&rule.id) { return Err("Invalid or duplicate rule ID".into()); }
             if !rule.mac.is_empty() && (crate::daemon::parse_mac(&rule.mac).is_none() || rule.mac != rule.mac.to_ascii_lowercase()) {
                 return Err("Invalid device MAC".into());
             }
@@ -113,6 +113,10 @@ pub struct Notifications {
 
 impl Notifications {
     pub fn load(db: &Db) -> Result<Self, String> {
+        Self::load_with_sender(db, send)
+    }
+
+    fn load_with_sender(db: &Db, transport: fn(&str, &Channel, &str, u64) -> Result<(), String>) -> Result<Self, String> {
         let settings: Settings = db.setting("notifications_config")?.map(|s| serde_json::from_str(&s))
             .transpose().map_err(|_| "Invalid notification settings".to_owned())?.unwrap_or_default();
         settings.validate()?;
@@ -128,7 +132,7 @@ impl Notifications {
         let (sender, outcomes) = mpsc::channel();
         std::thread::Builder::new().name("zen-notify".into()).spawn(move || {
             while let Ok(job) = receiver.recv() {
-                let result = send(&job.channel_name, &job.channel, &job.text, job.epoch);
+                let result = transport(&job.channel_name, &job.channel, &job.text, job.epoch);
                 if sender.send(Outcome { id: job.id, result }).is_err() { break; }
             }
         }).map_err(|_| "Unable to start notification worker".to_owned())?;
@@ -235,16 +239,7 @@ impl Notifications {
 
     pub fn tick(&mut self, db: &Db, wan: &WanUsage, devs: &HashMap<MacKey, DevState>, now: u64, mono: u64) {
         while let Ok(outcome) = self.outcomes.try_recv() {
-            self.inflight = None;
-            if let Some(d) = self.deliveries.iter_mut().find(|d| d.id == outcome.id) {
-                d.at = now;
-                match outcome.result {
-                    Ok(()) => { d.status = "sent".into(); d.error.clear(); }
-                    Err(e) => { d.error = e; d.status = if d.kind != "test" && d.attempts < 3 { "retry" } else { "failed" }.into();
-                        d.next_at = now.saturating_add(if d.attempts == 1 { 60 } else { 300 }); }
-                }
-                self.dirty = true;
-            }
+            self.finish(outcome, now);
         }
         // Bound write retries too: a full disk must not get one attempt/tick.
         if mono < self.blocked_until || mono.saturating_sub(self.last_dispatch) < 5000 { return; }
@@ -277,6 +272,19 @@ impl Notifications {
         let job = Job { id: d.id.clone(), channel_name: d.channel.clone(), channel: self.settings.channel(&d.channel).unwrap().clone(), text: d.text.clone(), epoch: now };
         if self.jobs.try_send(job).is_ok() { self.inflight = Some(d.id.clone()); }
         else { self.deliveries[index] = old; self.dirty = true; }
+    }
+
+    fn finish(&mut self, outcome: Outcome, now: u64) {
+        self.inflight = None;
+        if let Some(d) = self.deliveries.iter_mut().find(|d| d.id == outcome.id) {
+            d.at = now;
+            match outcome.result {
+                Ok(()) => { d.status = "sent".into(); d.error.clear(); }
+                Err(e) => { d.error = e; d.status = if d.kind != "test" && d.attempts < 3 { "retry" } else { "failed" }.into();
+                    d.next_at = now.saturating_add(if d.attempts == 1 { 60 } else { 300 }); }
+            }
+            self.dirty = true;
+        }
     }
 }
 
@@ -408,6 +416,50 @@ mod tests {
         db.conn_for_test_allow_settings();
         n.configure(&db, &serde_json::to_string(&config).unwrap()).unwrap();
         assert!(n.settings.daily_enabled);
+    }
+
+    #[test]
+    fn worker_reservations_storage_failure_retry_limits_and_shutdown_dedup() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        static SENDS: AtomicUsize = AtomicUsize::new(0);
+        fn fake(_name: &str, channel: &Channel, _text: &str, _now: u64) -> Result<(), String> {
+            SENDS.fetch_add(1, Ordering::SeqCst);
+            if channel.secret == "fail" { Err("Fixture failure".into()) } else { Ok(()) }
+        }
+        let db = Db::open(":memory:").unwrap(); let epoch = crate::state::MIN_SYNC_EPOCH + 12 * 3600;
+        let mut wan = WanUsage::load(&db, epoch).unwrap(); wan.interface_delta(200, 20);
+        let mut n = Notifications::load_with_sender(&db, fake).unwrap();
+        let mut settings = Settings::default(); settings.enabled = true;
+        settings.feishu = Channel { enabled:true, webhook:"https://open.feishu.cn/open-apis/bot/v2/hook/fixture".into(), secret:"fail".into() };
+        settings.rules = vec![Rule { id:"r-1".into(),enabled:true,mac:String::new(),metric:"download".into(),bytes:100 }];
+        n.configure(&db, &serde_json::to_string(&settings).unwrap()).unwrap();
+        db.conn_for_test_reject_settings(); n.tick(&db,&wan,&HashMap::new(),epoch,5000);
+        assert_eq!(SENDS.load(Ordering::SeqCst),0,"Never send an event whose durable reservation failed");
+        assert!(n.deliveries.is_empty()); assert_eq!(n.blocked_until,35000);
+        db.conn_for_test_allow_settings(); n.tick(&db,&wan,&HashMap::new(),epoch+1,6000);
+        assert_eq!(SENDS.load(Ordering::SeqCst),0,"Full-disk retries must wait 30 seconds");
+        n.tick(&db,&wan,&HashMap::new(),epoch+30,35000);
+        let outcome = n.outcomes.recv_timeout(std::time::Duration::from_secs(2)).unwrap(); n.finish(outcome,epoch+30);
+        assert_eq!(n.deliveries[0].attempts,1); assert_eq!(n.deliveries[0].status,"retry");
+        n.tick(&db,&wan,&HashMap::new(),epoch+84,89000); assert_eq!(SENDS.load(Ordering::SeqCst),1);
+        n.tick(&db,&wan,&HashMap::new(),epoch+90,95000);
+        let outcome = n.outcomes.recv_timeout(std::time::Duration::from_secs(2)).unwrap(); n.finish(outcome,epoch+90);
+        assert_eq!(n.deliveries[0].next_at,epoch+390); assert_eq!(n.deliveries[0].attempts,2);
+        n.tick(&db,&wan,&HashMap::new(),epoch+385,390000); assert_eq!(SENDS.load(Ordering::SeqCst),2);
+        n.tick(&db,&wan,&HashMap::new(),epoch+390,395000);
+        let outcome = n.outcomes.recv_timeout(std::time::Duration::from_secs(2)).unwrap(); n.finish(outcome,epoch+390);
+        n.tick(&db,&wan,&HashMap::new(),epoch+1000,1005000);
+        assert_eq!(SENDS.load(Ordering::SeqCst),3); assert_eq!(n.deliveries[0].status,"failed");
+        // A new day gets its own reservation, then acknowledged state survives reload.
+        settings.feishu.secret = "success".into(); n.configure(&db,&serde_json::to_string(&settings).unwrap()).unwrap();
+        wan.set_day(epoch+86400); wan.interface_delta(150,1);
+        n.tick(&db,&wan,&HashMap::new(),epoch+86400,86405000);
+        let outcome = n.outcomes.recv_timeout(std::time::Duration::from_secs(2)).unwrap(); n.finish(outcome,epoch+86400);
+        n.tick(&db,&wan,&HashMap::new(),epoch+86405,86410000);
+        assert_eq!(SENDS.load(Ordering::SeqCst),4); assert_eq!(n.deliveries.last().unwrap().status,"sent");
+        let mut restarted=Notifications::load_with_sender(&db,fake).unwrap();
+        restarted.tick(&db,&wan,&HashMap::new(),epoch+86410,5000);
+        assert_eq!(SENDS.load(Ordering::SeqCst),4,"Restart must not resend an acknowledged event");
     }
 
     /// Exercise the actual curl stdin transport with a local TLS robot fixture.

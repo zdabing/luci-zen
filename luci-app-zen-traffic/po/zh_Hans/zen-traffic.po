@@ -507,3 +507,6 @@ msgstr "查看用量历史"
 
 msgid "Monthly (retained days)"
 msgstr "每月（保留日期汇总）"
+
+msgid "Some traffic data could not be refreshed; showing the last result."
+msgstr "部分流量数据暂时无法刷新，正在显示上次结果。"

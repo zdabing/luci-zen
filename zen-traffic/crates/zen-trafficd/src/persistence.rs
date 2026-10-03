@@ -203,6 +203,16 @@ impl Db {
         }
         conn.pragma_update(None, "journal_mode", "WAL")
             .map_err(|e| e.to_string())?;
+        #[cfg(unix)]
+        if path != ":memory:" {
+            use std::os::unix::fs::PermissionsExt;
+            for sidecar in [format!("{path}-wal"), format!("{path}-shm")] {
+                if Path::new(&sidecar).exists() {
+                    std::fs::set_permissions(sidecar, std::fs::Permissions::from_mode(0o600))
+                        .map_err(|_| "Unable to restrict database journal permissions".to_owned())?;
+                }
+            }
+        }
         conn.pragma_update(None, "synchronous", "NORMAL")
             .map_err(|e| e.to_string())?;
         conn.execute_batch(

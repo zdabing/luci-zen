@@ -169,6 +169,7 @@ jobs:
           node tools/test-realtime-chart-hover.cjs
           node tools/test-realtime-query.cjs
           node tools/test-notifications.cjs
+          node tools/test-monitor-poll.cjs
 
       - name: SQLite retention and realtime regression
         run: |
