@@ -10,7 +10,7 @@
  * daemon 端落盘）。方向约定 download=rx（下载）、upload=tx（上传）。
  *
  * 交互：日/月聚合切换（90 天 / 12 个月）、设备选择（可选，默认全设备 SUM）。
- * 渲染：SVG 折线（一次构建），切换/刷新只重写 path 与坐标文本。
+ * 渲染：每个日期一组上传/下载柱，长历史只滚动图表。
  */
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -29,7 +29,16 @@ const callDevices = rpc.declare({
 const callHistory = rpc.declare({
 	object: 'zen.traffic',
 	method: 'getHistory',
-	params: ['agg', 'mac']
+	params: ['agg', 'mac'],
+	reject: true
+});
+
+/* Omit the optional filter for all devices, including on older daemons. */
+const callAllHistory = rpc.declare({
+	object: 'zen.traffic',
+	method: 'getHistory',
+	params: ['agg'],
+	reject: true
 });
 
 function fmtBytes(n) {
@@ -83,12 +92,11 @@ function injectStyles() {
 		'.zen-tf-controls > select { min-width: 0; max-width: 100%; }',
 		'.zen-tf-bar-ul { fill: var(--ul, #ea580c); }',
 		'.zen-tf-bar-dl { fill: var(--dl, #15803d); }',
+		'.zen-tf-chart-scroll { max-width: 100%; overflow-x: auto; }',
+		'.zen-tf-bar-ul:focus, .zen-tf-bar-dl:focus { outline: none; stroke: currentColor; stroke-width: 2; }',
+		'.zen-tf-readout { padding-top: 8px; font-size: 13px; font-variant-numeric: tabular-nums; }',
 		'.zen-tf-grid { stroke: currentColor; opacity: .12; }',
 		'.zen-tf-ax { font-size: 11px; fill: currentColor; opacity: .65; }',
-		'.zen-tf-line-dl { stroke: var(--dl, currentColor); stroke-width: 2; }',
-		'.zen-tf-line-ul { stroke: var(--ul, currentColor); stroke-width: 2; stroke-dasharray: 5 5; }',
-		'.zen-tf-point-dl { fill: var(--dl, currentColor); }',
-		'.zen-tf-point-ul { fill: var(--bg-panel, white); stroke: var(--ul, currentColor); stroke-width: 2; }',
 		'.zen-tf-legend { display: flex; gap: 16px; padding-top: 6px; font-size: 13px; }',
 		'.zen-tf-legend .zen-tf-dl { color: var(--dl, currentColor); }',
 		'.zen-tf-legend .zen-tf-ul { color: var(--ul, currentColor); }'
@@ -150,7 +158,8 @@ return view.extend({
 				tabs
 			]),
 			E('div', { 'class': 'cbi-section' },
-				(this.chart = E('div', { 'class': 'zen-tf-chart' }, [])))
+				[this.statusText = E('p', { 'class': 'zen-tf-status', role: 'status' }),
+				(this.chart = E('div', { 'class': 'zen-tf-chart' }, []))])
 		]);
 
 		this.sel = sel;
@@ -191,10 +200,19 @@ return view.extend({
 			return;
 
 		const request = this.request = (this.request || 0) + 1;
-		return callHistory(this.agg, this.mac || null).then(L.bind((res) => {
-			if (request === this.request)
+		this.statusText.textContent = _('Loading history…');
+		const query = this.mac ? callHistory(this.agg, this.mac) : callAllHistory(this.agg);
+		return query.then(L.bind((res) => {
+			if (request === this.request) {
+				this.statusText.textContent = '';
 				this.draw(res);
+			}
 		}, this)).catch((e) => {
+			if (request === this.request) {
+				this.statusText.textContent = _('Unable to load history. Please try again.');
+				this.chart.textContent = '';
+				this.lastResult = null;
+			}
 			console.warn('zen-traffic history', e);
 		});
 	},
@@ -205,7 +223,7 @@ return view.extend({
 			return;
 		this.lastResult = res;
 		this.chartWidth = el.clientWidth;
-		const W = Math.max(280, el.clientWidth || 860);
+		const viewportW = Math.max(280, el.clientWidth || 860);
 
 		const isMonth = (res && res.agg === 'month');
 		const rows = (isMonth ? (res.months || []) : ((res && res.days) || []))
@@ -219,10 +237,12 @@ return view.extend({
 			return;
 		}
 
+		const n = rows.length;
+		const W = Math.max(viewportW, PAD_L + PAD_R + n * 24);
 		const max = niceMax(Math.max(...rows.map((r) => Math.max(r.dl, r.ul))));
 		const iw = W - PAD_L - PAD_R, ih = H - PAD_T - PAD_B;
-		const n = rows.length;
-		const x = (i) => PAD_L + (n === 1 ? iw / 2 : (i * iw / (n - 1)));
+		const slot = iw / n, barWidth = Math.min(40, slot * .3), gap = Math.min(8, slot * .1);
+		const x = (i) => PAD_L + (i + .5) * slot;
 		const y = (v) => PAD_T + ih - (Math.min(v, max) * ih / max);
 
 		const grid = [];
@@ -243,46 +263,42 @@ return view.extend({
 			}, [document.createTextNode(rows[i].k)]));
 		}
 
-		const path = (key) => svg('path', {
-			d: rows.map((r, i) => (i ? 'L' : 'M') + x(i).toFixed(1) + ',' + y(r[key]).toFixed(1)).join(' '),
-			'fill': 'none', 'class': key === 'dl' ? 'zen-tf-line-dl' : 'zen-tf-line-ul'
-		});
-		/* 单日/月使用两根柱；多日/月保留曲线和圆点。 */
+		const readout = E('div', { 'class': 'zen-tf-readout' });
+		const showRow = (r) => { readout.textContent = r.k + ' · ↑ ' + fmtBytes(r.ul) + ' · ↓ ' + fmtBytes(r.dl); };
+		showRow(rows[n - 1]);
 		const points = [];
 		rows.forEach((r, i) => {
 			for (const key of ['ul', 'dl']) {
-				if (n === 1) {
-					const center = x(0) + (key === 'ul' ? -32 : 32);
-					const height = Math.max(2, H - PAD_B - y(r[key]));
-					const top = H - PAD_B - height;
-					points.push(svg('rect', { x: center - 20, y: top, width: 40, height, rx: 4, 'class': 'zen-tf-bar-' + key }, [
-						svg('title', {}, [document.createTextNode(r.k + ' · ' + (key === 'ul' ? _('Upload') : _('Download')) + ': ' + fmtBytes(r[key]))])
-					]));
+				const center = x(i) + (key === 'ul' ? -1 : 1) * (barWidth + gap) / 2;
+				const top = y(r[key]), height = H - PAD_B - top;
+				const label = r.k + ' · ' + (key === 'ul' ? _('Upload') : _('Download')) + ': ' + fmtBytes(r[key]);
+				const bar = svg('rect', { x: center - barWidth / 2, y: top, width: barWidth, height,
+					rx: Math.min(4, barWidth / 4), tabindex: 0, 'aria-label': label, 'class': 'zen-tf-bar-' + key },
+					[svg('title', {}, [document.createTextNode(label)])]);
+				for (const event of ['mouseenter', 'focus', 'click'])
+					bar.addEventListener(event, () => showRow(r));
+				points.push(bar);
+				if (n === 1)
 					points.push(svg('text', { x: center, y: top - 8, 'text-anchor': 'middle', 'class': 'zen-tf-ax' }, [document.createTextNode(fmtBytes(r[key]))]));
-					continue;
-				}
-				points.push(svg('circle', {
-					cx: x(i), cy: y(r[key]), r: key === 'dl' ? 4 : 3,
-					'class': 'zen-tf-point-' + key
-				}, [svg('title', {}, [document.createTextNode(
-					r.k + ' · ' + (key === 'dl' ? _('Download') : _('Upload')) + ': ' + fmtBytes(r[key])
-				)])]));
 			}
 		});
 
 		const legend = E('div', { 'class': 'zen-tf-legend' }, [
-			E('span', { 'class': 'zen-tf-ul' }, '— ' + _('Upload')),
-			E('span', { 'class': 'zen-tf-dl' }, '— ' + _('Download'))
+			E('span', { 'class': 'zen-tf-ul' }, '■ ' + _('Upload')),
+			E('span', { 'class': 'zen-tf-dl' }, '■ ' + _('Download'))
 		]);
 
 		const chartSvg = svg('svg', {
 			viewBox: '0 0 %d %d'.format(W, H),
 			'preserveAspectRatio': 'xMidYMid meet',
 			role: 'img', 'aria-label': _('Traffic History'),
-			'class': 'zen-tf-chart-svg'
-		}, [].concat(grid, ytexts, xticks, n === 1 ? [] : [path('ul'), path('dl')], points));
+			'class': 'zen-tf-chart-svg', style: 'width: ' + W + 'px; max-width: none;'
+		}, [].concat(grid, ytexts, xticks, points));
 
-		el.appendChild(chartSvg);
+		el.appendChild(E('div', { 'class': 'zen-tf-chart-scroll', tabindex: 0 }, [chartSvg]));
 		el.appendChild(legend);
+		if (W > viewportW)
+			el.appendChild(E('p', { 'class': 'zen-app-muted' }, _('Swipe or scroll to see more dates.')));
+		el.appendChild(readout);
 	}
 });

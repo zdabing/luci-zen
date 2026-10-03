@@ -243,3 +243,12 @@ msgstr "按日、按月查看设备用量，包含经过路由器采集的互联
 
 msgid "Hostname"
 msgstr "主机名"
+
+msgid "Loading history…"
+msgstr "正在加载历史记录…"
+
+msgid "Swipe or scroll to see more dates."
+msgstr "左右滑动或滚动图表，查看更多日期。"
+
+msgid "Unable to load history. Please try again."
+msgstr "暂时无法加载历史记录，请重试。"

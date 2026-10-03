@@ -281,7 +281,7 @@ unsafe extern "C" fn handle_get_history(
                     agg = s.to_string();
                 }
             }
-            Some("mac") => mac = a.as_str().map(|s| s.to_string()),
+            Some("mac") => mac = a.as_str().filter(|s| !s.is_empty()).map(|s| s.to_string()),
             Some("start_ms") => start_ms = a.as_u64(),
             Some("end_ms") => end_ms = a.as_u64(),
             _ => {}

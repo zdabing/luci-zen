@@ -66,8 +66,10 @@
 - [x] daemon 原生 ubus 查询、设备名称覆盖、设备统计重置。
 - [x] SQLite 设备累计、每日和每月记录，内存累计后批量写盘。
 - [x] 日/月清理分别执行，避免一种历史的清理误删另一种历史。
+- [x] 全部设备日/月查询省略 MAC；历史使用上传/下载分组柱，长历史可在图表内滚动。
 - [x] WAN 实时速率每 5 秒采样、每 5 分钟批量落盘、保留 7 天。
 - [x] 实时历史支持接口、5 分钟/1 小时/24 小时/7 天/自定义区间和分页数据表。
+- [x] 实时预设区间以路由器时间查询；ubus 查询失败显示错误提示。
 - [x] 查询包含未落盘样本，长区间按平均速率聚合并限制返回点数。
 - [x] 网络接口事件刷新前缀/上游，不重启 daemon；修改服务配置仍需重启。
 - [x] 修复 ubus 普通容器与 4 字节名字头解析，覆盖前缀学习和按 MAC 查询。
@@ -353,6 +355,10 @@ MAC 换成真实设备，省略 `mac` 才是全部设备汇总。`getHistory` �
 node tools/check-po.js luci-theme-zen
 node tools/check-po.js luci-app-zen-traffic
 node tools/test-dashboard-history.cjs
+node tools/test-device-actions.cjs
+node tools/test-device-history.cjs
+node tools/test-history-bars.cjs
+node tools/test-realtime-query.cjs
 python3 tools/test-sqlite-retention.py
 python3 tools/test-realtime-history.py
 git diff --check

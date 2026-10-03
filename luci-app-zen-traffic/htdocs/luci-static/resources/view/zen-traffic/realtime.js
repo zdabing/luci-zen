@@ -3,7 +3,9 @@
 'require rpc';
 'require view.zen-traffic.style as trafficStyle';
 
-const callHistory = rpc.declare({ object: 'zen.traffic', method: 'getRealtimeHistory', params: ['iface', 'start', 'end', 'limit'] });
+const callHistory = rpc.declare({ object: 'zen.traffic', method: 'getRealtimeHistory', params: ['iface', 'start', 'end', 'limit'], reject: true });
+const callDefaultHistory = rpc.declare({ object: 'zen.traffic', method: 'getRealtimeHistory', reject: true });
+const callStatus = rpc.declare({ object: 'zen.traffic', method: 'getStatus', reject: true });
 const DAY = 86400;
 function localInput(time) {
  const date = new Date(time * 1000);
@@ -30,8 +32,8 @@ function styles() {
 
 return view.extend({
  load() {
-  const now = Math.floor(Date.now() / 1000);
-  return callHistory('', now - 300, now, 600).then(data => ({data})).catch(() => ({error:true}));
+  // Let the router choose its current window; the browser clock may be ahead.
+  return callDefaultHistory().then(data => ({data})).catch(() => ({error:true}));
  },
  render(initial) {
   styles(); trafficStyle.inject(); this.requestId = 0; this.page = 0;
@@ -97,13 +99,22 @@ return view.extend({
  },
  async query() {
   this.setRange();
-  const now=Math.floor(Date.now()/1000), start=Math.floor(new Date(this.start.value).getTime()/1000), end=Math.floor(new Date(this.end.value).getTime()/1000);
-  if(!Number.isFinite(start)||!Number.isFinite(end)||start>end||start<now-7*DAY||end>now) {
+  const now=Math.floor(Date.now()/1000);
+  let start=Math.floor(new Date(this.start.value).getTime()/1000), end=Math.floor(new Date(this.end.value).getTime()/1000);
+  if(this.range.value==='custom'&&(!Number.isFinite(start)||!Number.isFinite(end)||start>end||start<now-7*DAY||end>now)) {
    this.error.textContent=_('Choose a valid time range within the last 7 days.'); return;
   }
   const id=++this.requestId;
   this.button.disabled=true; this.button.textContent=_('Loading…');this.error.textContent='';
   try {
+   if(this.range.value!=='custom') {
+    const status=await callStatus();
+    if(id!==this.requestId) return;
+    const serverNow=Number(status.since);
+    if(!Number.isFinite(serverNow)||serverNow<1700000000) throw new Error('Invalid router time');
+    end=Math.floor(serverNow);start=end-Number(this.range.value);
+    this.start.value=localInput(start);this.end.value=localInput(end);
+   }
    const data=await callHistory(this.iface.value||'',start,end,600);
    if(id===this.requestId) this.showData(data);
   } catch(e) {

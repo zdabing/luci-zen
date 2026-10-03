@@ -131,6 +131,9 @@ jobs:
           node tools/test-dashboard-history.cjs
           node tools/test-wan-share.cjs
           node tools/test-device-actions.cjs
+          node tools/test-device-history.cjs
+          node tools/test-history-bars.cjs
+          node tools/test-realtime-query.cjs
 
       - name: SQLite retention and realtime regression
         run: |
