@@ -492,6 +492,7 @@ unsafe extern "C" fn handle_reset_device(
 
     match with_daemon(|d| -> Result<(), String> {
         d.db.reset_device(&mac_l)?;
+        d.pending_periods.remove_device(&mac_l);
         d.wan.devices.remove(&m);
         if let Some(s) = d.devs.get_mut(&m) {
             s.rx_today = 0;

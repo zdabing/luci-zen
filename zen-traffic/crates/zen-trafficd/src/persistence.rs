@@ -41,6 +41,106 @@ mod transaction_tests {
     use super::*;
     use crate::wan::WanUsage;
     use zen_bpf::{DevStats, MacKey};
+    use crate::accounting::{prepare_rollover, save, PendingPeriods};
+    use std::collections::HashMap;
+
+    #[test]
+    fn failed_rollovers_preserve_old_periods_and_offline_usage_until_atomic_retry() {
+        let db = Db::open(":memory:").unwrap();
+        let mac = MacKey { b: [2, 0, 0, 0, 0, 9] };
+        let key = mac_str(&mac.b);
+        let mut device = DevState::new(mac, DevStats::default(), 1, 10, 20);
+        device.rx_today = 10; device.tx_today = 20;
+        device.rx_month = 10; device.tx_month = 20;
+        db.checkpoint(&[&device], "2026-09-30", "2026-09", 1).unwrap();
+        db.conn.execute("INSERT INTO daily_usage VALUES(?1,'2020-01-01',1,2)", params![key]).unwrap();
+        db.conn.execute("INSERT INTO monthly_usage VALUES(?1,'2020-01',1,2)", params![key]).unwrap();
+        // Traffic arrives before a full-storage month boundary, then goes offline.
+        device.rx_today = 100; device.tx_today = 200;
+        device.rx_month = 100; device.tx_month = 200;
+        device.rx_total = 100; device.tx_total = 200;
+        device.online = false;
+        let mut devs = HashMap::from([(mac, device)]);
+        let mut day = "2026-09-30".to_owned();
+        let mut month = "2026-09".to_owned();
+        let mut pending = PendingPeriods::default();
+        let mut wan = WanUsage::load(&db, crate::state::MIN_SYNC_EPOCH).unwrap();
+        wan.device_delta(mac, 33, 44);
+        db.conn.execute_batch("CREATE TRIGGER reject_wan BEFORE INSERT ON wan_devices BEGIN SELECT RAISE(ABORT,'full storage'); END;").unwrap();
+        prepare_rollover(&db, &mut devs, &mut day, &mut month, &mut pending, "2026-10-01", "2026-10").unwrap();
+        assert_eq!((devs[&mac].rx_today, devs[&mac].rx_month), (0, 0));
+        assert!(save(&db, &devs, &day, &month, &wan, &mut pending).is_err());
+        assert_eq!(pending.days[&("2026-09-30".into(), key.clone())], (100, 200));
+        assert_eq!(db.load_day("2026-09-30").unwrap(), [(key.clone(), 10, 20)]);
+        assert!(db.load_day("2026-10-01").unwrap().is_empty());
+        assert_eq!(db.lifetime_totals(), (10, 20));
+        assert!(db.wan_window().unwrap().is_none());
+        assert_eq!(db.load_day("2020-01-01").unwrap().len(), 1);
+        assert_eq!(db.load_month("2020-01").unwrap().len(), 1);
+        let d = devs.get_mut(&mac).unwrap();
+        d.rx_today = 5; d.tx_today = 7; d.rx_month = 5; d.tx_month = 7;
+        d.rx_total += 5; d.tx_total += 7;
+        prepare_rollover(&db, &mut devs, &mut day, &mut month, &mut pending, "2026-10-02", "2026-10").unwrap();
+        assert_eq!((devs[&mac].rx_today, devs[&mac].rx_month), (0, 5));
+        assert!(save(&db, &devs, &day, &month, &wan, &mut pending).is_err());
+        let d = devs.get_mut(&mac).unwrap();
+        d.rx_today = 11; d.tx_today = 13; d.rx_month += 11; d.tx_month += 13;
+        d.rx_total += 11; d.tx_total += 13;
+        db.conn.execute_batch("DROP TRIGGER reject_wan").unwrap();
+        for _ in 0..2 {
+            save(&db, &devs, &day, &month, &wan, &mut pending).unwrap();
+            assert!(pending.days.is_empty() && pending.months.is_empty());
+            assert_eq!(db.load_day("2026-09-30").unwrap(), [(key.clone(), 100, 200)]);
+            assert_eq!(db.load_day("2026-10-01").unwrap(), [(key.clone(), 5, 7)]);
+            assert_eq!(db.load_day("2026-10-02").unwrap(), [(key.clone(), 11, 13)]);
+            assert_eq!(db.load_month("2026-09").unwrap(), [(key.clone(), 100, 200)]);
+            assert_eq!(db.load_month("2026-10").unwrap(), [(key.clone(), 16, 20)]);
+            assert_eq!(db.lifetime_totals(), (116, 220));
+            assert_eq!(db.wan_devices().unwrap(), [(key.clone(), 33, 44)]);
+            assert!(db.load_day("2020-01-01").unwrap().is_empty());
+            assert!(db.load_month("2020-01").unwrap().is_empty());
+        }
+    }
+
+    #[test]
+    fn reopened_intervals_restore_pending_values_and_reset_drops_closed_usage() {
+        let db = Db::open(":memory:").unwrap();
+        let mac = MacKey { b: [2, 0, 0, 0, 0, 10] };
+        let key = mac_str(&mac.b);
+        let mut device = DevState::new(mac, DevStats::default(), 1, 10, 20);
+        device.rx_today = 10; device.tx_today = 20;
+        device.rx_month = 10; device.tx_month = 20;
+        db.checkpoint(&[&device], "2026-09-30", "2026-09", 1).unwrap();
+        device.rx_today = 100; device.tx_today = 200;
+        device.rx_month = 100; device.tx_month = 200;
+        device.rx_total = 100; device.tx_total = 200;
+        let mut devs = HashMap::from([(mac, device)]);
+        let mut day = "2026-09-30".to_owned(); let mut month = "2026-09".to_owned();
+        let mut pending = PendingPeriods::default();
+        let wan = WanUsage::load(&db, crate::state::MIN_SYNC_EPOCH).unwrap();
+        prepare_rollover(&db, &mut devs, &mut day, &mut month, &mut pending, "2026-10-01", "2026-10").unwrap();
+        // Clock goes back before the pending old interval was saved.
+        prepare_rollover(&db, &mut devs, &mut day, &mut month, &mut pending, "2026-09-30", "2026-09").unwrap();
+        assert_eq!((devs[&mac].rx_today, devs[&mac].tx_today, devs[&mac].rx_month), (100, 200, 100));
+        let d = devs.get_mut(&mac).unwrap();
+        d.rx_today += 3; d.rx_month += 3; d.rx_total += 3;
+        save(&db, &devs, &day, &month, &wan, &mut pending).unwrap();
+        assert_eq!(db.load_day("2026-09-30").unwrap(), [(key.clone(), 103, 200)]);
+        // Reopening after a commit restores SQLite, too.
+        prepare_rollover(&db, &mut devs, &mut day, &mut month, &mut pending, "2026-10-01", "2026-10").unwrap();
+        save(&db, &devs, &day, &month, &wan, &mut pending).unwrap();
+        prepare_rollover(&db, &mut devs, &mut day, &mut month, &mut pending, "2026-09-30", "2026-09").unwrap();
+        assert_eq!((devs[&mac].rx_today, devs[&mac].rx_month), (103, 103));
+        db.reset_device(&key).unwrap();
+        pending.remove_device(&key);
+        let d = devs.get_mut(&mac).unwrap();
+        d.rx_today = 0; d.tx_today = 0; d.rx_month = 0; d.tx_month = 0;
+        d.rx_total = 0; d.tx_total = 0;
+        save(&db, &devs, &day, &month, &wan, &mut pending).unwrap();
+        assert_eq!(db.lifetime_totals(), (0, 0));
+        assert!(db.load_day("2026-10-01").unwrap().is_empty());
+        assert_eq!(db.load_day("2026-09-30").unwrap(), [(key, 0, 0)]);
+    }
 
     #[test]
     fn failed_wan_write_rolls_back_legacy_and_window_counters_together() {
@@ -200,21 +300,45 @@ impl Db {
         month: &str,
         _now_epoch: i64,
     ) -> Result<(), String> {
-        self.checkpoint_inner(devs, date, month, None)
+        self.checkpoint_inner(devs, date, month, None, None)
     }
 
     pub fn checkpoint_with_wan(
         &self, devs: &[&DevState], date: &str, month: &str, _now_epoch: i64,
         wan: &crate::wan::WanUsage,
     ) -> Result<(), String> {
-        self.checkpoint_inner(devs, date, month, Some(wan))
+        self.checkpoint_inner(devs, date, month, Some(wan), None)
+    }
+
+    pub fn checkpoint_with_pending(
+        &self, devs: &[&DevState], date: &str, month: &str,
+        wan: &crate::wan::WanUsage, pending: &crate::accounting::PendingPeriods,
+    ) -> Result<(), String> {
+        self.checkpoint_inner(devs, date, month, Some(wan), Some(pending))
     }
 
     fn checkpoint_inner(
         &self, devs: &[&DevState], date: &str, month: &str,
         wan: Option<&crate::wan::WanUsage>,
+        pending: Option<&crate::accounting::PendingPeriods>,
     ) -> Result<(), String> {
         let tx = self.conn.unchecked_transaction().map_err(|e| e.to_string())?;
+        if let Some(pending) = pending {
+            for (table, period_column, rows) in [
+                ("daily_usage", "date", &pending.days),
+                ("monthly_usage", "month", &pending.months),
+            ] {
+                let sql = format!("INSERT INTO {table}(mac,{period_column},download_bytes,upload_bytes)
+                    VALUES(?1,?2,?3,?4) ON CONFLICT(mac,{period_column}) DO UPDATE SET
+                    download_bytes=excluded.download_bytes,upload_bytes=excluded.upload_bytes");
+                let mut insert = tx.prepare_cached(&sql).map_err(|e| e.to_string())?;
+                for ((period, mac), (rx, tx_bytes)) in rows {
+                    insert.execute(params![mac, period, *rx as i64, *tx_bytes as i64])
+                        .map_err(|e| e.to_string())?;
+                }
+            }
+        }
+        // Current counters win if a clock adjustment reopens a pending period.
         for d in devs {
             let mac = mac_str(&d.mac.b);
             tx.execute(
@@ -279,6 +403,12 @@ impl Db {
                     params![mac, integer(download), integer(upload)],
                 ).map_err(|e| e.to_string())?;
             }
+        }
+        if let Some((before_day, before_month)) = pending.and_then(|p| p.prune_before.as_ref()) {
+            tx.execute("DELETE FROM daily_usage WHERE date < ?1", params![before_day])
+                .map_err(|e| e.to_string())?;
+            tx.execute("DELETE FROM monthly_usage WHERE month < ?1", params![before_month])
+                .map_err(|e| e.to_string())?;
         }
         tx.commit().map_err(|e| format!("checkpoint 提交失败: {e}"))
     }

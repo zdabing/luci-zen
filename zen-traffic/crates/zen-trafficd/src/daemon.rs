@@ -39,6 +39,7 @@ pub struct Daemon {
     // ---- 区间（本地日/月，accounting 维护）----
     pub cur_day: String,
     pub cur_month: String,
+    pub pending_periods: accounting::PendingPeriods,
 
     // ---- getTotal ----
     pub upstream: Vec<u32>,
@@ -154,6 +155,7 @@ impl Daemon {
             last_ckpt_mono: now_mono,
             cur_day,
             cur_month,
+            pending_periods: accounting::PendingPeriods::default(),
             upstream: Vec::new(),
             up_prev: HashMap::new(),
             rx_r: 0,
@@ -184,6 +186,9 @@ impl Daemon {
             self.cfg.interval_ms
         }
         .max(1);
+
+        // Close the previous calendar interval before attributing this tick.
+        accounting::rollover_if_needed(self);
 
         // ---- 1) BPF map 差分 ----
         match zen_bpf::read_devices(&mut self.bpf) {
@@ -250,9 +255,6 @@ impl Daemon {
         }
 
         self.last_tick_mono = now_mono;
-
-        // ---- 3) 日切/月切（含切换前落盘）----
-        accounting::rollover_if_needed(self);
 
         // ---- 4) 全局速率 ----
         let links = self.nl.links();
