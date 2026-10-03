@@ -24,17 +24,20 @@ const MAX_ROWS = 100;
 
 const callStatus = rpc.declare({
 	object: 'zen.traffic',
-	method: 'getStatus'
+	method: 'getStatus',
+	reject: true
 });
 
 const callDevices = rpc.declare({
 	object: 'zen.traffic',
-	method: 'getDevices'
+	method: 'getDevices',
+	reject: true
 });
 
 const callTotal = rpc.declare({
 	object: 'zen.traffic',
-	method: 'getTotal'
+	method: 'getTotal',
+	reject: true
 });
 
 const callSetHostname = rpc.declare({

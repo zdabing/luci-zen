@@ -40,7 +40,7 @@ return view.extend({
   styles(); trafficStyle.inject(); this.requestId = 0; this.page = 0;
   this.iface = E('select', { 'aria-label': _('Interface') });
   this.range = E('select', {}, [
-   ['300', _('Last 5 minutes')], ['3600', _('Last hour')], ['86400', _('Last 24 hours')],
+   ['3600', _('Last hour')], ['86400', _('Last 24 hours')],
    ['604800', _('Last 7 days')], ['custom', _('Custom range')]
   ].map(([value,label]) => E('option',{value},label)));
   this.start = E('input', {type:'datetime-local',step:'1'});

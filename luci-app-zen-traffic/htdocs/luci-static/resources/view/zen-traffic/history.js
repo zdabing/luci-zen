@@ -152,10 +152,12 @@ return view.extend({
 
 		const tabs = E('div', { 'class': 'zen-tf-tabs' }, [
 			this.tabBtn('day', _('Daily (90 days)')),
-			this.tabBtn('month', _('Monthly (12 months)'))
+			this.monthTab = this.tabBtn('month', _('Monthly (retained days)'))
 		]);
 		const scope = E('select', {'aria-label': _('Traffic scope'), change: ev => {
-			this.scope = ev.target.value; this.refresh();
+			this.scope = ev.target.value;
+			this.monthTab.textContent = this.scope === 'internet' ? _('Monthly (retained days)') : _('Monthly (12 months)');
+			this.refresh();
 		}}, [E('option',{value:'internet'},_('Internet only')),E('option',{value:'all'},_('Internet + local (existing history)'))]);
 		const reset = E('button', {type:'button','class':'cbi-button cbi-button-negative',click:()=>this.resetSelected()}, _('Reset selected device counters'));
 		this.resetButton = reset;

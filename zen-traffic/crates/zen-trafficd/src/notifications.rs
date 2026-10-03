@@ -437,7 +437,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
   data=json.loads(self.rfile.read(int(self.headers['Content-Length'])))
   with open(sys.argv[3],'a',encoding='utf-8') as f: f.write(json.dumps({'path':self.path,'data':data},ensure_ascii=False)+'\n')
   code=93000 if 'reject' in self.path else 0
-  answer=json.dumps({'code':code} if 'hook/' in self.path else {'errcode':code}).encode()
+  answer=json.dumps({'code':code} if '/bot/v2/hook/' in self.path else {'errcode':code}).encode()
   self.send_response(200);self.send_header('Content-Type','application/json');self.send_header('Content-Length',str(len(answer)));self.end_headers();self.wfile.write(answer)
 server=http.server.ThreadingHTTPServer(('127.0.0.1',0),Handler)
 ctx=ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER);ctx.load_cert_chain(sys.argv[1],sys.argv[2])

@@ -504,3 +504,6 @@ msgstr "当前局域网传输速度"
 
 msgid "View usage history"
 msgstr "查看用量历史"
+
+msgid "Monthly (retained days)"
+msgstr "每月（保留日期汇总）"
