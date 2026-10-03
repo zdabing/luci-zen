@@ -9,6 +9,17 @@ const COLORS = ['#3275db', '#b269cd', '#d7802f', '#349b8b', '#d76785', '#899344'
 const C = 2 * Math.PI * 54;
 const number = value => Math.max(0, Number.isFinite(Number(value)) ? Number(value) : 0);
 
+function arcPath(offset, length) {
+	const start = offset / 54, angle = Math.min(length / 54, 2 * Math.PI);
+	const point = a => [72 + 54 * Math.cos(a), 72 + 54 * Math.sin(a)];
+	const [x, y] = point(start), [endX, endY] = point(start + angle);
+	if (angle >= 2 * Math.PI - 1e-9) {
+		const [midX, midY] = point(start + Math.PI);
+		return `M ${x} ${y} A 54 54 0 1 1 ${midX} ${midY} A 54 54 0 1 1 ${x} ${y}`;
+	}
+	return `M ${x} ${y} A 54 54 0 ${angle > Math.PI ? 1 : 0} 1 ${endX} ${endY}`;
+}
+
 function color(key) {
 	let hash = 0;
 	for (const ch of key) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
@@ -45,21 +56,33 @@ function chart(direction) {
 	ring.appendChild(arcs);
 	const value = E('strong', {}, fmt.fmtBytes(0));
 	const name = E('span', {}, _('Recorded traffic'));
+	const percentValue = E('span', { 'class': 'zen-share-center-percent', hidden: true });
+	const tooltipName = E('strong', {});
+	const tooltipAmount = E('span', {});
+	const tooltip = E('div', { 'class': 'zen-share-tooltip', role: 'tooltip', hidden: true }, [tooltipName, tooltipAmount]);
 	const legend = E('ul', { 'class': 'zen-share-legend' });
 	const note = E('p', { 'class': 'zen-share-note' });
 	const more = E('button', { type: 'button', 'class': 'zen-share-more', hidden: true }, _('Show all'));
 	const root = E('article', { 'class': 'zen-share-card ' + direction }, [
 		E('h4', {}, direction === 'upload' ? _('Upload share') : _('Download share')),
 		E('div', { 'class': 'zen-share-content' }, [E('div', { 'class': 'zen-share-ring' }, [ring,
-			E('div', { 'class': 'zen-share-center' }, [name, value])]), legend]), note, more
+			E('div', { 'class': 'zen-share-center' }, [name, value, percentValue]), tooltip]), legend]), note, more
 	]);
-	let expanded = false, data = null;
+	let expanded = false, data = null, selected = null;
 	const cache = new Map();
 	function select(key) {
 		const entry = cache.get(key);
+		selected = entry ? key : null;
 		for (const [id, item] of cache) item.arc.style.opacity = !entry || id === key ? '1' : '.25';
 		name.textContent = entry ? entry.label : _('Recorded traffic');
 		value.textContent = fmt.fmtBytes(entry ? entry.bytes : breakdown(data, direction, expanded).total);
+		percentValue.hidden = !entry;
+		percentValue.textContent = entry ? entry.percent.toFixed(1) + '%' : '';
+		tooltip.hidden = !entry;
+		if (entry) {
+			tooltipName.textContent = entry.label;
+			tooltipAmount.textContent = fmt.fmtBytes(entry.bytes) + ' · ' + entry.percent.toFixed(1) + '%';
+		}
 	}
 	function update(next) {
 		data = next;
@@ -70,7 +93,16 @@ function chart(direction) {
 			keep.add(slice.key);
 			let entry = cache.get(slice.key);
 			if (!entry) {
-				const arc = svg('circle', { cx: 72, cy: 72, r: 54, fill: 'none', 'stroke-width': 15 });
+				const arc = svg('path', { fill: 'none', 'stroke-width': 15, tabindex: 0, role: 'button' });
+				arc.addEventListener('mouseenter', () => select(slice.key));
+				arc.addEventListener('mouseleave', () => select(null));
+				arc.addEventListener('focus', () => select(slice.key));
+				arc.addEventListener('blur', () => select(null));
+				arc.addEventListener('click', () => select(slice.key));
+				arc.addEventListener('keydown', ev => {
+					if (ev.key === 'Escape') select(null);
+					if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); select(slice.key); }
+				});
 				const title = svg('title', {}); arc.appendChild(title);
 				const label = E('span', { 'class': 'zen-share-name' });
 				const amount = E('span', { 'class': 'zen-share-amount' });
@@ -86,19 +118,22 @@ function chart(direction) {
 			}
 			entry.bytes = slice.bytes; entry.label = slice.label;
 			const percent = model.total ? slice.bytes / model.total * 100 : 0;
+			entry.percent = percent;
 			entry.arc.setAttribute('stroke', slice.color);
-			entry.arc.setAttribute('stroke-dasharray', (C * percent / 100) + ' ' + C);
-			entry.arc.setAttribute('stroke-dashoffset', String(-offset));
+			entry.arc.setAttribute('d', arcPath(offset, C * percent / 100));
 			entry.swatch.style.backgroundColor = slice.color;
 			entry.labelNode.textContent = slice.label;
 			entry.amount.textContent = fmt.fmtBytes(slice.bytes) + ' · ' + percent.toFixed(1) + '%';
 			entry.title.textContent = slice.label + ': ' + entry.amount.textContent;
+			entry.arc.setAttribute('aria-label', entry.title.textContent);
 			entry.button.title = entry.title.textContent;
-			arcs.appendChild(entry.arc); legend.appendChild(entry.row);
+			const index = model.slices.indexOf(slice);
+			if (arcs.children[index] !== entry.arc) arcs.insertBefore(entry.arc, arcs.children[index] || null);
+			if (legend.children[index] !== entry.row) legend.insertBefore(entry.row, legend.children[index] || null);
 			offset += C * percent / 100;
 		}
 		for (const [key, entry] of cache) if (!keep.has(key)) { entry.arc.remove(); entry.row.remove(); cache.delete(key); }
-		select(null);
+		select(selected);
 		if (!model.total) legend.replaceChildren(E('li', { 'class': 'zen-share-empty' }, _('No internet traffic recorded yet')));
 		else for (const empty of legend.querySelectorAll('.zen-share-empty')) empty.remove();
 		more.hidden = model.devices <= 6;

@@ -3189,6 +3189,13 @@ header .showSide:focus-visible { outline: 2px solid var(--accent); outline-offse
 .zen-share-center { position: absolute; inset: 28%; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 4px; text-align: center; pointer-events: none; }
 .zen-share-center span { max-width: 100%; color: var(--text-secondary); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .zen-share-center strong { color: var(--text); font-size: clamp(15px, 1.6vw, 24px); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.zen-share-center .zen-share-center-percent { color: var(--text); font-weight: 600; }
+.zen-share-center-percent[hidden], .zen-share-tooltip[hidden] { display: none; }
+.zen-share-tooltip { position: absolute; left: 50%; top: 0; transform: translate(-50%, -100%); z-index: 2; display: flex; flex-direction: column; gap: 3px; max-width: 220px; min-width: 120px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg-panel); color: var(--text); font-size: 12px; box-shadow: 0 4px 18px #00000014; pointer-events: none; }
+.zen-share-tooltip strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.zen-share-tooltip span { color: var(--text-secondary); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.zen-share-ring [role="button"] { cursor: pointer; outline: none; }
+.zen-share-ring [role="button"]:focus-visible { stroke-width: 19; }
 .zen-share-legend { list-style: none; padding: 0; margin: 0; min-width: 0; }
 .zen-share-legend button { display: grid; grid-template-columns: 8px minmax(0, 1fr); gap: 3px 9px; width: 100%; padding: 7px 4px; border: 0; border-radius: 8px; background: transparent; color: var(--text); text-align: left; font: inherit; cursor: pointer; }
 .zen-share-legend button:hover { background: var(--bg-card); }
