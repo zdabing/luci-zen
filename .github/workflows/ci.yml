@@ -152,5 +152,6 @@ jobs:
       - name: SQLite retention and realtime regression
         run: |
           python3 -m py_compile tools/router-baseline.py
+          python3 -m py_compile tools/router-storage-acceptance.py
           python3 tools/test-sqlite-retention.py
           python3 tools/test-realtime-history.py

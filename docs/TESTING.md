@@ -608,6 +608,42 @@ Zen 或 NAS 网络配置，也不将此次限速测试当作极限吞吐性能�
 
 ### P0/P1 剩余证据
 
+#### P1：隔离满盘与恢复（2026-10-03）
+
+用已安装 r7 在独立网络命名空间、独立 256 KiB tmpfs 和新数据库中运行，
+HTTP 测试载荷留在两个测试命名空间内，不经过家庭 WAN。故障仅填满该临时卷，
+没有填满生产存储、改动系统时间或停止生产服务。已知大小 HTTP 响应校验
+状态与完整的接收字节；测试包分类为 WAN，用于验证互联网账目与旧混合账目同时恢复。
+
+满盘期间 SQLite 设备、日、月、互联网设备和统计窗口五类记录保持故障前的值，
+`integrity_check=ok`，事务未部分提交；BPF 仍采到新的 8 MiB 载荷。腾出空间后，
+设备混合下载与互联网下载各补存 8,465,090 字节，误差 +0.912%，统计起点保持；
+日/月累计与设备累计一致，再次定期保存未重复增加任何计数。临时卷、网络命名空间、
+测试进程、文件与 TCX 附着均已清理，生产 PID、二进制/配置哈希与 TCX 程序/link ID 不变。
+
+测试也发现：配置为 30 秒保存一次，第一次失败后 5.06 秒内仍重试了 5 次。
+当前 `uloop` 的实际 tick 为 1 秒，这些重试违背了失败期间仍应批量写盘的要求。
+源码 backend r8 将定期尝试时间戳提前到事务执行之前，失败后也等待配置周期，
+内存累计继续保留；Rust 事务回归增加恢复后两次提交不重复计数的检查。
+r8 目标包和同一故障场景的真机复验仍待完成，当前正式安装为 r7。
+该测试不覆盖故障跨日/月、断电、物理闪存 I/O 错误或 7 天连续记录。
+
+复现脚本 [router-storage-acceptance.py](../tools/router-storage-acceptance.py) 需要本机
+Paramiko、路由器 root SSH，以及路由器已安装的 `ip`、`mount`、`curl`、`uhttpd`。
+主机公钥指纹必填；密码交互输入，不写报告。只读 AArch64 附着查询工具的来源与
+构建见上文；可用 `--daemon-binary` 暂存经核实的目标二进制，在正式安装之前复验。
+
+```sh
+python3 tools/router-storage-acceptance.py --host <router-address> \
+  --host-key-sha256 <raw-key-sha256-hex> --helper <tc-filter-dump-path> \
+  --output <private-report.json>
+```
+
+报告分开记录事务回滚、补存、重复保存与重试频率；频率未通过时退出非零，
+不能将其余子项成功解释为整项满盘验收通过。报告及数据库快照仅保存在私有目录。
+
+#### 其余环境与数据面证据
+
 R5C 新增包验证使用 [R5C pinned package acceptance](../.github/workflows/r5c-acceptance.yml)，
 以已部署固件源码记录固定 OpenWrt `6ad13aa`、packages `42cd716` 和 LuCI `1fcad1e`。
 它从源码构建匹配目标工具链，采用部署时的 O2/LTO、musl、Rust 1.96 与主机 LLVM

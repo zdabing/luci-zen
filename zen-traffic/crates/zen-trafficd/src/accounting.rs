@@ -68,15 +68,17 @@ pub fn checkpoint(d: &Daemon) -> Result<(), String> {
     d.db.checkpoint_with_wan(&active, &d.cur_day, &d.cur_month, now as i64, &d.wan)
 }
 
-/// 定期 checkpoint 入口（带时间戳去重）
+/// 定期 checkpoint 入口；失败也按配置周期重试，避免每 tick 写满盘并刷日志。
 pub fn checkpoint_tick(d: &mut Daemon) {
     let now_mono = now_mono_ms();
     if now_mono.saturating_sub(d.last_ckpt_mono) < d.cfg.checkpoint_secs * 1000 {
         return;
     }
+    // RAM absolute counters continue accumulating when a transaction fails.
+    // Rate-limit attempts as well as successful writes; the next batch retries all usage.
+    d.last_ckpt_mono = now_mono;
     match checkpoint(d) {
         Ok(()) => {
-            d.last_ckpt_mono = now_mono;
             println!("[zen-trafficd] checkpoint 完成（{} 台设备）", d.devs.len());
         }
         Err(e) => eprintln!("[zen-trafficd] checkpoint 失败: {e}"),

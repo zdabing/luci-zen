@@ -47,15 +47,36 @@ mod transaction_tests {
         let db = Db::open(":memory:").unwrap();
         let mac = MacKey { b: [2, 0, 0, 0, 0, 3] };
         let mut device = DevState::new(mac, DevStats::default(), 1, 10, 20);
+        device.rx_today = 10;
+        device.tx_today = 20;
+        device.rx_month = 10;
+        device.tx_month = 20;
         db.checkpoint(&[&device], "2026-10-03", "2026-10", 1).unwrap();
         let mut wan = WanUsage::load(&db, crate::state::MIN_SYNC_EPOCH).unwrap();
         wan.device_delta(mac, 30, 40);
         device.rx_total = 100;
+        device.tx_total = 200;
+        device.rx_today = 100;
+        device.tx_today = 200;
+        device.rx_month = 100;
+        device.tx_month = 200;
         db.conn.execute_batch("CREATE TRIGGER reject_wan BEFORE INSERT ON wan_devices BEGIN SELECT RAISE(ABORT,'test full storage'); END;").unwrap();
         assert!(db.checkpoint_with_wan(&[&device], "2026-10-03", "2026-10", 2, &wan).is_err());
         assert_eq!(db.lifetime_totals(), (10, 20));
+        assert_eq!(db.load_day("2026-10-03").unwrap(), [(mac_str(&mac.b), 10, 20)]);
+        assert_eq!(db.load_month("2026-10").unwrap(), [(mac_str(&mac.b), 10, 20)]);
         assert!(db.wan_window().unwrap().is_none());
         assert!(db.wan_devices().unwrap().is_empty());
+
+        db.conn.execute_batch("DROP TRIGGER reject_wan").unwrap();
+        for _ in 0..2 {
+            db.checkpoint_with_wan(&[&device], "2026-10-03", "2026-10", 3, &wan).unwrap();
+            assert_eq!(db.lifetime_totals(), (100, 200));
+            assert_eq!(db.load_day("2026-10-03").unwrap(), [(mac_str(&mac.b), 100, 200)]);
+            assert_eq!(db.load_month("2026-10").unwrap(), [(mac_str(&mac.b), 100, 200)]);
+            assert_eq!(db.wan_window().unwrap(), Some((crate::state::MIN_SYNC_EPOCH, 0, 0)));
+            assert_eq!(db.wan_devices().unwrap(), [(mac_str(&mac.b), 30, 40)]);
+        }
     }
 }
 

@@ -33,6 +33,7 @@ pub struct Daemon {
     // ---- tick 簿记 ----
     pub last_tick_mono: u64,
     pub last_attr_mono: u64,
+    /// Last periodic checkpoint attempt, including failed transactions.
     pub last_ckpt_mono: u64,
 
     // ---- 区间（本地日/月，accounting 维护）----
