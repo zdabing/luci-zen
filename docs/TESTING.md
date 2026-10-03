@@ -675,7 +675,9 @@ python3 tools/router-storage-acceptance.py --host <router-address> \
 清理测试依赖原函数写法而失败；已改为读取 checkpoint 中实际清理 SQL，验证边界、
 表隔离及清理失败的事务回滚，本地四项通过。随后完整 CI
 [#37138276031](https://github.com/zdabing/luci-zen/actions/runs/37138276031) 通过，
-两项新增 Rust 用例及 13 项 daemon 单元测试均成功。
+两项新增 Rust 用例及 13 项 daemon 单元测试均成功。含进程时钟工具及跨区间
+验收脚本的最新 CI [#37139119297](https://github.com/zdabing/luci-zen/actions/runs/37139119297)
+也通过，提交为 `b812260`。
 目标构建 [#37137847925](https://github.com/zdabing/luci-zen/actions/runs/37137847925)
 仍在进行；源代码为 `09195c5`，后续测试/文档提交未改变三个包及构建脚本内容。
 目标包、真机修复复验仍待完成；不据此认定 NTP、
