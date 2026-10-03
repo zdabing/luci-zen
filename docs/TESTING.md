@@ -250,6 +250,9 @@ python tools/router-baseline.py --host ROUTER_IP --output baseline.json
 # 追加可控 LAN 已知大小传输和正常服务重启：
 python tools/router-baseline.py --host ROUTER_IP --output baseline.json \
   --transfer --client-ip CLIENT_IP --restart
+# 新版互联网独立账目：检查 LAN 不混入 WAN，及账目起点/计数的重启连续性
+python tools/router-baseline.py --host ROUTER_IP --output internet-baseline.json \
+  --transfer --client-ip CLIENT_IP --restart --internet-usage
 ```
 
 SSH 使用 known_hosts；刷机后须核对新主机密钥，再传入

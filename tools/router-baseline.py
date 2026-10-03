@@ -5,6 +5,8 @@ python tools/router-baseline.py --host 10.0.0.1 --output baseline.json
 --transfer uses a temporary HTTP server bound to --client-ip, and a 32 MiB
 router RAM file. --restart tests graceful persistence (no router reboot).
 These are LAN host-to-router tests, not WAN forwarding or high-PPS tests.
+--internet-usage additionally checks the new WAN-only ledger: LAN payloads must
+not inflate it, and a graceful restart must retain its counters and start date.
 """
 import argparse
 import getpass
@@ -30,6 +32,8 @@ def main():
     p.add_argument('--transfer', action='store_true')
     p.add_argument('--client-ip')
     p.add_argument('--restart', action='store_true')
+    p.add_argument('--internet-usage', action='store_true',
+                   help='Require getWanUsage and check LAN exclusion / restart continuity')
     p.add_argument('--host-key-sha256', help='Expected raw host-key SHA256 hex; useful after reflashing')
     a = p.parse_args()
     if not 2 <= a.samples <= 120:
@@ -66,6 +70,25 @@ def main():
         return json.loads(run('ubus call zen.traffic ' + method + ' ' +
                               shlex.quote(json.dumps(args or {}))))
 
+    def wan_snapshot():
+        data = rpc('getWanUsage')
+        if not isinstance(data.get('since'), int) or data['since'] < 1700000000:
+            raise RuntimeError('WAN ledger has no valid collection start')
+        if len({d['mac'] for d in data['dev']}) != len(data['dev']):
+            raise RuntimeError('Duplicate MACs in WAN ledger')
+        for direction in ('download', 'upload'):
+            amounts = [d[direction] for d in data['dev']]
+            observed = data['interface_' + direction]
+            if any(not isinstance(n, int) or n < 0 for n in amounts + [observed]):
+                raise RuntimeError('Invalid WAN byte counter')
+            attributed = sum(amounts)
+            expected = {'attributed_': attributed,
+                        'unassigned_': max(0, observed - attributed),
+                        'excess_': max(0, attributed - observed)}
+            if any(data[prefix + direction] != amount for prefix, amount in expected.items()):
+                raise RuntimeError('WAN ledger totals do not match per-device counters')
+        return data
+
     def snapshot():
         raw = run("p=$(pidof zen-trafficd); test -n \"$p\" || exit 1; "
                   "cat /proc/$p/stat; head -1 /proc/stat; "
@@ -101,9 +124,14 @@ def main():
         report['lan'] = json.loads(run('ubus call network.interface.lan status'))
         report['devices_before'] = rpc('getDevices')
         report['realtime_before'] = rpc('getRealtimeHistory')
+        if a.internet_usage:
+            report['wan_before'] = wan_snapshot()
         sample_cpu('baseline')
         report['rpc_roundtrip_ms'] = {}
-        for method in ('getStatus', 'getDevices', 'getTotal', 'getHistory', 'getRealtimeHistory'):
+        methods = ['getStatus', 'getDevices', 'getTotal', 'getHistory', 'getRealtimeHistory']
+        if a.internet_usage:
+            methods.append('getWanUsage')
+        for method in methods:
             durations = []
             for _ in range(20):
                 start = time.perf_counter()
@@ -154,12 +182,14 @@ def main():
                 run(f'dd if=/dev/zero of={temp} bs=1048576 count=32 2>/dev/null')
                 for direction, flags in [('upload','-o /dev/null'), ('download',f'--data-binary @{temp} -o /dev/null')]:
                     before = rpc('getDevices'); resource_before = snapshot()
+                    wan_before = wan_snapshot() if a.internet_usage else None
                     start = time.perf_counter()
                     output = run(f"curl --noproxy '*' --connect-timeout 5 --max-time 35 -fsS {flags} {shlex.quote(url)}")
                     seconds = time.perf_counter()-start
                     resource_after = snapshot()
                     time.sleep(2)
                     after = rpc('getDevices')
+                    wan_after = wan_snapshot() if a.internet_usage else None
                     old = {x['mac']:x for x in before['dev']}
                     deltas = [{'mac':x['mac'], 'ip4':x.get('ip4'),
                                'rx_delta':x['rx_total']-old.get(x['mac'],{}).get('rx_total',0),
@@ -172,14 +202,35 @@ def main():
                               'relative_error': (target[key]-size)/size if target else None,
                               'daemon_cpu_percent_one_core':100*(resource_after['ticks']-resource_before['ticks'])*resource_after['cores']/delta_ticks,
                               'daemon_rss_kib':resource_after['rss_kib']}
+                    if a.internet_usage:
+                        if target is None:
+                            raise RuntimeError('Transfer client MAC was not found')
+                        old_wan = {d['mac']:d for d in wan_before['dev']}
+                        new_wan = {d['mac']:d for d in wan_after['dev']}
+                        mac = target['mac']
+                        wan_direction = 'upload' if direction == 'upload' else 'download'
+                        wan_delta = new_wan.get(mac, {}).get(wan_direction, 0) - old_wan.get(mac, {}).get(wan_direction, 0)
+                        result['internet_ledger'] = {
+                            'before':wan_before, 'after':wan_after, 'client_delta_bytes':wan_delta,
+                            'max_background_fraction':0.10,
+                            'lan_excluded':wan_before['since'] == wan_after['since'] and 0 <= wan_delta < size * 0.10,
+                            'scope':'LAN payload exclusion with background internet traffic; not a WAN transfer test'}
                     report['transfers'].append(result)
-                    print('transfer',json.dumps({k:v for k,v in result.items() if k != 'device_deltas'}),flush=True)
+                    display = {k:v for k,v in result.items() if k not in ('device_deltas', 'internet_ledger')}
+                    if a.internet_usage:
+                        display['internet_client_delta_bytes'] = wan_delta
+                        display['lan_excluded'] = result['internet_ledger']['lan_excluded']
+                    print('transfer',json.dumps(display),flush=True)
+                    if a.internet_usage and not result['internet_ledger']['lan_excluded']:
+                        raise RuntimeError('LAN payload exclusion was not verified; inspect background WAN traffic')
             finally:
                 server.shutdown(); server.server_close()
                 run(f'rm -f {temp}')
         if a.restart:
             before = rpc('getDevices')
             report['restart_before'] = before
+            if a.internet_usage:
+                report['wan_restart_before'] = wan_snapshot()
             run('/etc/init.d/zen-traffic restart')
             for _ in range(20):
                 time.sleep(1)
@@ -195,6 +246,19 @@ def main():
             report['restart_preserved'] = all(mac in new and all(new[mac][key]>=x[key] for key in
                 ('rx_total','tx_total','rx_today','tx_today','rx_month','tx_month')) for mac,x in old.items())
             print('restart_preserved', report['restart_preserved'],flush=True)
+            if a.internet_usage:
+                wan = wan_snapshot(); old_wan = report['wan_restart_before']
+                old_devices = {d['mac']:d for d in old_wan['dev']}
+                new_devices = {d['mac']:d for d in wan['dev']}
+                preserved = wan['since'] == old_wan['since'] and all(
+                    wan['interface_' + direction] >= old_wan['interface_' + direction]
+                    and all(mac in new_devices and new_devices[mac][direction] >= d[direction]
+                            for mac, d in old_devices.items()) for direction in ('download', 'upload'))
+                report['wan_restart_after'] = wan
+                report['wan_restart_preserved'] = preserved
+                print('wan_restart_preserved', preserved, flush=True)
+                if not preserved:
+                    raise RuntimeError('WAN ledger did not survive graceful restart')
         report['logs'] = run('logread -e zen-traffic | tail -40')
     finally:
         Path(a.output).parent.mkdir(parents=True,exist_ok=True)
