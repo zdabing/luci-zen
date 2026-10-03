@@ -18,6 +18,13 @@ pub struct Db {
     conn: Connection,
 }
 
+fn nonnegative(row: &rusqlite::Row<'_>, index: usize) -> rusqlite::Result<u64> {
+    let value: i64 = row.get(index)?;
+    u64::try_from(value).map_err(|error| rusqlite::Error::FromSqlConversionFailure(
+        index, rusqlite::types::Type::Integer, Box::new(error),
+    ))
+}
+
 pub struct DeviceRow {
     pub mac: String,
     pub hostname: Option<String>,
@@ -257,12 +264,12 @@ impl Db {
 
     pub fn wan_window(&self) -> Result<Option<(u64, u64, u64)>, String> {
         self.conn.query_row("SELECT since,download_bytes,upload_bytes FROM wan_window WHERE id=1", [],
-            |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?))).optional().map_err(|e| e.to_string())
+            |r| Ok((nonnegative(r, 0)?, nonnegative(r, 1)?, nonnegative(r, 2)?))).optional().map_err(|e| e.to_string())
     }
 
     pub fn wan_devices(&self) -> Result<Vec<(String, u64, u64)>, String> {
         let mut query = self.conn.prepare("SELECT mac,download_bytes,upload_bytes FROM wan_devices").map_err(|e| e.to_string())?;
-        let rows = query.query_map([], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?))).map_err(|e| e.to_string())?;
+        let rows = query.query_map([], |r| Ok((r.get(0)?, nonnegative(r, 1)?, nonnegative(r, 2)?))).map_err(|e| e.to_string())?;
         rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
     }
 
