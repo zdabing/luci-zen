@@ -15,12 +15,13 @@
 		"title": "Devices",
 		"order": 1,
 		"action": {
-			"type": "view",
-			"path": "zen-traffic/devices"
-		}
+			"type": "alias",
+			"path": "admin/status/zen-traffic/realtime"
+		},
+		"hidden": true
 	},
 	"admin/status/zen-traffic/history": {
-		"title": "History",
+		"title": "History analysis",
 		"order": 2,
 		"action": {
 			"type": "view",
@@ -28,11 +29,19 @@
 		}
 	},
 	"admin/status/zen-traffic/realtime": {
-		"title": "Realtime History",
-		"order": 3,
+		"title": "Realtime monitoring",
+		"order": 1,
 		"action": {
 			"type": "view",
 			"path": "zen-traffic/realtime"
+		}
+	},
+	"admin/status/zen-traffic/notifications": {
+		"title": "Notification settings",
+		"order": 3,
+		"action": {
+			"type": "view",
+			"path": "zen-traffic/notifications"
 		}
 	}
 }

@@ -101,6 +101,43 @@ pub struct DevState {
     pub online: bool,
 }
 
+/// Current aggregate counters share the device API's RAM snapshot. Persistence
+/// remains batched; reading totals must not wait for the next checkpoint.
+pub fn usage_totals<'a>(devices: impl IntoIterator<Item = &'a DevState>) -> [u64; 6] {
+    let mut totals = [0u64; 6];
+    for d in devices {
+        for (total, value) in totals.iter_mut().zip([
+            d.rx_today, d.tx_today, d.rx_month, d.tx_month, d.rx_total, d.tx_total,
+        ]) {
+            *total = total.saturating_add(value);
+        }
+    }
+    totals
+}
+
+#[cfg(test)]
+mod usage_tests {
+    use super::*;
+    use crate::persistence::Db;
+
+    #[test]
+    fn totals_include_uncheckpointed_usage_and_offline_devices() {
+        let db = Db::open(":memory:").unwrap();
+        let mut device = DevState::new(MacKey { b: [2, 0, 0, 0, 0, 1] }, DevStats::default(), 1, 100, 50);
+        device.rx_today = 100;
+        device.tx_today = 50;
+        device.rx_month = 100;
+        device.tx_month = 50;
+        db.checkpoint(&[&device], "2026-10-03", "2026-10", 1).unwrap();
+        device.rx_today += 40;
+        device.rx_month += 40;
+        device.rx_total += 40;
+        device.online = false;
+        assert_eq!(db.lifetime_totals(), (100, 50));
+        assert_eq!(usage_totals([&device]), [140, 50, 140, 50, 140, 50]);
+    }
+}
+
 impl DevState {
     pub fn new(mac: MacKey, first: DevStats, now_epoch: u64, rx_total: u64, tx_total: u64) -> Self {
         DevState {

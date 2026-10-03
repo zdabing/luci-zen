@@ -18,7 +18,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=zen-traffic
 PKG_VERSION:=0.2.0
-PKG_RELEASE:=2
+PKG_RELEASE:=10
 PKG_MAINTAINER:=luci-zen maintainers
 PKG_LICENSE:=GPL-2.0
 
@@ -42,7 +42,7 @@ define Package/zen-traffic
   SECTION:=net
   CATEGORY:=Network
   TITLE:=zen-traffic device traffic daemon (eBPF + ubus + SQLite)
-  DEPENDS:=$(RUST_ARCH_DEPENDS) +libubus +libubox +kmod-sched-bpf +kmod-sched-core
+  DEPENDS:=$(RUST_ARCH_DEPENDS) +libubus +libubox +kmod-sched-bpf +kmod-sched-core +curl +ca-bundle
 endef
 
 define Package/zen-traffic/description
@@ -65,6 +65,8 @@ define Build/Prepare
 endef
 
 define Build/Configure
+	$(TARGET_CC) $(TARGET_CPPFLAGS) $(TARGET_CFLAGS) -I$(STAGING_DIR)/usr/include \
+		-c $(PKG_BUILD_DIR)/crates/zen-ubus-sys/abi-check.c -o $(PKG_BUILD_DIR)/ubus-abi-check.o
 	$(call CompileBPF,$(BPF_SRC))
 endef
 

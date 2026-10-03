@@ -26,17 +26,21 @@ pub struct Daemon {
     pub ubus_ctx: *mut ubus::ubus_context,
 
     pub realtime: crate::realtime::RealtimeHistory,
+    pub wan: crate::wan::WanUsage,
+    pub notifications: crate::notifications::Notifications,
     pub wifi: crate::wifi::WifiCache,
     pub local_prefixes: Vec<(i32, Vec<u8>, u32)>,
 
     // ---- tick 簿记 ----
     pub last_tick_mono: u64,
     pub last_attr_mono: u64,
+    /// Last periodic checkpoint attempt, including failed transactions.
     pub last_ckpt_mono: u64,
 
     // ---- 区间（本地日/月，accounting 维护）----
     pub cur_day: String,
     pub cur_month: String,
+    pub pending_periods: accounting::PendingPeriods,
 
     // ---- getTotal ----
     pub upstream: Vec<u32>,
@@ -62,6 +66,8 @@ impl Daemon {
         let now_mono = now_mono_ms();
 
         let db = Db::open(&cfg.db_path)?;
+        let wan = crate::wan::WanUsage::load(&db, now)?;
+        let notifications = crate::notifications::Notifications::load(&db)?;
 
         let mut devs: HashMap<MacKey, DevState> = HashMap::new();
         let mut user_hosts: HashMap<String, String> = HashMap::new();
@@ -144,12 +150,15 @@ impl Daemon {
             ubus_ctx: std::ptr::null_mut(),
             wifi: crate::wifi::WifiCache::default(),
             realtime: crate::realtime::RealtimeHistory::default(),
+            wan,
+            notifications,
             local_prefixes: Vec::new(),
             last_tick_mono: 0,
             last_attr_mono: 0,
             last_ckpt_mono: now_mono,
             cur_day,
             cur_month,
+            pending_periods: accounting::PendingPeriods::default(),
             upstream: Vec::new(),
             up_prev: HashMap::new(),
             rx_r: 0,
@@ -172,12 +181,18 @@ impl Daemon {
     pub fn tick(&mut self) {
         let now_mono = now_mono_ms();
         let now = now_epoch();
+        let wan_started = self.wan.begin_if_synced(now);
+        self.wan.set_day(now);
+        if wan_started { self.up_prev.clear(); }
         let dt = if self.last_tick_mono > 0 {
             now_mono.saturating_sub(self.last_tick_mono)
         } else {
             self.cfg.interval_ms
         }
         .max(1);
+
+        // Close the previous calendar interval before attributing this tick.
+        accounting::rollover_if_needed(self);
 
         // ---- 1) BPF map 差分 ----
         match zen_bpf::read_devices(&mut self.bpf) {
@@ -200,6 +215,11 @@ impl Daemon {
                     let wan_tx = dd(s.cur.wan_tx_b, s.prev.wan_tx_b);
                     let lan_rx = dd(s.cur.lan_rx_b, s.prev.lan_rx_b);
                     let lan_tx = dd(s.cur.lan_tx_b, s.prev.lan_tx_b);
+                    // The first tick also establishes the interface baseline.
+                    // Exclude it from the new ledger even for restored devices.
+                    if !wan_started && self.last_tick_mono != 0 {
+                        self.wan.device_delta(row.mac, wan_rx, wan_tx);
+                    }
 
                     s.wan_rx_r = wan_rx * 1000 / dt;
                     s.wan_tx_r = wan_tx * 1000 / dt;
@@ -240,9 +260,6 @@ impl Daemon {
 
         self.last_tick_mono = now_mono;
 
-        // ---- 3) 日切/月切（含切换前落盘）----
-        accounting::rollover_if_needed(self);
-
         // ---- 4) 全局速率 ----
         let links = self.nl.links();
         totals::refresh(self, &links);
@@ -258,6 +275,7 @@ impl Daemon {
 
         // ---- 6) checkpoint ----
         accounting::checkpoint_tick(self);
+        self.notifications.tick(&self.db, &self.wan, &self.devs, now, now_mono);
     }
 
     /// 属性合并：netlink（links/neigh）+ DHCP 文件 + hostapd

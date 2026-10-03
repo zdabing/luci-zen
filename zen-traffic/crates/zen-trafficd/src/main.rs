@@ -23,6 +23,8 @@ mod state;
 mod totals;
 mod ubus;
 mod wifi;
+mod wan;
+mod notifications;
 
 use state::Config;
 
@@ -117,16 +119,22 @@ const USAGE: &str = "用法: zen-trafficd [选项]
   -h, --help";
 
 fn parse_args() -> Result<Config, String> {
+    parse_args_from(std::env::args().skip(1))
+}
+
+fn parse_args_from(mut it: impl Iterator<Item = String>) -> Result<Config, String> {
     let mut cfg = Config::default();
-    let mut it = std::env::args().skip(1);
+    let mut explicit_ifaces = false;
     while let Some(arg) = it.next() {
         match arg.as_str() {
             "-b" | "--bpf" => cfg.bpf_path = it.next().ok_or("-b 缺参数")?,
             "-i" | "--iface" => {
                 let v = it.next().ok_or("-i 缺参数")?;
-                if cfg.ifaces.len() == 1 && cfg.ifaces[0] == "br-lan" {
-                    cfg.ifaces[0] = v; // 首个 -i 替换默认项（对齐 C PoC 语义）
-                } else {
+                if !explicit_ifaces {
+                    cfg.ifaces.clear();
+                    explicit_ifaces = true;
+                }
+                if !cfg.ifaces.contains(&v) {
                     cfg.ifaces.push(v);
                 }
             }
@@ -152,4 +160,24 @@ fn parse_args() -> Result<Config, String> {
         }
     }
     Ok(cfg)
+}
+
+#[cfg(test)]
+mod args_tests {
+    use super::parse_args_from;
+
+    #[test]
+    fn explicit_bridge_is_not_replaced_by_the_second_interface() {
+        let cfg = parse_args_from(["-i", "br-lan", "-i", "eth0", "-i", "br-lan"]
+            .into_iter().map(String::from)).unwrap();
+        assert_eq!(cfg.ifaces, ["br-lan", "eth0"]);
+    }
+
+    #[test]
+    fn default_interface_is_only_used_without_explicit_interfaces() {
+        assert_eq!(parse_args_from(std::iter::empty()).unwrap().ifaces, ["br-lan"]);
+        let cfg = parse_args_from(["-i", "port-a", "-i", "port-b"]
+            .into_iter().map(String::from)).unwrap();
+        assert_eq!(cfg.ifaces, ["port-a", "port-b"]);
+    }
 }

@@ -31,7 +31,7 @@ const callDevices = rpc.declare({
 });
 
 const callHistory = rpc.declare({
-	object: 'zen.traffic', method: 'getHistory', params: ['agg', 'mac']
+	object: 'zen.traffic', method: 'getHistory', params: ['agg', 'mac'], reject: true
 });
 
 function historySvg(tag, attrs, text) {
@@ -49,41 +49,68 @@ function drawHistory(ent, res) {
 		return;
 	}
 	const max = fmt.niceMax(Math.max(...rows.map(r => Math.max(r.download || 0, r.upload || 0))));
-	const width = Math.max(280, ent.historyChart.clientWidth - 16);
+	const width = Math.max(280, ent.historyChart.clientWidth - 16, 80 + rows.length * 24);
 	const left = 62, right = width - 18, bottom = 136;
 	const chart = historySvg('svg', { viewBox: '0 0 ' + width + ' 180', role: 'img', 'aria-label': _('Daily traffic') });
-	const x = i => left + (rows.length === 1 ? (right - left) / 2 : i * (right - left) / (rows.length - 1));
-	const y = v => bottom - (Number(v) || 0) * 108 / max;
+	chart.style.width = width + 'px';
+	const slot = (right - left) / rows.length;
+	const barWidth = Math.min(36, slot * .3), gap = Math.min(8, slot * .1);
+	const x = i => left + (i + .5) * slot;
+	const y = v => bottom - Math.max(0, Number(v) || 0) * 108 / max;
 	for (let i = 0; i <= 2; i++) {
 		const value = max * i / 2;
 		chart.appendChild(historySvg('line', { x1: left, x2: right, y1: y(value), y2: y(value), 'class': 'history-grid' }));
 		chart.appendChild(historySvg('text', { x: left - 8, y: y(value) + 4, 'text-anchor': 'end' }, fmt.fmtBytes(value)));
 	}
-	for (const key of ['upload', 'download']) {
-		const series = key === 'download' ? 'dl' : 'ul';
-		if (rows.length === 1) {
-			const value = Number(rows[0][key]) || 0;
-			const center = x(0) + (key === 'upload' ? -30 : 30);
-			const bar = historySvg('rect', { x: center - 18, y: y(value), width: 36, height: bottom - y(value), rx: 4, 'class': 'history-bar ' + series });
-			bar.appendChild(historySvg('title', {}, rows[0].date + ' · ' + (key === 'download' ? _('Download') : _('Upload')) + ': ' + fmt.fmtBytes(value)));
+	const readout = E('p', { 'class': 'zen-dash-history-readout', role: 'status' });
+	const tip = E('div', { 'class': 'zen-history-tip', role: 'tooltip', hidden: true });
+	const positionTip = ev => {
+		if (!ev) return;
+		const box = ent.historyChart.getBoundingClientRect(), anchor = (ev.currentTarget || chart).getBoundingClientRect();
+		const px = (Number.isFinite(ev.clientX) ? ev.clientX : anchor.left + anchor.width / 2) - box.left;
+		const py = (Number.isFinite(ev.clientY) ? ev.clientY : anchor.top) - box.top;
+		const tw = tip.offsetWidth, th = tip.offsetHeight, cw = ent.historyChart.clientWidth, ch = ent.historyChart.clientHeight;
+		const tx = px + 12 + tw > cw - 8 ? px - tw - 12 : px + 12;
+		const ty = py - th - 12 < 8 ? py + 12 : py - th - 12;
+		tip.style.left = ((ent.historyChart.scrollLeft || 0) + Math.max(8, Math.min(tx, cw - tw - 8))) + 'px';
+		tip.style.top = ((ent.historyChart.scrollTop || 0) + Math.max(8, Math.min(ty, ch - th - 8))) + 'px';
+	};
+	const select = (row, active, ev) => {
+		readout.textContent = row.date + ' · ↑ ' + fmt.fmtBytes(row.upload) + ' · ↓ ' + fmt.fmtBytes(row.download);
+		tip.textContent = readout.textContent;
+		tip.hidden = !active;
+		if (active) positionTip(ev);
+	};
+	rows.forEach((row, i) => {
+		for (const key of ['upload', 'download']) {
+			const value = Math.max(0, Number(row[key]) || 0);
+			const label = row.date + ' · ' + (key === 'upload' ? _('Upload') : _('Download')) + ': ' + fmt.fmtBytes(value);
+			const bar = historySvg('rect', { x: x(i) + (key === 'upload' ? -gap / 2 - barWidth : gap / 2), y: y(value),
+				width: barWidth, height: bottom - y(value), rx: 3, tabindex: 0, 'aria-label': label,
+				'class': 'history-bar ' + (key === 'upload' ? 'ul' : 'dl') });
+			bar.appendChild(historySvg('title', {}, label));
+			for (const event of ['mouseenter', 'focus', 'click']) bar.addEventListener(event, ev => select(row, true, ev));
 			chart.appendChild(bar);
-			chart.appendChild(historySvg('text', { x: center, y: y(value) - 8, 'text-anchor': 'middle' }, fmt.fmtBytes(value)));
-		} else {
-			chart.appendChild(historySvg('polyline', { points: rows.map((r, i) => x(i) + ',' + y(r[key])).join(' '), 'class': series }));
-			rows.forEach((r, i) => {
-				const dot = historySvg('circle', { cx: x(i), cy: y(r[key]), r: 3, 'class': series });
-				dot.appendChild(historySvg('title', {}, r.date + ' · ' + (key === 'download' ? _('Download') : _('Upload')) + ': ' + fmt.fmtBytes(r[key])));
-				chart.appendChild(dot);
-			});
 		}
+	});
+	const tickStep = Math.max(1, Math.ceil(rows.length / Math.max(2, Math.floor((right - left) / 110))));
+	for (let i = 0; i < rows.length; i++) {
+		if (i % tickStep !== 0 && i !== rows.length - 1) continue;
+		chart.appendChild(historySvg('text', { x: x(i), y: 168, 'text-anchor': rows.length === 1 ? 'middle' :
+			i === 0 ? 'start' : i === rows.length - 1 ? 'end' : 'middle' }, width < 480 ? rows[i].date.slice(5) : rows[i].date));
 	}
-	if (rows.length === 1) {
-		chart.appendChild(historySvg('text', { x: x(0), y: 168, 'text-anchor': 'middle' }, rows[0].date));
-	} else {
-		chart.appendChild(historySvg('text', { x: left, y: 168 }, rows[0].date));
-		chart.appendChild(historySvg('text', { x: right, y: 168, 'text-anchor': 'end' }, rows[rows.length - 1].date));
-	}
+	select(rows[rows.length - 1]);
+	const inspect = ev => {
+		const bounds = chart.getBoundingClientRect();
+		const px = (ev.clientX - bounds.left) * width / Math.max(1, bounds.width);
+		if (px < left || px > right) { tip.hidden = true; return; }
+		select(rows[Math.min(rows.length - 1, Math.max(0, Math.floor((px - left) / slot)))], true, ev);
+	};
+	for (const event of ['pointermove', 'pointerdown', 'click']) chart.addEventListener(event, inspect);
+	chart.addEventListener('pointerleave', () => { tip.hidden = true; });
+	ent.historyChart.appendChild(tip);
 	ent.historyChart.appendChild(chart);
+	ent.historyChart.appendChild(readout);
 }
 
 function refreshHistory(ent, force) {
@@ -93,9 +120,9 @@ function refreshHistory(ent, force) {
 		const refresh = E('button', { type: 'button', 'class': 'zen-dash-history-refresh' }, _('Refresh'));
 		refresh.addEventListener('click', () => refreshHistory(ent, true));
 		ent.detail.appendChild(E('div', { 'class': 'zen-dash-history-head' }, [E('strong', {}, _('Daily traffic')), refresh]));
-		ent.detail.appendChild(E('div', { 'class': 'zen-dash-chart-legend' }, [
-			E('span', { 'class': 'ul' }, [E('span', { 'class': 'swatch' }), _('Upload (dashed)')]),
-			E('span', { 'class': 'dl' }, [E('span', { 'class': 'swatch' }), _('Download (solid)')])
+		ent.detail.appendChild(E('div', { 'class': 'zen-dash-chart-legend zen-dash-history-legend' }, [
+			E('span', { 'class': 'ul' }, [E('span', { 'class': 'swatch' }), _('Upload')]),
+			E('span', { 'class': 'dl' }, [E('span', { 'class': 'swatch' }), _('Download')])
 		]));
 		ent.detail.appendChild(ent.historyChart);
 	}

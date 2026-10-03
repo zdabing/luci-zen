@@ -199,6 +199,11 @@ struct dev_stats {            /* eBPF 层只管 bytes/packets/last_seen */
 | Flash 写入 | ≈12 次/h、单事务提交 —— 无寿命风险 |
 | 日/月切换 | 本地午夜/月初；NTP 未同步（系统时间 < 2024）不切、不落带日期数据；切换顺序 = 旧区间落盘 → 保留期清理 → RAM 清零 |
 | 保留期 | daily 90 天、monthly 12 个月（日切/月切时 DELETE） |
+
+日/月切换先冻结旧区间绝对值，再接续新日期/月；已关闭区间与全部 RAM 设备
+在后续 checkpoint 的同一事务中保存，成功后才清空待提交快照。活动超时只影响
+展示，不能据此丢弃未保存用量。旧区间快照按相同保留窗口淘汰，设备重置同步清除
+其待提交项。快照仍在 RAM，存储故障期间进程崩溃或断电的恢复保障需另行验收。
 | 重启恢复 | devices 表恢复属性 + 生命周期累计 + 用户指定名；daily/monthly 当期行接续今日/月累计；BPF map 从 0 重采（不 pin，见 §7.2），DB 基线 + 差分合成 |
 | 离线设备 | 保留计数与 `last_seen`；在线 = `last_active + offline_timeout(默认600s)`；>7 天离线退出 RAM（休眠，DB 保留） |
 | 历史曲线 | `getHistory` 直接查 SQLite 聚合（SUM GROUP BY），无中间 JSON 层 |

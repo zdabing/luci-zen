@@ -52,9 +52,11 @@ pub fn refresh(d: &mut Daemon, links: &[crate::netlink::LinkInfo]) {
         if let Some((prx, ptx)) = d.up_prev.get(idx) {
             if *crx >= *prx {
                 rx += (*crx - *prx) * 1000 / dt;
+                d.wan.interface_delta(*crx - *prx, 0);
             }
             if *ctx >= *ptx {
                 tx += (*ctx - *ptx) * 1000 / dt;
+                d.wan.interface_delta(0, *ctx - *ptx);
             }
         }
     }

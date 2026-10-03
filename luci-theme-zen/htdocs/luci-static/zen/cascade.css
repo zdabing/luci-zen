@@ -3109,16 +3109,15 @@ header .showSide:focus-visible { outline: 2px solid var(--accent); outline-offse
 .zen-dash-iface-control select { min-width: 100px; border: 1px solid var(--line-strong); }
 .zen-dash-history-head { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; gap: 12px; }
 .zen-dash-history-refresh { font-size: 12px; padding: 4px 10px; }
-.zen-dash-device-history { padding: 8px; background: var(--bg-nested); border-radius: 12px; color: var(--text-secondary); font-size: 12px; }
-.zen-dash-device-history svg { display: block; width: 100%; height: auto; }
+.zen-dash-device-history { position: relative; min-width: 0; max-width: 100%; overflow-x: auto; padding: 8px; background: var(--bg-nested); border-radius: 12px; color: var(--text-secondary); font-size: 12px; }
+.zen-history-tip { position: absolute; top: 8px; left: 8px; z-index: 2; width: max-content; max-width: calc(100% - 16px); box-sizing: border-box; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg-panel); color: var(--text); box-shadow: 0 4px 16px #00000014; font-size: 12px; line-height: 1.6; font-variant-numeric: tabular-nums; pointer-events: none; }
+.zen-history-tip[hidden] { display: none; }
+.zen-dash-device-history svg { display: block; width: 100%; height: auto; user-select: none; }
 .zen-dash-device-history text { font-size: 11px; fill: var(--text-muted); }
 .zen-dash-device-history .history-grid { stroke: var(--line-strong); stroke-dasharray: 3 4; }
-.zen-dash-device-history polyline { fill: none; stroke-width: 2; }
-.zen-dash-device-history .dl { stroke: var(--dl); }
-.zen-dash-device-history .ul { stroke: var(--ul); }
-.zen-dash-device-history polyline.ul { stroke-dasharray: 5 5; }
-.zen-dash-device-history circle.dl { fill: var(--dl); }
-.zen-dash-device-history circle.ul { fill: var(--ul); }
+.zen-dash-history-readout { margin: 4px 0 0; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.zen-dash-history-legend .dl .swatch, .zen-dash-history-legend .ul .swatch { width: 8px; height: 8px; border: 0; background: var(--dl); }
+.zen-dash-history-legend .ul .swatch { background: var(--ul); }
 .zen-dash-disk-dialog { max-width: min(420px, calc(100vw - 32px)); padding: 24px; border: 1px solid var(--line); border-radius: 20px; background: var(--bg-panel); color: var(--text); }
 .zen-dash-disk-dialog::backdrop { background: var(--modal-mask); }
 @media (max-width: 560px) { .zen-dash-traffic-head { flex-wrap: wrap; gap: 10px; } }
@@ -3172,3 +3171,51 @@ header .showSide:focus-visible { outline: 2px solid var(--accent); outline-offse
 .zen-dash-device-history svg { height: 180px; }
 .zen-dash-device-history .history-bar.dl { fill: var(--dl); stroke: none; }
 .zen-dash-device-history .history-bar.ul { fill: var(--ul); stroke: none; }
+.zen-dash-device-history .history-bar:focus-visible { stroke: var(--text); stroke-width: 2; outline: none; }
+
+.zen-wan-share > h3 { margin-bottom: 8px; }
+.zen-share-description, .zen-share-help, .zen-share-status { color: var(--text-secondary); font-size: 13px; line-height: 1.6; }
+.zen-share-description { margin: 0 0 20px; }
+.zen-share-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.zen-share-grid[hidden], .zen-share-more[hidden] { display: none; }
+.zen-share-card { min-width: 0; padding: 22px; border-radius: 24px; background: var(--bg-nested); }
+.zen-share-card h4 { margin: 0 0 18px; font-size: 15px; font-weight: 650; }
+.zen-share-card.upload h4 { color: var(--ul); }
+.zen-share-card.download h4 { color: var(--dl); }
+.zen-share-content { display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; gap: 20px; }
+.zen-share-ring { position: relative; width: 100%; max-width: 200px; justify-self: center; }
+.zen-share-ring svg { width: 100%; height: auto; display: block; }
+.zen-share-track { fill: none; stroke: var(--line); stroke-width: 15; }
+.zen-share-center { position: absolute; inset: 28%; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 4px; text-align: center; pointer-events: none; }
+.zen-share-center span { max-width: 100%; color: var(--text-secondary); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.zen-share-center strong { color: var(--text); font-size: clamp(15px, 1.6vw, 24px); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.zen-share-center .zen-share-center-percent { color: var(--text); font-weight: 600; }
+.zen-share-center-percent[hidden], .zen-share-tooltip[hidden] { display: none; }
+.zen-share-tooltip { position: absolute; left: 50%; top: 0; transform: translate(-50%, -100%); z-index: 2; display: flex; flex-direction: column; gap: 3px; max-width: 220px; min-width: 120px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg-panel); color: var(--text); font-size: 12px; box-shadow: 0 4px 18px #00000014; pointer-events: none; }
+.zen-share-tooltip strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.zen-share-tooltip span { color: var(--text-secondary); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.zen-share-ring [role="button"] { cursor: pointer; outline: none; }
+.zen-share-ring [role="button"]:focus-visible { stroke-width: 19; }
+.zen-share-legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 4px 12px; list-style: none; padding: 0; margin: 0; min-width: 0; }
+.zen-share-legend button { display: grid; grid-template-columns: 8px minmax(0, 1fr); gap: 3px 9px; width: 100%; min-height: 44px; padding: 7px 4px; border: 0; border-radius: 8px; background: transparent; color: var(--text); text-align: left; font: inherit; line-height: 1.3; cursor: pointer; }
+.zen-share-legend button:hover { background: var(--bg-card); }
+.zen-share-legend button:focus-visible { outline: 2px solid var(--gauge); outline-offset: 2px; }
+.zen-share-swatch { width: 8px; height: 8px; margin-top: 5px; border-radius: 50%; }
+.zen-share-name { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.zen-share-amount { grid-column: 2; color: var(--text-secondary); font-size: 11px; font-variant-numeric: tabular-nums; }
+.zen-share-empty, .zen-share-note { color: var(--text-secondary); font-size: 12px; line-height: 1.6; }
+.zen-share-note { margin: 16px 0 0; }
+.zen-share-more { margin-top: 12px; border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; background: transparent; color: var(--text); font: inherit; font-size: 12px; cursor: pointer; }
+.zen-share-help { margin-top: 18px; }
+.zen-share-help summary { cursor: pointer; }
+.zen-share-help p { margin: 8px 0; }
+.zen-share-status:empty { display: none; }
+@container zen-dashboard (max-width: 900px) {
+ .zen-share-grid { grid-template-columns: 1fr; }
+}
+@container zen-dashboard (max-width: 400px) {
+ .zen-share-card { padding: 16px; }
+ .zen-share-content { gap: 16px; }
+ .zen-share-ring { max-width: 180px; }
+ .zen-share-legend { grid-template-columns: 1fr; gap: 4px; }
+}

@@ -5,6 +5,9 @@
 use std::env;
 
 fn main() {
+    // cargo check can run before the libraries are staged. Recompute the link
+    // search path when CI/SDK later supplies a different native library path.
+    println!("cargo:rerun-if-env-changed=UBUS_LIB_DIR");
     println!("cargo:rustc-link-lib=dylib=ubus");
     println!("cargo:rustc-link-lib=dylib=ubox");
 

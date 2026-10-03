@@ -61,8 +61,8 @@ msgstr "每月（12个月）"
 msgid "No history data yet. Usage accumulates as traffic flows and is persisted on checkpoint/day rollover."
 msgstr "暂无历史数据。有流量后会开始累计，并在定期保存或跨日时写入历史记录。"
 
-msgid "Realtime per-device traffic collected by zen-trafficd (eBPF). rx = download, tx = upload. LAN-local traffic is counted per device but does not inflate Internet usage totals."
-msgstr "查看每台设备的实时上传、下载速率。局域网内的流量单独统计，不计入互联网流量总量。"
+msgid "Device rates and usage include internet and local traffic passing through the router. Internet-only upload and download shares are shown on the overview page."
+msgstr "设备速率和用量包含经过路由器的互联网与局域网流量。仅互联网的上传、下载占比显示在概览页。"
 
 msgid "Reset all counters for %s?"
 msgstr "确定重置 %s 的全部流量统计？"
@@ -201,3 +201,354 @@ msgstr "所选范围暂无实时历史，请保持流量统计服务运行以采
 
 msgid "Independent scales"
 msgstr "左右轴独立刻度"
+
+msgid "Loading devices…"
+msgstr "正在加载设备…"
+
+msgid "No devices detected yet."
+msgstr "暂未发现设备，产生流量后会出现在这里。"
+
+msgid "%d devices · %d online"
+msgstr "%d 台设备 · %d 台在线"
+
+msgid "Online"
+msgstr "在线"
+
+msgid "Offline"
+msgstr "离线"
+
+msgid "Details for %s"
+msgstr "查看 %s 的详情"
+
+msgid "Internet download rate"
+msgstr "互联网下载速率"
+
+msgid "Internet upload rate"
+msgstr "互联网上传速率"
+
+msgid "Device usage today"
+msgstr "今日设备用量"
+
+msgid "Device usage this month"
+msgstr "本月设备用量"
+
+msgid "Device traffic is unavailable. Enable the traffic service and refresh this page."
+msgstr "设备流量暂时不可用，请启用流量统计服务后刷新页面。"
+
+msgid "Unable to refresh device traffic; showing the last result."
+msgstr "暂时无法刷新设备流量，正在显示上次结果。"
+
+msgid "Daily and monthly device usage, including internet and local traffic seen by the router."
+msgstr "按日、按月查看设备用量，包含经过路由器采集的互联网与局域网流量。"
+
+msgid "Hostname"
+msgstr "主机名"
+
+msgid "Loading history…"
+msgstr "正在加载历史记录…"
+
+msgid "Swipe or scroll to see more dates."
+msgstr "左右滑动或滚动图表，查看更多日期。"
+
+msgid "Unable to load history. Please try again."
+msgstr "暂时无法加载历史记录，请重试。"
+
+msgid "Traffic scope"
+msgstr "统计范围"
+
+msgid "Internet only"
+msgstr "仅互联网"
+
+msgid "Internet + local (existing history)"
+msgstr "互联网＋局域网（原有历史）"
+
+msgid "Reset selected device counters"
+msgstr "清空所选设备的计数"
+
+msgid "History analysis"
+msgstr "历史分析"
+
+msgid "Compare recorded usage by date and device, then inspect past internet rates. Current speeds are in Realtime monitoring."
+msgstr "按日期和设备分析历史用量，也可查询过去的互联网速率。当前速度请看“实时监控”。"
+
+msgid "Device usage ranking"
+msgstr "设备用量排名"
+
+msgid "Internet-only daily records start when this version is installed and retain 90 days. Monthly bars sum these retained days. Older mixed records cannot be converted."
+msgstr "每日互联网用量从本版本启用时开始记录，保留 90 天；月柱汇总这些已保留的日期。旧的混合用量不能转换。"
+
+msgid "Existing history includes internet and local transfers: 90 days of daily records and 12 months of monthly records."
+msgstr "原有历史包含互联网和局域网传输：每日记录保留 90 天，每月记录保留 12 个月。"
+
+msgid "Unable to reset device counters."
+msgstr "无法清空设备计数，请重试。"
+
+msgid "Recorded upload"
+msgstr "所选记录上传"
+
+msgid "Recorded download"
+msgstr "所选记录下载"
+
+msgid "Choose Internet only to compare devices with the upstream total."
+msgstr "选择“仅互联网”，即可将设备用量与上游总量比较。"
+
+msgid "Ranking covers the same retained 90-day internet window. Percentages use the upstream total; unassigned traffic is shown separately."
+msgstr "排名汇总同一份已保留的 90 天互联网记录。占比以上游总量为分母，未归属流量单独列出。"
+
+msgid "Share"
+msgstr "占比"
+
+msgid "Unassigned"
+msgstr "未归属流量"
+
+msgid "Attributed device usage exceeds the upstream total; percentages may exceed 100%."
+msgstr "设备归属用量超过了上游总量，占比可能超过 100%。"
+
+msgid "Notification settings"
+msgstr "通知设置"
+
+msgid "Notification settings are unavailable. Update and enable the zen-traffic backend."
+msgstr "通知设置暂不可用，请升级并启用 zen-traffic 后台。"
+
+msgid "Enable automatic notifications"
+msgstr "开启自动通知"
+
+msgid "Send a daily report"
+msgstr "每天推送流量报告"
+
+msgid "Save notification settings"
+msgstr "保存通知设置"
+
+msgid "Choose where to receive internet usage alerts. A threshold alerts once per rule, channel and day. Daily reports show today’s usage up to your chosen time."
+msgstr "选择接收互联网用量提醒的渠道。每条规则每天向每个渠道提醒一次；每日报告汇总当天截至推送时间的用量。"
+
+msgid "Automatic notifications are off until you enable and save them."
+msgstr "开启并保存后，自动通知才会生效。"
+
+msgid "Feishu"
+msgstr "飞书"
+
+msgid "WeCom"
+msgstr "企业微信"
+
+msgid "Daily usage threshold alerts"
+msgstr "今日用量超限提醒"
+
+msgid "Watch the whole network or a chosen device. Only internet uploads and downloads count; local transfers do not."
+msgstr "可监控整个网络或指定设备，只计算互联网上传、下载，不计算局域网传输。"
+
+msgid "Add threshold rule"
+msgstr "添加提醒规则"
+
+msgid "Daily report"
+msgstr "每日流量报告"
+
+msgid "Send time (router local time)"
+msgstr "推送时间（路由器本地时间）"
+
+msgid "Includes the network’s upload and download totals and the top five devices. If the router restarts after the chosen time, it sends the missed report once that day."
+msgstr "报告包含全网上传、下载，以及用量前五的设备。路由器在推送时间之后重启时，会补发当天尚未发送的报告。"
+
+msgid "The first day starts when this version is installed and may be incomplete. Older mixed history is not used for alerts."
+msgstr "启用首日可能不足一整天；提醒不会使用旧的混合流量历史。"
+
+msgid "Saving applies immediately; collection does not restart."
+msgstr "保存立即生效，流量采集不会重启。"
+
+msgid "Recent deliveries"
+msgstr "最近发送记录"
+
+msgid "Use this channel"
+msgstr "启用此渠道"
+
+msgid "Saved · leave blank to keep"
+msgstr "已保存 · 留空保留原值"
+
+msgid "Paste your bot webhook URL"
+msgstr "粘贴机器人的 Webhook 地址"
+
+msgid "Optional signing secret"
+msgstr "可选：签名密钥"
+
+msgid "Send test message"
+msgstr "发送测试消息"
+
+msgid "Bot webhook URL"
+msgstr "机器人 Webhook 地址"
+
+msgid "Add a custom bot in your Feishu group, then copy its webhook URL."
+msgstr "在飞书群里添加自定义机器人，然后复制 Webhook 地址。"
+
+msgid "Add a message-push bot in your WeCom group, then copy its webhook URL."
+msgstr "在企业微信群里添加消息推送机器人，然后复制 Webhook 地址。"
+
+msgid "Signing secret"
+msgstr "签名密钥"
+
+msgid "Required if the Feishu bot uses signature verification. Enter a dash to clear a saved secret."
+msgstr "飞书机器人开启签名校验时需填写；输入 - 可清除原签名密钥。"
+
+msgid "If your bot requires a keyword, allow “Zen”."
+msgstr "如果机器人要求关键词，请将“Zen”加入允许列表。"
+
+msgid "Bot setup guide"
+msgstr "机器人设置指南"
+
+msgid "Enable rule"
+msgstr "启用规则"
+
+msgid "Whole network"
+msgstr "整个网络"
+
+msgid "Total usage"
+msgstr "上传＋下载"
+
+msgid "Threshold unit"
+msgstr "提醒用量单位"
+
+msgid "Threshold amount"
+msgstr "提醒用量数值"
+
+msgid "Monitor"
+msgstr "监控范围"
+
+msgid "Today’s"
+msgstr "今日累计"
+
+msgid "Alert at"
+msgstr "达到此值提醒"
+
+msgid "Remove"
+msgstr "删除"
+
+msgid "Choose a valid report time."
+msgstr "请选择有效的报告推送时间。"
+
+msgid "Enter a positive threshold no larger than 1 PiB."
+msgstr "提醒用量必须大于零且不超过 1 PiB。"
+
+msgid "Notification settings saved."
+msgstr "通知设置已保存。"
+
+msgid "Unable to save notification settings."
+msgstr "无法保存通知设置。"
+
+msgid "Save your changes before sending a test."
+msgstr "请先保存修改，再发送测试消息。"
+
+msgid "Test queued. Check Recent deliveries for the result."
+msgstr "测试已加入发送队列，请在“最近发送记录”查看结果。"
+
+msgid "Unable to queue test message."
+msgstr "无法加入测试消息。"
+
+msgid "Queued"
+msgstr "等待发送"
+
+msgid "Sending"
+msgstr "正在发送"
+
+msgid "Retry pending"
+msgstr "等待重试"
+
+msgid "Sent"
+msgstr "已发送"
+
+msgid "Failed"
+msgstr "发送失败"
+
+msgid "Cancelled"
+msgstr "已取消"
+
+msgid "Threshold alert"
+msgstr "超限提醒"
+
+msgid "Connection test"
+msgstr "连接测试"
+
+msgid "No messages sent yet. Save a channel and send a test to check it."
+msgstr "暂无发送记录。保存渠道后，可发送测试消息检查连接。"
+
+msgid "Channel"
+msgstr "渠道"
+
+msgid "Message"
+msgstr "消息类型"
+
+msgid "Status"
+msgstr "状态"
+
+msgid "Past internet rates"
+msgstr "过去的互联网速率"
+
+msgid "Realtime monitoring"
+msgstr "实时监控"
+
+msgid "See who is using the network now. Current rates and the last five minutes appear here; usage totals and past dates are in History analysis."
+msgstr "查看现在谁在用网，显示当前速度和最近五分钟趋势。累计用量和过去日期请看“历史分析”。"
+
+msgid "Internet rates · last 5 minutes"
+msgstr "互联网速度 · 最近 5 分钟"
+
+msgid "Upload is orange; download is green. Each direction has its own scale."
+msgstr "橙色为上传，绿色为下载；上传、下载使用各自的纵轴。"
+
+msgid "Devices · internet rates"
+msgstr "设备 · 当前互联网速度"
+
+msgid "Online devices"
+msgstr "在线设备"
+
+msgid "Local transfer rate"
+msgstr "当前局域网传输速度"
+
+msgid "View usage history"
+msgstr "查看用量历史"
+
+msgid "Monthly (retained days)"
+msgstr "每月（保留日期汇总）"
+
+msgid "Some traffic data could not be refreshed; showing the last result."
+msgstr "部分流量数据暂时无法刷新，正在显示上次结果。"
+
+msgid "Settings saved; newer changes still need to be saved."
+msgstr "设置已保存；保存期间的新修改还需再次保存。"
+
+msgid "Realtime monitoring is unavailable. Update and enable the zen-traffic backend, then refresh this page."
+msgstr "实时监控暂不可用，请升级并启用 zen-traffic 后台后刷新页面。"
+
+msgid "Enter the official Feishu bot webhook URL."
+msgstr "请填写飞书机器人的官方 Webhook 地址。"
+
+msgid "Enter the official WeCom bot webhook URL."
+msgstr "请填写企业微信机器人的官方 Webhook 地址。"
+
+msgid "Enable a notification channel first."
+msgstr "请先启用一个通知渠道。"
+
+msgid "Check the bot signing secret."
+msgstr "请检查机器人的签名密钥。"
+
+msgid "Set the router’s time before sending messages."
+msgstr "发送消息前，请先校准路由器时间。"
+
+msgid "Wait one minute before testing again."
+msgstr "请等一分钟后再发送测试消息。"
+
+msgid "Save the webhook first."
+msgstr "请先保存机器人 Webhook 地址。"
+
+msgid "The HTTPS sender is unavailable. Check that curl is installed."
+msgstr "HTTPS 发送程序不可用，请检查是否安装了 curl。"
+
+msgid "The robot did not return a valid acknowledgement."
+msgstr "机器人没有返回有效的成功确认。"
+
+msgid "HTTPS delivery failed (code %s). Check network, certificates and webhook."
+msgstr "HTTPS 发送失败（代码 %s），请检查网络、证书和机器人地址。"
+
+msgid "The robot rejected the message (code %s)."
+msgstr "机器人拒收了消息（代码 %s）。"
+
+msgid "Unable to deliver message."
+msgstr "消息发送失败。"

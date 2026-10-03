@@ -9,6 +9,7 @@
 !/docs/DEVELOPMENT.md
 !/docs/TESTING.md
 !/docs/REALTIME-HISTORY.md
+!/docs/TRAFFIC_PAGES_AND_NOTIFICATIONS.md
 !/poc/README.md
 !/poc/rust-spike/README.md
 
@@ -21,6 +22,9 @@
 # Rust / cargo
 target/
 **/*.rs.bk
+__pycache__/
+/acceptance-openwrt/
+/acceptance-out/
 
 # eBPF 编译产物
 *.bpf.o
