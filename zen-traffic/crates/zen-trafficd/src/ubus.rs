@@ -164,6 +164,9 @@ unsafe extern "C" fn handle_get_status(
         offload_cstr().as_ptr().cast(),
     );
     ubus::blobmsg_add_u64(&mut b, cs(b"since\0"), now_epoch());
+    blobmsg_add_bool(&mut b, cs(b"device_wan_rates\0"), true);
+    blobmsg_add_bool(&mut b, cs(b"wan_daily\0"), true);
+    blobmsg_add_bool(&mut b, cs(b"notifications\0"), true);
     ubus::blobmsg_add_string(
         &mut b,
         cs(b"version\0"),

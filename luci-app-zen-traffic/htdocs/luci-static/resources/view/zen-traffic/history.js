@@ -128,6 +128,7 @@ return view.extend({
 	render(data) {
 		const status = data[0];
 		const devs = (data[1] && data[1].dev) || [];
+		this.scope = status && status.wan_daily ? 'internet' : 'all';
 		this.mac = new URLSearchParams(window.location.search).get('mac') || '';
 
 		injectStyles();
@@ -152,13 +153,14 @@ return view.extend({
 
 		const tabs = E('div', { 'class': 'zen-tf-tabs' }, [
 			this.tabBtn('day', _('Daily (90 days)')),
-			this.monthTab = this.tabBtn('month', _('Monthly (retained days)'))
+			this.monthTab = this.tabBtn('month', this.scope === 'internet' ? _('Monthly (retained days)') : _('Monthly (12 months)'))
 		]);
 		const scope = E('select', {'aria-label': _('Traffic scope'), change: ev => {
 			this.scope = ev.target.value;
 			this.monthTab.textContent = this.scope === 'internet' ? _('Monthly (retained days)') : _('Monthly (12 months)');
 			this.refresh();
-		}}, [E('option',{value:'internet'},_('Internet only')),E('option',{value:'all'},_('Internet + local (existing history)'))]);
+		}}, [E('option',{value:'internet',disabled:!(status && status.wan_daily)},_('Internet only')),E('option',{value:'all'},_('Internet + local (existing history)'))]);
+		scope.value = this.scope;
 		const reset = E('button', {type:'button','class':'cbi-button cbi-button-negative',click:()=>this.resetSelected()}, _('Reset selected device counters'));
 		this.resetButton = reset;
 		this.rateView = Object.create(rateHistory);

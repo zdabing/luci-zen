@@ -409,7 +409,7 @@ mod tests {
     fn failed_settings_transaction_preserves_channels_and_queued_events() {
         let db = Db::open(":memory:").unwrap();
         let mut n = Notifications::load(&db).unwrap();
-        db.conn_for_test_reject_settings();
+        db.conn_for_test_reject_notification_delivery();
         let mut config = Settings::default(); config.daily_enabled = true;
         assert!(n.configure(&db, &serde_json::to_string(&config).unwrap()).is_err());
         assert!(!n.settings.daily_enabled); assert!(db.setting("notifications_config").unwrap().is_none());

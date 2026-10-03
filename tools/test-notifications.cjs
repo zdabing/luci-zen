@@ -12,10 +12,10 @@ const E=(tag,attrs={},children=[])=>{const e=new Element(tag,attrs);if(Array.isA
 const source=fs.readFileSync(path.join(__dirname,'../luci-app-zen-traffic/htdocs/luci-static/resources/view/zen-traffic/notifications.js'),'utf8');
 const requests=[],polls=[];
 let config={enabled:false,feishu:{enabled:false,has_webhook:true,has_secret:true},wecom:{enabled:false,has_webhook:false,has_secret:false},daily_enabled:false,daily_time:'21:00',rules:[]};
-let saveError=false;
+let saveError=false,delaySave;
 const rpc={declare:s=>(...args)=>{requests.push({method:s.method,args});
  if(s.method==='getNotifications')return Promise.resolve({json:JSON.stringify({config,recent:[]})});
- if(s.method==='setNotifications')return Promise.resolve({json:JSON.stringify(saveError?{ok:false,error:'Unable to save settings'}:{ok:true})});
+ if(s.method==='setNotifications')return delaySave || Promise.resolve({json:JSON.stringify(saveError?{ok:false,error:'Unable to save settings'}:{ok:true})});
  return Promise.resolve({json:'{"ok":true}'});
 }};
 const document={hidden:false,getElementById:()=>null,head:new Element('head')};
@@ -46,5 +46,11 @@ const view=new Function('view','rpc','poll','trafficStyle','_','E','document',so
  const sent=JSON.parse(requests.findLast(r=>r.method==='setNotifications').args[0]);
  assert.equal(sent.daily_time,'23:15');assert.equal(sent.rules[0].metric,'upload');assert.equal(sent.feishu.secret,'secret');
  await view.test('feishu');assert.equal(requests.findLast(r=>r.method==='testNotification').args[0],'feishu');
+ let resolveSave;delaySave=new Promise(resolve=>{resolveSave=resolve;});
+ const saving=view.save();
+ view.channels.feishu.secret.value='newer-secret';view.markDirty();
+ resolveSave({json:'{"ok":true}'});await saving;
+ assert.equal(view.channels.feishu.secret.value,'newer-secret','An in-flight save must not erase newer edits');
+ assert.equal(view.dirty,true);assert.match(view.status.textContent,/newer changes/);
  console.log('PASS: actual notification view, byte thresholds, masks, save errors, polling and explicit test actions');
 })().catch(e=>{console.error(e);process.exit(1);});

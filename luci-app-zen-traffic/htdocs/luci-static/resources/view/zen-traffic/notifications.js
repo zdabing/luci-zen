@@ -9,6 +9,27 @@ const setSettings = rpc.declare({object:'zen.traffic',method:'setNotifications',
 const testChannel = rpc.declare({object:'zen.traffic',method:'testNotification',params:['channel'],reject:true});
 const getDevices = rpc.declare({object:'zen.traffic',method:'getDevices',reject:true});
 const decode = r => { if (!r || typeof r.json !== 'string') throw new Error('Invalid response'); return JSON.parse(r.json); };
+function errorText(message,fallback) {
+ const known={
+  'Invalid feishu webhook':_('Enter the official Feishu bot webhook URL.'),
+  'Invalid wecom webhook':_('Enter the official WeCom bot webhook URL.'),
+  'Enable a notification channel first':_('Enable a notification channel first.'),
+  'Invalid signing secret':_('Check the bot signing secret.'),
+  'Unable to save settings':_('Unable to save notification settings.'),
+  'Router time is not synchronised':_('Set the router’s time before sending messages.'),
+  'Wait one minute before testing again':_('Wait one minute before testing again.'),
+  'Save the webhook first':_('Save the webhook first.'),
+  'HTTPS sender unavailable':_('The HTTPS sender is unavailable. Check that curl is installed.'),
+  'Missing robot acknowledgement':_('The robot did not return a valid acknowledgement.'),
+  'Invalid robot response':_('The robot did not return a valid acknowledgement.')
+ };
+ if(known[message])return known[message];
+ if([_('Choose a valid report time.'),_('Enter a positive threshold no larger than 1 PiB.')].includes(message))return message;
+ const curl=String(message||'').match(/curl code (-?\d+)/),bot=String(message||'').match(/Robot rejected message \(code (-?\d+)\)/);
+ if(curl)return _('HTTPS delivery failed (code %s). Check network, certificates and webhook.').format(curl[1]);
+ if(bot)return _('The robot rejected the message (code %s).').format(bot[1]);
+ return fallback||_('Unable to deliver message.');
+}
 const field = (label,input,note) => E('label',{'class':'zen-notify-field'},[
  E('span',{},label), input, note ? E('small',{'class':'zen-app-muted'},note) : ''
 ]);
@@ -62,10 +83,11 @@ return view.extend({
   ]);
   for (const rule of config.rules) this.addRule(rule);
   this.drawLog(data[0]);
-  this.dirty=false;root.addEventListener('input',()=>{this.dirty=true;});root.addEventListener('change',()=>{this.dirty=true;});
+  this.dirty=false;this.editRevision=0;root.addEventListener('input',()=>this.markDirty());root.addEventListener('change',()=>this.markDirty());
   poll.add(()=>this.refreshLog(),5);
   return root;
  },
+ markDirty() {this.dirty=true;this.editRevision=(this.editRevision||0)+1;},
  channel(name,label,config) {
   const enabled=toggle(_('Use this channel'),config.enabled);
   const webhook=E('input',{type:'password',autocomplete:'new-password',spellcheck:false,value:'',
@@ -99,9 +121,9 @@ return view.extend({
   row.node=E('div',{'class':'zen-notify-rule'},[enabled.node,devField,field(_('Today’s'),metric),
    field(_('Alert at'),E('div',{'class':'zen-notify-amount'},[amount,unit])),
    E('button',{type:'button','class':'cbi-button cbi-button-negative',click:()=>{
-    row.node.remove();this.rows=this.rows.filter(r=>r!==row);this.addButton.disabled=false;this.dirty=true;
+    row.node.remove();this.rows=this.rows.filter(r=>r!==row);this.addButton.disabled=false;this.markDirty();
    }},_('Remove'))]);
-  this.rows.push(row);this.rules.appendChild(row.node);this.addButton.disabled=this.rows.length>=20;this.dirty=true;
+  this.rows.push(row);this.rules.appendChild(row.node);this.addButton.disabled=this.rows.length>=20;this.markDirty();
  },
  collect() {
   const channels={};
@@ -119,16 +141,19 @@ return view.extend({
  async save() {
   this.status.classList.remove('zen-notify-error');this.saveButton.disabled=true;
   try {
-   const config=this.collect();const result=decode(await setSettings(JSON.stringify(config)));
+   const config=this.collect(),revision=this.editRevision;const result=decode(await setSettings(JSON.stringify(config)));
    if(!result.ok)throw new Error(_(result.error));
    this.saved=decode(await getSettings());this.drawLog(this.saved);
    for(const name of ['feishu','wecom']) {
-    const c=this.channels[name],saved=this.saved.config[name];c.webhook.value='';c.secret.value='';
+    const c=this.channels[name],saved=this.saved.config[name];
+    if(c.webhook.value.trim()===config[name].webhook)c.webhook.value='';
+    if(c.secret.value.trim()===config[name].secret)c.secret.value='';
     c.webhook.placeholder=saved.has_webhook?_('Saved · leave blank to keep'):_('Paste your bot webhook URL');
     c.secret.placeholder=saved.has_secret?_('Saved · leave blank to keep'):_('Optional signing secret');
    }
-   this.dirty=false;this.status.textContent=_('Notification settings saved.');
-  } catch(e) {this.status.classList.add('zen-notify-error');this.status.textContent=e.message||_('Unable to save notification settings.');}
+   this.dirty=this.editRevision!==revision;
+   this.status.textContent=this.dirty?_('Settings saved; newer changes still need to be saved.'):_('Notification settings saved.');
+  } catch(e) {this.status.classList.add('zen-notify-error');this.status.textContent=errorText(e.message,_('Unable to save notification settings.'));}
   finally {this.saveButton.disabled=false;}
  },
  async test(name) {
@@ -138,7 +163,7 @@ return view.extend({
   try {
    const result=decode(await testChannel(name));if(!result.ok)throw new Error(_(result.error));
    c.result.textContent=_('Test queued. Check Recent deliveries for the result.');await this.refreshLog();
-  } catch(e){c.result.classList.add('zen-notify-error');c.result.textContent=e.message||_('Unable to queue test message.');}
+  } catch(e){c.result.classList.add('zen-notify-error');c.result.textContent=errorText(e.message,_('Unable to queue test message.'));}
   finally {c.button.disabled=false;}
  },
  async refreshLog() {
@@ -157,7 +182,7 @@ return view.extend({
    E('tbody',{},data.recent.map(r=>E('tr',{},[
     E('td',{},new Date(r.at*1000).toLocaleString()),E('td',{},r.channel==='feishu'?_('Feishu'):_('WeCom')),
     E('td',{},kinds[r.kind]||r.kind),E('td',{},[E('span',{},labels[r.status]||r.status),
-     r.error?E('small',{'class':'zen-notify-error'},' · '+_(r.error)):''])
+     r.error?E('small',{'class':'zen-notify-error'},' · '+errorText(r.error)):''])
    ])))
   ]));
  }

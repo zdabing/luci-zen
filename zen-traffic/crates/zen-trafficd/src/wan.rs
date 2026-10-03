@@ -18,6 +18,7 @@ pub struct WanUsage {
     pub daily: BTreeMap<(String, String), Bytes>,
     pub daily_since: u64,
     pub day: String,
+    pub day_synced: bool,
 }
 
 impl WanUsage {
@@ -25,7 +26,7 @@ impl WanUsage {
         let synced = crate::state::time_synced(now);
         let mut usage = Self { since: if synced { now } else { 0 }, interface: Bytes::default(), devices: HashMap::new(),
             daily: db.wan_daily()?, daily_since: db.setting("wan_daily_since")?.and_then(|s| s.parse().ok()).unwrap_or(if synced { now } else { 0 }),
-            day: crate::state::local_date(now) };
+            day: crate::state::local_date(now), day_synced: synced };
         usage.prune_daily();
         if let Some((since, download, upload)) = db.wan_window()? {
             usage.since = since;
@@ -55,7 +56,7 @@ impl WanUsage {
     }
 
     fn daily_delta(&mut self, mac: String, download: u64, upload: u64) {
-        if self.daily_since == 0 { return; }
+        if self.daily_since == 0 || !self.day_synced { return; }
         let bytes = self.daily.entry((self.day.clone(), mac)).or_default();
         bytes.download = bytes.download.saturating_add(download);
         bytes.upload = bytes.upload.saturating_add(upload);
@@ -67,7 +68,8 @@ impl WanUsage {
     }
 
     pub fn set_day(&mut self, now: u64) {
-        if !crate::state::time_synced(now) { return; }
+        self.day_synced = crate::state::time_synced(now);
+        if !self.day_synced { return; }
         if self.daily_since == 0 { self.daily_since = now; }
         let day = crate::state::local_date(now);
         if self.day != day { self.day = day; self.prune_daily(); }
@@ -172,6 +174,12 @@ mod tests {
         db.checkpoint_with_wan(&[], &first_day, "2024-01", 0, &restored).unwrap();
         assert_eq!(restored.history("day", "")["ranking"][0]["download"], 301);
         assert_eq!(restored.history("day", "")["network_download"], 360);
+        let mut unsynced = WanUsage::load(&db, 0).unwrap();
+        let before = unsynced.daily.clone();
+        unsynced.device_delta(mac, 999, 999); unsynced.interface_delta(999, 999);
+        assert_eq!(unsynced.daily, before,"Restored lifetime counters must not enable calendar writes before clock sync");
+        unsynced.set_day(epoch); unsynced.device_delta(mac,1,1);
+        assert!(unsynced.today(&key).download > 0);
         assert_eq!(restored.history("day", "")["unassigned_download"], 59);
         db.reset_device(&key).unwrap(); restored.remove_device(mac);
         db.checkpoint_with_wan(&[], &first_day, "2024-01", 0, &restored).unwrap();

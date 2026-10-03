@@ -45,6 +45,23 @@ mod transaction_tests {
     use std::collections::HashMap;
 
     #[test]
+    #[cfg(unix)]
+    fn opening_legacy_database_restricts_existing_wal_and_shm_permissions() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = std::env::temp_dir().join(format!("zen-db-mode-{}-{}",std::process::id(),crate::state::now_mono_ms()));
+        std::fs::create_dir(&dir).unwrap();
+        let path = dir.join("traffic.db"); let filename = path.to_str().unwrap();
+        let first = Db::open(filename).unwrap(); first.save_setting("fixture", "value").unwrap();
+        let files = [filename.to_owned(),format!("{filename}-wal"),format!("{filename}-shm")];
+        for file in &files { assert!(Path::new(file).exists());
+            std::fs::set_permissions(file,std::fs::Permissions::from_mode(0o644)).unwrap(); }
+        let reopened = Db::open(filename).unwrap();
+        assert_eq!(reopened.setting("fixture").unwrap(),Some("value".into()));
+        for file in &files { assert_eq!(std::fs::metadata(file).unwrap().permissions().mode() & 0o777,0o600); }
+        drop(reopened); drop(first); std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
     fn failed_rollovers_preserve_old_periods_and_offline_usage_until_atomic_retry() {
         let db = Db::open(":memory:").unwrap();
         let mac = MacKey { b: [2, 0, 0, 0, 0, 9] };
@@ -184,6 +201,10 @@ impl Db {
     #[cfg(test)]
     pub fn conn_for_test_reject_settings(&self) {
         self.conn.execute_batch("CREATE TRIGGER reject_settings BEFORE INSERT ON app_settings BEGIN SELECT RAISE(ABORT,'full storage'); END;").unwrap();
+    }
+    #[cfg(test)]
+    pub fn conn_for_test_reject_notification_delivery(&self) {
+        self.conn.execute_batch("CREATE TRIGGER reject_settings BEFORE INSERT ON app_settings WHEN NEW.name='notifications_deliveries' BEGIN SELECT RAISE(ABORT,'full storage'); END;").unwrap();
     }
     #[cfg(test)]
     pub fn conn_for_test_allow_settings(&self) {

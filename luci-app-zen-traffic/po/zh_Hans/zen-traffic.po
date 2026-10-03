@@ -510,3 +510,45 @@ msgstr "每月（保留日期汇总）"
 
 msgid "Some traffic data could not be refreshed; showing the last result."
 msgstr "部分流量数据暂时无法刷新，正在显示上次结果。"
+
+msgid "Settings saved; newer changes still need to be saved."
+msgstr "设置已保存；保存期间的新修改还需再次保存。"
+
+msgid "Realtime monitoring is unavailable. Update and enable the zen-traffic backend, then refresh this page."
+msgstr "实时监控暂不可用，请升级并启用 zen-traffic 后台后刷新页面。"
+
+msgid "Enter the official Feishu bot webhook URL."
+msgstr "请填写飞书机器人的官方 Webhook 地址。"
+
+msgid "Enter the official WeCom bot webhook URL."
+msgstr "请填写企业微信机器人的官方 Webhook 地址。"
+
+msgid "Enable a notification channel first."
+msgstr "请先启用一个通知渠道。"
+
+msgid "Check the bot signing secret."
+msgstr "请检查机器人的签名密钥。"
+
+msgid "Set the router’s time before sending messages."
+msgstr "发送消息前，请先校准路由器时间。"
+
+msgid "Wait one minute before testing again."
+msgstr "请等一分钟后再发送测试消息。"
+
+msgid "Save the webhook first."
+msgstr "请先保存机器人 Webhook 地址。"
+
+msgid "The HTTPS sender is unavailable. Check that curl is installed."
+msgstr "HTTPS 发送程序不可用，请检查是否安装了 curl。"
+
+msgid "The robot did not return a valid acknowledgement."
+msgstr "机器人没有返回有效的成功确认。"
+
+msgid "HTTPS delivery failed (code %s). Check network, certificates and webhook."
+msgstr "HTTPS 发送失败（代码 %s），请检查网络、证书和机器人地址。"
+
+msgid "The robot rejected the message (code %s)."
+msgstr "机器人拒收了消息（代码 %s）。"
+
+msgid "Unable to deliver message."
+msgstr "消息发送失败。"

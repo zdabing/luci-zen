@@ -109,7 +109,7 @@ return view.extend({
 	render(status) {
 		trafficStyle.inject();
 		rateHistory.injectStyles();
-		if (!status)
+		if (!status || !status.device_wan_rates)
 			return this.renderDegraded();
 
 		const root = E('div', { 'class': 'cbi-map zen-traffic-page', 'id': 'zen-traffic-realtime' }, [
@@ -155,7 +155,7 @@ return view.extend({
 			E('h2', {}, _('Realtime monitoring')),
 			E('div', { 'class': 'cbi-section' }, [
 				E('p', { 'class': 'alert-message warning' },
-					_('Device traffic is unavailable. Enable the traffic service and refresh this page.'))
+					_('Realtime monitoring is unavailable. Update and enable the zen-traffic backend, then refresh this page.'))
 			])
 		]);
 	},
