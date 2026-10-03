@@ -9,7 +9,7 @@ class Element {
   getBoundingClientRect() { return {left:10,top:0,width:320}; }
 }
 const E=(tag,attrs={},text)=>{const el=new Element(tag);Object.entries(attrs).forEach(([k,v])=>el.setAttribute(k,v));el.textContent=text;return el;};
-const source=fs.readFileSync(path.join(__dirname,'../luci-app-zen-traffic/htdocs/luci-static/resources/view/zen-traffic/realtime.js'),'utf8');
+const source=fs.readFileSync(path.join(__dirname,'../luci-app-zen-traffic/htdocs/luci-static/resources/view/zen-traffic/rate-history.js'),'utf8');
 const view=new Function('view','rpc','_','document','E',source)({extend:x=>x},{declare:()=>()=>{}},x=>x,{createElementNS:(_,tag)=>new Element(tag)},E);
 for(const samples of [[],[{time:100,upload:0,download:2048}],[{time:100,upload:1024,download:0},{time:110,upload:2048,download:3072},{time:180,upload:4096,download:8192}]]) {
   view.chart=new Element('div');view.data={samples,start:100,end:180,step:5};view.drawChart();

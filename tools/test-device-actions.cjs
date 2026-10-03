@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
 const source = fs.readFileSync(path.join(__dirname,
-  '../luci-app-zen-traffic/htdocs/luci-static/resources/view/zen-traffic/devices.js'), 'utf8');
+  '../luci-app-zen-traffic/htdocs/luci-static/resources/view/zen-traffic/realtime.js'), 'utf8');
 String.prototype.format = function (...args) { return this.replace(/%[ds]/g, () => String(args.shift())); };
 let modal = null, requests = [], ticks = 0;
 const E = (tag, attrs = {}, children = []) => ({tag, attrs,
@@ -22,6 +22,9 @@ const view = new Function('view', 'rpc', 'poll', 'ui', 'trafficStyle', '_', 'L',
   {extend: x => x}, rpc, {}, ui, {}, x => x, {bind: (fn, ctx) => fn.bind(ctx)}, E,
   {getElementById: () => ({value: ' NAS Updated '})});
 view.tick = () => { ticks++; };
+const historySource=fs.readFileSync(path.join(__dirname,'../luci-app-zen-traffic/htdocs/luci-static/resources/view/zen-traffic/history.js'),'utf8');
+const history=new Function('view','rpc','ui','_','E',historySource)({extend:x=>x},rpc,ui,x=>x,E);
+history.mac='02:00:00:00:00:01';history.sel={selectedOptions:[{textContent:'NAS'}]};history.refresh=()=>{ticks++;};
 const row = {d: {mac: '02:00:00:00:00:01', host: 'NAS'}};
 function button(label) {
   function find(nodes) {
@@ -41,11 +44,11 @@ const settled = () => new Promise(resolve => setImmediate(resolve));
   assert.deepEqual(requests.at(-1), {method: 'setHostname',
     payload: {mac: row.d.mac, host: 'NAS Updated'}});
   assert.equal(ticks, 1);
-  view.resetDevice(row);
+  history.resetSelected();
   assert.equal(requests.length, 1, 'Opening the reset dialog must not clear counters');
   button('Cancel').attrs.click(); await settled();
   assert.equal(requests.length, 1, 'Cancel must not issue a reset');
-  view.resetDevice(row);
+  history.resetSelected();
   button('Reset counters').attrs.click(); await settled();
   assert.deepEqual(requests.at(-1), {method: 'resetDevice', payload: {mac: row.d.mac}});
   assert.equal(ticks, 2);

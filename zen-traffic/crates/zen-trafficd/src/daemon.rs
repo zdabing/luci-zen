@@ -27,6 +27,7 @@ pub struct Daemon {
 
     pub realtime: crate::realtime::RealtimeHistory,
     pub wan: crate::wan::WanUsage,
+    pub notifications: crate::notifications::Notifications,
     pub wifi: crate::wifi::WifiCache,
     pub local_prefixes: Vec<(i32, Vec<u8>, u32)>,
 
@@ -66,6 +67,7 @@ impl Daemon {
 
         let db = Db::open(&cfg.db_path)?;
         let wan = crate::wan::WanUsage::load(&db, now)?;
+        let notifications = crate::notifications::Notifications::load(&db)?;
 
         let mut devs: HashMap<MacKey, DevState> = HashMap::new();
         let mut user_hosts: HashMap<String, String> = HashMap::new();
@@ -149,6 +151,7 @@ impl Daemon {
             wifi: crate::wifi::WifiCache::default(),
             realtime: crate::realtime::RealtimeHistory::default(),
             wan,
+            notifications,
             local_prefixes: Vec::new(),
             last_tick_mono: 0,
             last_attr_mono: 0,
@@ -179,6 +182,7 @@ impl Daemon {
         let now_mono = now_mono_ms();
         let now = now_epoch();
         let wan_started = self.wan.begin_if_synced(now);
+        self.wan.set_day(now);
         if wan_started { self.up_prev.clear(); }
         let dt = if self.last_tick_mono > 0 {
             now_mono.saturating_sub(self.last_tick_mono)
@@ -271,6 +275,7 @@ impl Daemon {
 
         // ---- 6) checkpoint ----
         accounting::checkpoint_tick(self);
+        self.notifications.tick(&self.db, &self.wan, &self.devs, now, now_mono);
     }
 
     /// 属性合并：netlink（links/neigh）+ DHCP 文件 + hostapd

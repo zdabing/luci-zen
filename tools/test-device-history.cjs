@@ -20,6 +20,7 @@ const rpc = {declare: spec => (...args) => {
 }};
 const view = new Function('view', 'rpc', 'trafficStyle', '_', 'L', 'document', 'console', source)(
   {extend: x => x}, rpc, {}, x => x, {bind: (fn, ctx) => fn.bind(ctx)}, {hidden: false}, {warn() {}});
+view.usageSummary={replaceChildren(){}};view.ranking={replaceChildren(){}};view.scope='all';view.resetButton={};view.scopeNote={};view.drawAnalysis=()=>{};
 view.chart = {textContent: ''}; view.statusText = {textContent: ''};
 view.draw = data => {rendered.push(data);view.lastResult = data;};
 (async () => {

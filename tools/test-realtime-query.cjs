@@ -1,7 +1,7 @@
 // Preset queries must follow router time and propagate nonzero ubus results.
 const fs = require('node:fs'),path = require('node:path'),assert = require('node:assert/strict');
 const source = fs.readFileSync(process.argv[2] || path.join(__dirname,
-  '../luci-app-zen-traffic/htdocs/luci-static/resources/view/zen-traffic/realtime.js'), 'utf8');
+  '../luci-app-zen-traffic/htdocs/luci-static/resources/view/zen-traffic/rate-history.js'), 'utf8');
 const requests = [], serverNow = 1790998101;
 let fail = false, delayStatus;
 const realNow = Date.now;

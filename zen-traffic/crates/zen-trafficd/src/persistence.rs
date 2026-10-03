@@ -181,12 +181,26 @@ mod transaction_tests {
 }
 
 impl Db {
+    #[cfg(test)]
+    pub fn conn_for_test_reject_settings(&self) {
+        self.conn.execute_batch("CREATE TRIGGER reject_settings BEFORE INSERT ON app_settings BEGIN SELECT RAISE(ABORT,'full storage'); END;").unwrap();
+    }
+    #[cfg(test)]
+    pub fn conn_for_test_allow_settings(&self) {
+        self.conn.execute_batch("DROP TRIGGER reject_settings").unwrap();
+    }
     pub fn open(path: &str) -> Result<Db, String> {
         if let Some(dir) = Path::new(path).parent() {
             std::fs::create_dir_all(dir)
                 .map_err(|e| format!("创建 {} 失败: {e}", dir.display()))?;
         }
         let conn = Connection::open(path).map_err(|e| format!("打开 {path} 失败: {e}"))?;
+        #[cfg(unix)]
+        if path != ":memory:" {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))
+                .map_err(|_| "Unable to restrict database permissions".to_owned())?;
+        }
         conn.pragma_update(None, "journal_mode", "WAL")
             .map_err(|e| e.to_string())?;
         conn.pragma_update(None, "synchronous", "NORMAL")
@@ -230,6 +244,12 @@ impl Db {
                  download_bytes INTEGER NOT NULL DEFAULT 0,
                  upload_bytes INTEGER NOT NULL DEFAULT 0
              );
+             CREATE TABLE IF NOT EXISTS wan_daily (
+                 date TEXT NOT NULL, mac TEXT NOT NULL,
+                 download_bytes INTEGER NOT NULL, upload_bytes INTEGER NOT NULL,
+                 PRIMARY KEY(date,mac)
+             );
+             CREATE TABLE IF NOT EXISTS app_settings (name TEXT PRIMARY KEY, value TEXT NOT NULL);
              CREATE TABLE IF NOT EXISTS wan_window (
                  id INTEGER PRIMARY KEY CHECK (id = 1),
                  since INTEGER NOT NULL,
@@ -403,6 +423,15 @@ impl Db {
                     params![mac, integer(download), integer(upload)],
                 ).map_err(|e| e.to_string())?;
             }
+            for ((day, mac), bytes) in &wan.daily {
+                tx.execute("INSERT INTO wan_daily VALUES(?1,?2,?3,?4) ON CONFLICT(date,mac)
+                    DO UPDATE SET download_bytes=excluded.download_bytes,upload_bytes=excluded.upload_bytes",
+                    params![day, mac, integer(bytes.download), integer(bytes.upload)]).map_err(|e| e.to_string())?;
+            }
+            tx.execute("INSERT INTO app_settings VALUES('wan_daily_since',?1) ON CONFLICT(name) DO UPDATE SET value=excluded.value",
+                params![wan.daily_since.to_string()]).map_err(|e| e.to_string())?;
+            let cutoff = crate::state::date_shift(&wan.day, crate::state::RETENTION_DAYS);
+            tx.execute("DELETE FROM wan_daily WHERE date < ?1", params![cutoff]).map_err(|e| e.to_string())?;
         }
         if let Some((before_day, before_month)) = pending.and_then(|p| p.prune_before.as_ref()) {
             tx.execute("DELETE FROM daily_usage WHERE date < ?1", params![before_day])
@@ -416,6 +445,33 @@ impl Db {
     pub fn wan_window(&self) -> Result<Option<(u64, u64, u64)>, String> {
         self.conn.query_row("SELECT since,download_bytes,upload_bytes FROM wan_window WHERE id=1", [],
             |r| Ok((nonnegative(r, 0)?, nonnegative(r, 1)?, nonnegative(r, 2)?))).optional().map_err(|e| e.to_string())
+    }
+
+    pub fn wan_daily(&self) -> Result<std::collections::BTreeMap<(String, String), crate::wan::Bytes>, String> {
+        let mut query = self.conn.prepare("SELECT date,mac,download_bytes,upload_bytes FROM wan_daily").map_err(|e| e.to_string())?;
+        let rows = query.query_map([], |r| Ok(((r.get(0)?, r.get(1)?), crate::wan::Bytes {
+            download: nonnegative(r, 2)?, upload: nonnegative(r, 3)?,
+        }))).map_err(|e| e.to_string())?;
+        rows.collect::<Result<_, _>>().map_err(|e| e.to_string())
+    }
+
+    pub fn setting(&self, name: &str) -> Result<Option<String>, String> {
+        self.conn.query_row("SELECT value FROM app_settings WHERE name=?1", params![name], |r| r.get(0))
+            .optional().map_err(|e| e.to_string())
+    }
+
+    pub fn save_setting(&self, name: &str, value: &str) -> Result<(), String> {
+        self.conn.execute("INSERT INTO app_settings VALUES(?1,?2) ON CONFLICT(name) DO UPDATE SET value=excluded.value",
+            params![name, value]).map(|_| ()).map_err(|e| e.to_string())
+    }
+
+    pub fn save_settings(&self, values: &[(&str, String)]) -> Result<(), String> {
+        let tx = self.conn.unchecked_transaction().map_err(|_| "Unable to save settings".to_owned())?;
+        for (name, value) in values {
+            tx.execute("INSERT INTO app_settings VALUES(?1,?2) ON CONFLICT(name) DO UPDATE SET value=excluded.value",
+                params![name, value]).map_err(|_| "Unable to save settings".to_owned())?;
+        }
+        tx.commit().map_err(|_| "Unable to save settings".to_owned())
     }
 
     pub fn wan_devices(&self) -> Result<Vec<(String, u64, u64)>, String> {
@@ -510,6 +566,7 @@ impl Db {
             .execute("DELETE FROM monthly_usage WHERE mac = ?1", params![mac])
             .map_err(|e| e.to_string())?;
         tx.execute("DELETE FROM wan_devices WHERE mac=?1", params![mac]).map_err(|e| e.to_string())?;
+        tx.execute("DELETE FROM wan_daily WHERE mac=?1", params![mac]).map_err(|e| e.to_string())?;
         tx.commit().map_err(|e| e.to_string())
     }
 

@@ -24,6 +24,7 @@ mod totals;
 mod ubus;
 mod wifi;
 mod wan;
+mod notifications;
 
 use state::Config;
 

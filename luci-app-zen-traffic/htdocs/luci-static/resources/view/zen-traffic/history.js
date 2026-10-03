@@ -1,6 +1,8 @@
 'use strict';
 'require view';
 'require rpc';
+'require ui';
+'require view.zen-traffic.rate-history as rateHistory';
 'require view.zen-traffic.style as trafficStyle';
 
 /*
@@ -40,6 +42,8 @@ const callAllHistory = rpc.declare({
 	params: ['agg'],
 	reject: true
 });
+const callInternetHistory = rpc.declare({object:'zen.traffic',method:'getInternetHistory',params:['agg','mac'],reject:true});
+const callReset = rpc.declare({object:'zen.traffic',method:'resetDevice',params:['mac'],reject:true});
 
 function fmtBytes(n) {
 	n = Math.max(0, Number(n) || 0);
@@ -109,6 +113,7 @@ return view.extend({
 	handleSave: null,
 	handleReset: null,
 	agg: 'day',
+	scope: 'internet',
 	mac: '',
 	chart: null,
 	labels: {},
@@ -123,6 +128,7 @@ return view.extend({
 	render(data) {
 		const status = data[0];
 		const devs = (data[1] && data[1].dev) || [];
+		this.mac = new URLSearchParams(window.location.search).get('mac') || '';
 
 		injectStyles();
 		trafficStyle.inject();
@@ -148,21 +154,33 @@ return view.extend({
 			this.tabBtn('day', _('Daily (90 days)')),
 			this.tabBtn('month', _('Monthly (12 months)'))
 		]);
+		const scope = E('select', {'aria-label': _('Traffic scope'), change: ev => {
+			this.scope = ev.target.value; this.refresh();
+		}}, [E('option',{value:'internet'},_('Internet only')),E('option',{value:'all'},_('Internet + local (existing history)'))]);
+		const reset = E('button', {type:'button','class':'cbi-button cbi-button-negative',click:()=>this.resetSelected()}, _('Reset selected device counters'));
+		this.resetButton = reset;
+		this.rateView = Object.create(rateHistory);
 
 		const root = E('div', { 'class': 'cbi-map zen-traffic-page', 'id': 'zen-traffic-history' }, [
-			E('h2', {}, _('Traffic History')),
+			E('h2', {}, _('History analysis')),
 			E('div', { 'class': 'cbi-map-descr' },
-				_('Daily and monthly device usage, including internet and local traffic seen by the router.')),
+				_('Compare recorded usage by date and device, then inspect past internet rates. Current speeds are in Realtime monitoring.')),
 			E('div', { 'class': 'cbi-section zen-tf-controls' }, [
 				E('label', { 'for': 'zen-tf-history-device' }, _('Device')), sel,
-				tabs
+				tabs, E('label', {}, [_('Traffic scope'), scope]), reset
 			]),
 			E('div', { 'class': 'cbi-section' },
 				[this.statusText = E('p', { 'class': 'zen-tf-status', role: 'status' }),
-				(this.chart = E('div', { 'class': 'zen-tf-chart' }, []))])
+				this.scopeNote = E('p', {'class':'zen-app-muted'}),
+				this.usageSummary = E('div', {'class':'zen-rt-summary'}),
+				(this.chart = E('div', { 'class': 'zen-tf-chart' }, []))]),
+			E('section',{'class':'cbi-section'},[E('h3',{},_('Device usage ranking')),this.ranking = E('div')]),
+			this.rateView.render({data:{samples:[],interfaces:[],step:5}})
 		]);
 
 		this.sel = sel;
+		this.sel.value = this.mac;
+		this.rateView.query();
 		if (this.resizeObserver) this.resizeObserver.disconnect();
 		if (typeof ResizeObserver !== 'undefined') {
 			this.resizeObserver = new ResizeObserver(() => {
@@ -201,20 +219,63 @@ return view.extend({
 
 		const request = this.request = (this.request || 0) + 1;
 		this.statusText.textContent = _('Loading history…');
-		const query = this.mac ? callHistory(this.agg, this.mac) : callAllHistory(this.agg);
+		this.resetButton.disabled = !this.mac;
+		this.scopeNote.textContent = this.scope === 'internet' ?
+			_('Internet-only daily records start when this version is installed and retain 90 days. Monthly bars sum these retained days. Older mixed records cannot be converted.') :
+			_('Existing history includes internet and local transfers: 90 days of daily records and 12 months of monthly records.');
+		const query = this.scope === 'internet' ? callInternetHistory(this.agg, this.mac).then(r=>JSON.parse(r.json)) :
+			(this.mac ? callHistory(this.agg, this.mac) : callAllHistory(this.agg));
 		return query.then(L.bind((res) => {
 			if (request === this.request) {
 				this.statusText.textContent = '';
 				this.draw(res);
+				this.drawAnalysis(res);
 			}
 		}, this)).catch((e) => {
 			if (request === this.request) {
 				this.statusText.textContent = _('Unable to load history. Please try again.');
 				this.chart.textContent = '';
+				this.usageSummary.replaceChildren(); this.ranking.replaceChildren();
 				this.lastResult = null;
 			}
 			console.warn('zen-traffic history', e);
 		});
+	},
+
+	resetSelected() {
+		if (!this.mac) return;
+		const mac = this.mac, name = this.sel.selectedOptions[0].textContent;
+		ui.showModal(_('Reset counters'), [E('p',{},_('Reset all counters for %s?').format(name)),
+			E('div',{'class':'zen-tf-modal-actions'},[
+				E('button',{type:'button','class':'btn',click:ui.hideModal},_('Cancel')),
+				E('button',{type:'button','class':'btn cbi-button-negative',click:()=>{
+					ui.hideModal(); callReset(mac).then(()=>this.refresh()).catch(()=>ui.addNotification(null,E('p',{},_('Unable to reset device counters.'))));
+				}},_('Reset counters'))])]);
+	},
+
+	drawAnalysis(res) {
+		const rows = res.days || res.months || [];
+		const totals = rows.reduce((s,r)=>({upload:s.upload+(r.upload||0),download:s.download+(r.download||0)}),{upload:0,download:0});
+		this.usageSummary.replaceChildren(...[[ _('Recorded upload'), totals.upload, 'zen-tf-ul'],[_('Recorded download'),totals.download,'zen-tf-dl']]
+			.map(([label,value,cls])=>E('div',{},[E('span',{},label),E('strong',{'class':cls},fmtBytes(value))])));
+		this.ranking.replaceChildren();
+		if (this.scope !== 'internet') {
+			this.ranking.appendChild(E('p',{'class':'zen-app-muted'},_('Choose Internet only to compare devices with the upstream total.'))); return;
+		}
+		this.ranking.appendChild(E('p',{'class':'zen-app-muted'},_('Ranking covers the same retained 90-day internet window. Percentages use the upstream total; unassigned traffic is shown separately.')));
+		const names = new Map(Array.from(this.sel.options).map(o=>[o.value,o.textContent]));
+		const total = (res.network_upload || 0) + (res.network_download || 0);
+		const table = E('table',{'class':'table zen-analysis-table'},[
+			E('thead',{},E('tr',{},[_('Device'),_('Upload'),_('Download'),_('Share')].map(t=>E('th',{scope:'col'},t)))),
+			E('tbody',{},(res.ranking || []).map(r=>E('tr',{},[
+				E('td',{},names.get(r.mac)||r.mac),E('td',{'class':'zen-tf-ul'},fmtBytes(r.upload)),
+				E('td',{'class':'zen-tf-dl'},fmtBytes(r.download)),E('td',{},total ? ((r.upload+r.download)*100/total).toFixed(1)+'%' : '—')
+			]))) ]);
+		this.ranking.appendChild(table);
+		if (res.unassigned_upload || res.unassigned_download)
+			this.ranking.appendChild(E('p',{},_('Unassigned') + ': ↑ '+fmtBytes(res.unassigned_upload)+' · ↓ '+fmtBytes(res.unassigned_download)));
+		if (res.excess_upload || res.excess_download)
+			this.ranking.appendChild(E('p',{'class':'alert-message warning'},_('Attributed device usage exceeds the upstream total; percentages may exceed 100%.')));
 	},
 
 	draw(res) {

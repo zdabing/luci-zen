@@ -40,11 +40,15 @@ const fn cs(s: &'static [u8]) -> *const c_char {
 // ubus 方法表
 // ---------------------------------------------------------------------------
 
-static METHODS: [ubus::ubus_method; 9] = [
+static METHODS: [ubus::ubus_method; 13] = [
     m(b"getStatus\0", handle_get_status),
     m(b"getDevices\0", handle_get_devices),
     m(b"getTotal\0", handle_get_total),
     m(b"getWanUsage\0", handle_get_wan_usage),
+    m(b"getInternetHistory\0", handle_get_internet_history),
+    m(b"getNotifications\0", handle_get_notifications),
+    m(b"setNotifications\0", handle_set_notifications),
+    m(b"testNotification\0", handle_test_notification),
     m(b"getHistory\0", handle_get_history),
     m(b"getRealtimeHistory\0", handle_get_realtime_history),
     m(b"setHostname\0", handle_set_hostname),
@@ -91,6 +95,58 @@ unsafe fn send(ctx: *mut ubus::ubus_context, req: *mut ubus::ubus_request_data, 
 // ---------------------------------------------------------------------------
 // handlers
 // ---------------------------------------------------------------------------
+
+unsafe fn send_json(ctx: *mut ubus::ubus_context, req: *mut ubus::ubus_request_data, value: serde_json::Value) -> c_int {
+    let mut b = reply(ctx, req);
+    add_str(&mut b, b"json\0", &value.to_string());
+    send(ctx, req, &mut b);
+    ubus::UBUS_STATUS_OK
+}
+
+unsafe extern "C" fn handle_get_internet_history(ctx: *mut ubus::ubus_context, _obj: *mut ubus::ubus_object,
+    req: *mut ubus::ubus_request_data, _method: *const c_char, msg: *mut ubus::blob_attr) -> c_int {
+    let (mut agg, mut mac) = ("day".to_owned(), String::new());
+    for a in ubus::parse_msg(msg) {
+        match a.name {
+            Some("agg") => match a.as_str() { Some("day" | "month") => agg = a.as_str().unwrap().into(), _ => return ubus::UBUS_STATUS_INVALID_ARGUMENT },
+            Some("mac") => match a.as_str() { Some(s) if s.is_empty() || parse_mac(s).is_some() => mac = s.to_ascii_lowercase(), _ => return ubus::UBUS_STATUS_INVALID_ARGUMENT },
+            _ => {}
+        }
+    }
+    match with_daemon(|d| d.wan.history(&agg, &mac)) {
+        Some(v) => send_json(ctx, req, v), None => ubus::UBUS_STATUS_NOT_SUPPORTED,
+    }
+}
+
+unsafe extern "C" fn handle_get_notifications(ctx: *mut ubus::ubus_context, _obj: *mut ubus::ubus_object,
+    req: *mut ubus::ubus_request_data, _method: *const c_char, _msg: *mut ubus::blob_attr) -> c_int {
+    match with_daemon(|d| d.notifications.public(&d.wan)) {
+        Some(v) => send_json(ctx, req, v), None => ubus::UBUS_STATUS_NOT_SUPPORTED,
+    }
+}
+
+unsafe extern "C" fn handle_set_notifications(ctx: *mut ubus::ubus_context, _obj: *mut ubus::ubus_object,
+    req: *mut ubus::ubus_request_data, _method: *const c_char, msg: *mut ubus::blob_attr) -> c_int {
+    let input = ubus::parse_msg(msg).into_iter().find(|a| a.name == Some("json")).and_then(|a| a.as_str().map(str::to_owned));
+    let Some(input) = input else { return ubus::UBUS_STATUS_INVALID_ARGUMENT; };
+    match with_daemon(|d| d.notifications.configure(&d.db, &input)) {
+        Some(Ok(())) => send_json(ctx, req, serde_json::json!({"ok":true})),
+        // Errors are fixed strings; never return request text, URLs or secrets.
+        Some(Err(e)) => send_json(ctx, req, serde_json::json!({"ok":false,"error":e})),
+        None => ubus::UBUS_STATUS_NOT_SUPPORTED,
+    }
+}
+
+unsafe extern "C" fn handle_test_notification(ctx: *mut ubus::ubus_context, _obj: *mut ubus::ubus_object,
+    req: *mut ubus::ubus_request_data, _method: *const c_char, msg: *mut ubus::blob_attr) -> c_int {
+    let channel = ubus::parse_msg(msg).into_iter().find(|a| a.name == Some("channel")).and_then(|a| a.as_str().map(str::to_owned));
+    let Some(channel) = channel else { return ubus::UBUS_STATUS_INVALID_ARGUMENT; };
+    match with_daemon(|d| d.notifications.test(&d.db, &channel, now_epoch(), crate::state::now_mono_ms())) {
+        Some(Ok(())) => send_json(ctx, req, serde_json::json!({"ok":true})),
+        Some(Err(e)) => send_json(ctx, req, serde_json::json!({"ok":false,"error":e})),
+        None => ubus::UBUS_STATUS_NOT_SUPPORTED,
+    }
+}
 
 /// getStatus → { backend, offload, since, version, interval_ms, devices, synced }
 unsafe extern "C" fn handle_get_status(
@@ -176,6 +232,10 @@ unsafe extern "C" fn handle_get_devices(
                 ubus::blobmsg_add_u64(&mut b, cs(b"last\0"), s.last_active);
                 ubus::blobmsg_add_u64(&mut b, cs(b"rx_r\0"), s.rx_r());
                 ubus::blobmsg_add_u64(&mut b, cs(b"tx_r\0"), s.tx_r());
+                ubus::blobmsg_add_u64(&mut b, cs(b"wan_rx_r\0"), s.wan_rx_r);
+                ubus::blobmsg_add_u64(&mut b, cs(b"wan_tx_r\0"), s.wan_tx_r);
+                ubus::blobmsg_add_u64(&mut b, cs(b"lan_rx_r\0"), s.lan_rx_r);
+                ubus::blobmsg_add_u64(&mut b, cs(b"lan_tx_r\0"), s.lan_tx_r);
                 ubus::blobmsg_add_u64(&mut b, cs(b"rx_today\0"), s.rx_today);
                 ubus::blobmsg_add_u64(&mut b, cs(b"tx_today\0"), s.tx_today);
                 ubus::blobmsg_add_u64(&mut b, cs(b"rx_month\0"), s.rx_month);
@@ -493,7 +553,7 @@ unsafe extern "C" fn handle_reset_device(
     match with_daemon(|d| -> Result<(), String> {
         d.db.reset_device(&mac_l)?;
         d.pending_periods.remove_device(&mac_l);
-        d.wan.devices.remove(&m);
+        d.wan.remove_device(m);
         if let Some(s) = d.devs.get_mut(&m) {
             s.rx_today = 0;
             s.tx_today = 0;
