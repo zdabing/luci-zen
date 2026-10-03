@@ -32,7 +32,7 @@ jobs:
       - name: Build matching libubox and libubus for unit tests
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake libjson-c-dev clang
+          sudo apt-get install -y cmake libjson-c-dev clang libbpf-dev iproute2
           PREFIX="$RUNNER_TEMP/zen-ubus"
           git clone https://github.com/openwrt/libubox.git "$RUNNER_TEMP/libubox"
           git -C "$RUNNER_TEMP/libubox" checkout 7dd127841e82eb1cfb61185da37dde7b9bd9ba6d
@@ -75,6 +75,17 @@ jobs:
       - name: cargo test
         working-directory: zen-traffic
         run: cargo test --workspace
+
+      - name: Real kernel two-interface attachment regression
+        working-directory: zen-traffic
+        run: |
+          clang -O2 -g -target bpf -I/usr/include/x86_64-linux-gnu \
+            -c bpf/zen_traffic.bpf.c -o "$RUNNER_TEMP/zen-multi-interface.bpf.o"
+          cargo test -p zen-bpf --test multi_interface --no-run --message-format=json \
+            > "$RUNNER_TEMP/zen-multi-interface-test.jsonl"
+          TEST_BINARY=$(python3 -c 'import json,sys; rows=[json.loads(line) for line in open(sys.argv[1])]; print(next(row["executable"] for row in rows if row.get("executable") and row.get("target",{}).get("name")=="multi_interface"))' "$RUNNER_TEMP/zen-multi-interface-test.jsonl")
+          sudo env ZEN_BPF_TEST_OBJECT="$RUNNER_TEMP/zen-multi-interface.bpf.o" \
+            "$TEST_BINARY" --nocapture
 
   ebpf-compile:
     name: eBPF compile

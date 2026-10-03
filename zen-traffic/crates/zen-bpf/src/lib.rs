@@ -123,8 +123,12 @@ pub fn attach(
         .try_into()
         .map_err(|_| format!("program {prog_name} 不是 SchedClassifier"))?;
 
-    prog.load()
-        .map_err(|e| format!("{prog_name} load 失败: {e}"))?;
+    // One program and its maps serve all configured interfaces. Loading it again
+    // on the second interface fails with AlreadyLoaded in Aya.
+    if prog.fd().is_err() {
+        prog.load()
+            .map_err(|e| format!("{prog_name} load 失败: {e}"))?;
+    }
 
     prog.attach(iface, ty)
         .map_err(|e| format!("{prog_name} attach {iface}/{ty:?} 失败: {e}"))
