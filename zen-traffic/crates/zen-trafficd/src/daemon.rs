@@ -205,7 +205,11 @@ impl Daemon {
                     let wan_tx = dd(s.cur.wan_tx_b, s.prev.wan_tx_b);
                     let lan_rx = dd(s.cur.lan_rx_b, s.prev.lan_rx_b);
                     let lan_tx = dd(s.cur.lan_tx_b, s.prev.lan_tx_b);
-                    if !wan_started { self.wan.device_delta(row.mac, wan_rx, wan_tx); }
+                    // The first tick also establishes the interface baseline.
+                    // Exclude it from the new ledger even for restored devices.
+                    if !wan_started && self.last_tick_mono != 0 {
+                        self.wan.device_delta(row.mac, wan_rx, wan_tx);
+                    }
 
                     s.wan_rx_r = wan_rx * 1000 / dt;
                     s.wan_tx_r = wan_tx * 1000 / dt;
