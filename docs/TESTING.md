@@ -373,6 +373,25 @@ LAN/WAN 混合历史补算。新增 `wan_devices`、`wan_window` 表与旧设备
 新版 r5 与 app/theme r2 的目标出包、安装、WAN/LAN 定向传输、持久化恢复与实际页面
 验证尚未完成，因此没有据此将 P0/P1 整项勾选。
 
+### 多接口启动失败的隔离复现（2026-10-03）
+
+使用部署 r3，在路由器临时创建两个无地址、无路由的 dummy 接口，以独立 RAM
+数据库启动另一个 daemon，重复传入两个 `-i` 参数。首接口成功附着，第二个接口
+报 `zen_ingress load 失败: the program is already loaded`，测试实例退出，两个接口
+上的 TCX ingress/egress 均为零。问题在 `zen_bpf::attach` 每次附着时都调用
+`prog.load()`；[Aya 0.14 的 AlreadyLoaded 错误](https://github.com/aya-rs/aya/blob/aya-v0.14.0/aya/src/programs/mod.rs)
+与实际日志一致。当前源码仍保留这条重复加载路径，因此不声明多接口已支持。
+
+临时接口、查询程序、日志与 RAM 数据库均已清理，生产 PID 和配置 SHA256 不变。
+没有改动 `br-lan`、WAN、默认路由或家庭设备配置。此测试证明启动缺陷，不是桥接/
+跨 VLAN 数据准确性验证。当前单接口部署不受此复现路径影响；完成新版默认拓扑的
+出包/安装验收后，再修复为加载一次、附着多个接口并验证每个接口的清理与计数。
+
+只读拓扑检查确认路由器提供 iproute2 和 veth 内核模块，但没有 `unshare`/`nsenter`
+工具；尚未创建网络命名空间或路由拓扑，也没有用这些工具的存在代替数据面验收。
+NAS SSH 仍关闭。物理桥接/跨 VLAN 测试仍需实际可控路径，或另行记录隔离软件拓扑
+的适用范围。
+
 ### P0/P1 剩余证据
 
 R5C 新增包验证使用 [R5C pinned package acceptance](../.github/workflows/r5c-acceptance.yml)，
