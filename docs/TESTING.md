@@ -418,8 +418,16 @@ app r3 的设备、日/月历史、实时历史页面共享 Zen 颜色和卡片�
 
 新增 `test-device-history.cjs`、`test-realtime-query.cjs` 与 `test-history-bars.cjs`
 覆盖参数序列化、时钟偏差、错误/过期响应，以及柱高比例、零用量、日期和点击/聚焦读数。
-FFI 新增 null/空字符串/数值类型测试，需在原生 Rust CI 中验证；本地 JS、SQLite 和
-两包翻译检查通过。完整固件提速、最新包部署及其 WAN 归因验收仍待完成。
+FFI 新增 null/空字符串/数值类型测试；[CI #37094354943](https://github.com/zdabing/luci-zen/actions/runs/37094354943)
+的 Rust、x86_64/AArch64 musl ABI、eBPF、前端与 SQLite 回归全部通过。本地 JS、SQLite 和
+两包翻译检查也通过。完整固件提速、最新包部署及其 WAN 归因验收仍待完成。
+
+此前提交 `6323ee1` 的 [R5C 包构建 #37089428376](https://github.com/zdabing/luci-zen/actions/runs/37089428376)
+已成功产出 backend r5/app r2/theme r2，下载后核对 ZIP 和三个 APK 的 SHA256。
+记录的工具、工具链、内核、backend、app、theme 编译阶段分别为
+672/1020/389/1720/34/8 秒，共 3843 秒；这次是冷构建目标依赖和三个包，不能据此
+推算整套固件或 Rust 缓存提速。[最新构建 #37094352012](https://github.com/zdabing/luci-zen/actions/runs/37094352012)
+针对 `ed31a70` 的 backend r6/app r4/theme r2，尚待完成。未部署这些已下载的旧版包覆盖页面热修复。
 
 ### 多接口启动失败的隔离复现（2026-10-03）
 
