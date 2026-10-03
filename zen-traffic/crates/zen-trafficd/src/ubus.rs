@@ -200,12 +200,10 @@ unsafe extern "C" fn handle_get_total(
 ) -> c_int {
     let mut b = reply(ctx, req);
 
-    // 实时速率：netlink 上游接口差分；today/month：DB SUM（口径与设备归因一致）；
-    // lifetime：devices 表 SUM
+    // 实时速率：netlink 上游接口差分；用量：与设备 API 相同的 RAM 当前值。
+    // SQLite 仍批量落盘，读取汇总不应额外等待 checkpoint 或触发写入。
     let stats = with_daemon(|d| {
-        let (rt, tt) = sum_day(d, &d.cur_day);
-        let (rm, tm) = sum_month(d, &d.cur_month);
-        let (lr, lt) = d.db.lifetime_totals();
+        let [rt, tt, rm, tm, lr, lt] = crate::state::usage_totals(d.devs.values());
         (d.rx_r, d.tx_r, rt, tt, rm, tm, lr, lt)
     })
     .unwrap_or((0, 0, 0, 0, 0, 0, 0, 0));
@@ -221,30 +219,6 @@ unsafe extern "C" fn handle_get_total(
     ubus::blobmsg_add_u64(&mut b, cs(b"tx_total\0"), tx_total);
     send(ctx, req, &mut b);
     ubus::UBUS_STATUS_OK
-}
-
-fn sum_day(d: &Daemon, date: &str) -> (u64, u64) {
-    d.db
-        .history_days(None, date, date)
-        .map(|rows| {
-            rows.iter()
-                .fold((0u64, 0u64), |(a, b), (_, dl, ul)| {
-                    (a + (*dl).max(0) as u64, b + (*ul).max(0) as u64)
-                })
-        })
-        .unwrap_or((0, 0))
-}
-
-fn sum_month(d: &Daemon, month: &str) -> (u64, u64) {
-    d.db
-        .history_months(None, month, month)
-        .map(|rows| {
-            rows.iter()
-                .fold((0u64, 0u64), |(a, b), (_, dl, ul)| {
-                    (a + (*dl).max(0) as u64, b + (*ul).max(0) as u64)
-                })
-        })
-        .unwrap_or((0, 0))
 }
 
 /// getHistory {mac?, agg?("day"|"month"), start_ms?, end_ms?}
