@@ -162,10 +162,17 @@ def snapshot(label):
               'monthly':rows('SELECT * FROM monthly_usage ORDER BY mac,month'),
               'wan_devices':rows('SELECT * FROM wan_devices ORDER BY mac'),
               'wan_window':rows('SELECT * FROM wan_window'), 'hashes':hashes}
+    if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='wan_daily'").fetchone():
+        result['wan_daily']=rows('SELECT * FROM wan_daily ORDER BY date,mac')
     conn.close()
     assert result['integrity']==[('ok',)], result['integrity']
     report['phases'][label]=result
     return result
+
+def accounting_tables(snapshot):
+    tables=['devices','daily','monthly','wan_devices','wan_window']
+    if 'wan_daily' in snapshot:tables.append('wan_daily')
+    return tables
 
 def transfer(size):
     # HTTP Content-Length and curl's received count verify the whole body reached the client.
@@ -181,6 +188,11 @@ def set_fixture_epoch(epoch):
     # Replace an owned control file atomically outside the full test volume.
     run('cat > '+base+'/epoch.new', (str(epoch)+'\n').encode('ascii'))
     run('mv '+base+'/epoch.new '+base+'/epoch')
+
+def interface_bytes():
+    values=ns(ns_router, 'cat /sys/class/net/'+router_port+'/statistics/rx_bytes '+
+              '/sys/class/net/'+router_port+'/statistics/tx_bytes').decode().split()
+    return dict(zip(('rx_bytes','tx_bytes'),map(int,values)))
 
 try:
     assert run('id -u').strip()==b'0', 'Router test requires root'
@@ -272,7 +284,7 @@ try:
                                'configured_checkpoint_seconds':30, 'poll_interval_ms':1000}
     report['retry_bounded']=report['retry_observation']['additional_attempts']<=1
     failed=snapshot('during-fault')
-    for table in ('devices','daily','monthly','wan_devices','wan_window'):
+    for table in accounting_tables(before):
         assert failed[table]==before[table], ('Partial commit while disk was full',table)
     during_map=hooks(ns_router,router_port,'stats')
     old=next(d for d in before_map if d['mac']==mac)
@@ -287,7 +299,7 @@ try:
             set_fixture_epoch(epoch)
             wait_for(lambda date=date:date in log(),5,'isolated calendar switch to '+date)
             unchanged=snapshot('failed-rollover-'+date)
-            for table in ('devices','daily','monthly','wan_devices','wan_window'):
+            for table in accounting_tables(before):
                 assert unchanged[table]==before[table],('Partial rollover commit while full',table)
             report['samples'].append({'date':date,'transfer':transfer(8*1048576)})
             fault_payload+=8*1048576
@@ -295,6 +307,12 @@ try:
         offline_epoch=fixture_epochs[-1]+601
         set_fixture_epoch(offline_epoch)
         time.sleep(1.2)
+    # A quiet HTTP client does not imply a quiet interface: ARP/IPv6 control
+    # packets can still increase its WAN ledger. Stop only the owned fixture
+    # link and allow the final sample before testing exact retry idempotence.
+    ns(ns_router,'ip link set '+router_port+' down')
+    time.sleep(2.2)
+    report['interface_frozen']=interface_bytes()
     previous_successes=log().count('checkpoint 完成')
     run('rm -f '+dbdir+'/owned-fill')
     wait_for(lambda:log().count('checkpoint 完成')>previous_successes, 40,'checkpoint recovery')
@@ -318,6 +336,17 @@ try:
         for month in months:assert abs(months[month]['download_bytes']/(16*1048576)-1)<=.1,months[month]
         report['rollover_recovery_passed']=True
     assert recovered['wan_window'][0]['since']==before['wan_window'][0]['since']
+    if 'wan_daily' in recovered:
+        for device in recovered['wan_devices']:
+            daily=[row for row in recovered['wan_daily'] if row['mac']==device['mac']]
+            for direction in ('download_bytes','upload_bytes'):
+                assert sum(row[direction] for row in daily)==device[direction],('Internet daily device mismatch',device['mac'],direction)
+        network=[row for row in recovered['wan_daily'] if row['mac']=='']
+        for direction in ('download_bytes','upload_bytes'):
+            assert sum(row[direction] for row in network)==recovered['wan_window'][0][direction],('Internet daily network mismatch',direction)
+        if args.rollover:
+            assert {row['date'] for row in recovered['wan_daily'] if row['mac']==mac}==set(fixture_dates)
+        report['internet_daily_recovery_passed']=True
     mixed_delta=device_after['rx_total']-device_before['rx_total']
     wan_delta=wan_after['download_bytes']-wan_before['download_bytes']
     report['recovery']={'mixed_download_delta':mixed_delta,'wan_download_delta':wan_delta,
@@ -332,7 +361,9 @@ try:
     previous_successes=log().count('checkpoint 完成')
     wait_for(lambda:log().count('checkpoint 完成')>previous_successes,35,'idempotent next batch')
     repeat=snapshot('repeat-checkpoint')
-    for table in ('devices','daily','monthly','wan_devices','wan_window'):
+    report['interface_at_repeat']=interface_bytes()
+    assert report['interface_at_repeat']==report['interface_frozen'],'Fixture interface still carried traffic'
+    for table in accounting_tables(recovered):
         assert repeat[table]==recovered[table], ('Counters duplicated on retry',table)
     report['repeat_idempotent']=True
     report['passed']=report['retry_bounded']
