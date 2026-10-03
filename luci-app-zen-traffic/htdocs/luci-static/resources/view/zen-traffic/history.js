@@ -264,10 +264,22 @@ return view.extend({
 		}
 
 		const tip = E('div', { 'class': 'zen-history-tip', role: 'tooltip', hidden: true });
+		const positionTip = ev => {
+			if (!ev) return;
+			const box = el.getBoundingClientRect(), anchor = (ev.currentTarget || chartSvg).getBoundingClientRect();
+			const px = (Number.isFinite(ev.clientX) ? ev.clientX : anchor.left + anchor.width / 2) - box.left;
+			const py = (Number.isFinite(ev.clientY) ? ev.clientY : anchor.top) - box.top;
+			const tw = tip.offsetWidth, th = tip.offsetHeight, cw = el.clientWidth, ch = el.clientHeight;
+			const tx = px + 12 + tw > cw - 8 ? px - tw - 12 : px + 12;
+			const ty = py - th - 12 < 8 ? py + 12 : py - th - 12;
+			tip.style.left = Math.max(8, Math.min(tx, cw - tw - 8)) + 'px';
+			tip.style.top = Math.max(8, Math.min(ty, ch - th - 8)) + 'px';
+		};
 		const readout = E('div', { 'class': 'zen-tf-readout', role: 'status' });
-		const showRow = (r, active) => {
+		const showRow = (r, active, ev) => {
 			readout.textContent = r.k + ' · ↑ ' + fmtBytes(r.ul) + ' · ↓ ' + fmtBytes(r.dl);
 			tip.textContent = readout.textContent; tip.hidden = !active;
+			if (active) positionTip(ev);
 		};
 		showRow(rows[n - 1]);
 		const points = [];
@@ -280,7 +292,7 @@ return view.extend({
 					rx: Math.min(4, barWidth / 4), tabindex: 0, 'aria-label': label, 'class': 'zen-tf-bar-' + key },
 					[svg('title', {}, [document.createTextNode(label)])]);
 				for (const event of ['mouseenter', 'focus', 'click'])
-					bar.addEventListener(event, () => showRow(r, true));
+					bar.addEventListener(event, ev => showRow(r, true, ev));
 				points.push(bar);
 				if (n === 1)
 					points.push(svg('text', { x: center, y: top - 8, 'text-anchor': 'middle', 'class': 'zen-tf-ax' }, [document.createTextNode(fmtBytes(r[key]))]));
@@ -303,7 +315,7 @@ return view.extend({
 			const bounds = chartSvg.getBoundingClientRect();
 			const px = (ev.clientX - bounds.left) * W / Math.max(1, bounds.width);
 			if (px < PAD_L || px > W - PAD_R) { tip.hidden = true; return; }
-			showRow(rows[Math.min(n - 1, Math.max(0, Math.floor((px - PAD_L) / slot)))], true);
+			showRow(rows[Math.min(n - 1, Math.max(0, Math.floor((px - PAD_L) / slot)))], true, ev);
 		};
 		for (const event of ['pointermove', 'pointerdown', 'click']) chartSvg.addEventListener(event, inspect);
 		chartSvg.addEventListener('pointerleave', () => { tip.hidden = true; });

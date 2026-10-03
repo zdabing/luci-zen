@@ -148,9 +148,20 @@ return view.extend({
   const tip=E('div',{'class':'zen-history-tip',role:'tooltip',hidden:true});
   const readout=E('p',{'class':'zen-rt-readout',role:'status'});
   const cross=svg('line',{y1:top,y2:bottom,'class':'zen-rt-cross',visibility:'hidden'});
-  const select=s=>{
+  const positionTip=ev=>{
+   if(!ev)return;
+   const box=this.chart.getBoundingClientRect(),anchor=(ev.currentTarget||chart).getBoundingClientRect();
+   const px=(Number.isFinite(ev.clientX)?ev.clientX:anchor.left+anchor.width/2)-box.left;
+   const py=(Number.isFinite(ev.clientY)?ev.clientY:anchor.top)-box.top;
+   const tw=tip.offsetWidth,th=tip.offsetHeight,cw=this.chart.clientWidth,ch=this.chart.clientHeight;
+   const tx=px+12+tw>cw-8?px-tw-12:px+12,ty=py-th-12<8?py+12:py-th-12;
+   tip.style.left=Math.max(8,Math.min(tx,cw-tw-8))+'px';
+   tip.style.top=Math.max(8,Math.min(ty,ch-th-8))+'px';
+  };
+  const select=(s,ev)=>{
    readout.textContent=new Date(s.time*1000).toLocaleString()+' · ↑ '+rate(s.upload)+' · ↓ '+rate(s.download);
    tip.textContent=readout.textContent;tip.hidden=false;
+   positionTip(ev);
    cross.setAttribute('x1',x(s.time));cross.setAttribute('x2',x(s.time));cross.setAttribute('visibility','visible');
   };
   for(let i=0;i<=4;i++) {
@@ -168,7 +179,7 @@ return view.extend({
     if(i&&s.time-samples[i-1].time>this.data.step*1.5) flush();
     segment.push(s);
     const dot=svg('circle',{cx:x(s.time),cy:y(s[key],key),r:samples.length===1?4:2,tabindex:0,'aria-label':new Date(s.time*1000).toLocaleString()+' · '+rate(s[key]),fill:cls==='dl'?'var(--dl,#15803d)':'var(--ul,#ea580c)'});
-    for(const event of ['focus','click'])dot.addEventListener(event,()=>select(s));
+    for(const event of ['focus','click'])dot.addEventListener(event,ev=>select(s,ev));
     dot.appendChild(svg('title',{},new Date(s.time*1000).toLocaleString()+' · '+(key==='upload'?_('Upload'):_('Download'))+': '+rate(s[key])));chart.appendChild(dot);
    });flush();
   }
@@ -181,7 +192,7 @@ return view.extend({
    if(px<left||px>right){tip.hidden=true;cross.setAttribute('visibility','hidden');return;}
    const time=start+(px-left)/(right-left)*(end-start);
    const nearest=samples.reduce((best,s)=>Math.abs(s.time-time)<Math.abs(best.time-time)?s:best,samples[0]);
-   select(nearest);
+   select(nearest,ev);
   };
   for(const event of ['pointermove','pointerdown','click'])chart.addEventListener(event,inspect);
   chart.addEventListener('pointerleave',()=>{tip.hidden=true;cross.setAttribute('visibility','hidden');});

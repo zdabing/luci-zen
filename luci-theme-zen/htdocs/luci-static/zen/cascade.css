@@ -3110,9 +3110,9 @@ header .showSide:focus-visible { outline: 2px solid var(--accent); outline-offse
 .zen-dash-history-head { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; gap: 12px; }
 .zen-dash-history-refresh { font-size: 12px; padding: 4px 10px; }
 .zen-dash-device-history { position: relative; min-width: 0; max-width: 100%; overflow-x: auto; padding: 8px; background: var(--bg-nested); border-radius: 12px; color: var(--text-secondary); font-size: 12px; }
-.zen-history-tip { position: absolute; top: 8px; left: 8px; z-index: 2; max-width: calc(100% - 16px); box-sizing: border-box; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg-panel); color: var(--text); box-shadow: 0 4px 16px #00000014; font-size: 12px; line-height: 1.6; font-variant-numeric: tabular-nums; pointer-events: none; }
+.zen-history-tip { position: absolute; top: 8px; left: 8px; z-index: 2; width: max-content; max-width: calc(100% - 16px); box-sizing: border-box; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg-panel); color: var(--text); box-shadow: 0 4px 16px #00000014; font-size: 12px; line-height: 1.6; font-variant-numeric: tabular-nums; pointer-events: none; }
 .zen-history-tip[hidden] { display: none; }
-.zen-dash-device-history svg { display: block; width: 100%; height: auto; }
+.zen-dash-device-history svg { display: block; width: 100%; height: auto; user-select: none; }
 .zen-dash-device-history text { font-size: 11px; fill: var(--text-muted); }
 .zen-dash-device-history .history-grid { stroke: var(--line-strong); stroke-dasharray: 3 4; }
 .zen-dash-history-readout { margin: 4px 0 0; color: var(--text-secondary); font-variant-numeric: tabular-nums; }

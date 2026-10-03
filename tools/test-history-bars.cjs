@@ -3,11 +3,11 @@ const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
 class Element {
-  constructor(tag) { this.tag = tag; this.attrs = {}; this.children = []; this.events = {}; this.clientWidth = 320; }
+  constructor(tag) { this.tag = tag; this.attrs = {}; this.children = []; this.events = {}; this.style = {}; this.offsetWidth=160; this.offsetHeight=40; this.clientHeight=320; this.clientWidth = 320; }
   setAttribute(k, v) { this.attrs[k] = String(v); }
   appendChild(c) { this.children.push(c); return c; }
   addEventListener(k, fn) { this.events[k] = fn; }
-  getBoundingClientRect() { return {left: 0, width: Number(this.attrs.viewBox.split(' ')[2])}; }
+  getBoundingClientRect() { return {left:0, top:0, width:this.attrs.viewBox ? Number(this.attrs.viewBox.split(' ')[2]) : this.clientWidth}; }
   set textContent(v) { this.text = v; this.children = []; }
   get textContent() { return this.text || this.children.map(c => c.textContent).join(''); }
 }
@@ -51,9 +51,13 @@ for (const [agg, count] of [['day', 90], ['month', 12], ['day', 1]]) {
   bars.at(-1).events.focus();
   assert.ok(view.chart.children.at(-1).textContent.startsWith((agg === 'day' ? 'day-' : 'month-') + (count - 1) + ' ·'));
   const chart = find(view.chart, 'svg')[0], tip = view.chart.children[0];
-  chart.events.pointermove({clientX: 87});
+  chart.events.pointermove({clientX: 87, clientY: 140});
   assert.ok(tip.textContent.startsWith((agg === 'day' ? 'day-' : 'month-') + '0 ·'), 'Hovering the plot selects zero-height bars too');
   assert.equal(tip.hidden, false);
+  const firstLeft=tip.style.left;
+  chart.events.pointermove({clientX:150,clientY:220});
+  assert.notEqual(tip.style.left,firstLeft,'The tooltip follows the pointer rather than staying in a fixed corner');
+  assert.ok(parseFloat(tip.style.left)+tip.offsetWidth<=view.chart.clientWidth-8,'Tooltip stays inside the card');
   chart.events.pointerleave(); assert.equal(tip.hidden, true);
   chart.events.pointerdown({clientX: Number(chart.attrs.viewBox.split(' ')[2]) - 21});
   assert.ok(tip.textContent.startsWith((agg === 'day' ? 'day-' : 'month-') + (count - 1) + ' ·'), 'Touch selects the last group');

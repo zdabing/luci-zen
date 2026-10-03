@@ -3,11 +3,11 @@ const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
 class Element {
-  constructor(tag) { this.tag = tag; this.attrs = {}; this.children = []; this.events = {}; this.style = {}; this.clientWidth = 320; }
+  constructor(tag) { this.tag = tag; this.attrs = {}; this.children = []; this.events = {}; this.style = {}; this.offsetWidth=160;this.offsetHeight=40;this.clientHeight=240;this.clientWidth = 320; }
   setAttribute(key, value) { this.attrs[key] = String(value); }
   appendChild(child) { this.children.push(child); return child; }
   addEventListener(event, callback) { this.events[event] = callback; }
-  getBoundingClientRect() { return {left: 0, width: Number(this.attrs.viewBox.split(' ')[2])}; }
+  getBoundingClientRect() { return {left:0,top:0,width:this.attrs.viewBox ? Number(this.attrs.viewBox.split(' ')[2]) : this.clientWidth}; }
   set textContent(value) { this.text = value; this.children = []; }
   get textContent() { return this.text || this.children.map(c => c.textContent).join(''); }
 }
@@ -41,7 +41,10 @@ for (const count of [1,4,14,20]) {
   bars[0].events.click();assert.ok(readout.textContent.startsWith(kept[0].date+' · ↑'));
   bars.at(-1).events.focus();assert.ok(readout.textContent.startsWith(kept.at(-1).date+' · ↑'));
   const chart=find(ent.historyChart,'svg')[0],tip=ent.historyChart.children[0];
-  chart.events.pointermove({clientX:63}); assert.ok(tip.textContent.startsWith(kept[0].date+' · ↑'));
+  chart.events.pointermove({clientX:63,clientY:140}); assert.ok(tip.textContent.startsWith(kept[0].date+' · ↑'));
+  const firstLeft=tip.style.left;chart.events.pointermove({clientX:145,clientY:100});assert.notEqual(tip.style.left,firstLeft);
+  ent.historyChart.scrollLeft=80;chart.events.pointermove({clientX:63,clientY:140});
+  assert.equal(parseFloat(tip.style.left),parseFloat(firstLeft)+80,'Scroll offset keeps the tooltip near the visible pointer');
   assert.equal(tip.hidden,false);chart.events.pointerleave();assert.equal(tip.hidden,true);
   chart.events.pointerdown({clientX:Number(chart.attrs.viewBox.split(' ')[2])-19});
   assert.ok(tip.textContent.startsWith(kept.at(-1).date+' · ↑'),'Tap selects the last date');

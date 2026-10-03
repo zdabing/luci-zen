@@ -64,11 +64,22 @@ function drawHistory(ent, res) {
 	}
 	const readout = E('p', { 'class': 'zen-dash-history-readout', role: 'status' });
 	const tip = E('div', { 'class': 'zen-history-tip', role: 'tooltip', hidden: true });
-	const select = (row, active) => {
+	const positionTip = ev => {
+		if (!ev) return;
+		const box = ent.historyChart.getBoundingClientRect(), anchor = (ev.currentTarget || chart).getBoundingClientRect();
+		const px = (Number.isFinite(ev.clientX) ? ev.clientX : anchor.left + anchor.width / 2) - box.left;
+		const py = (Number.isFinite(ev.clientY) ? ev.clientY : anchor.top) - box.top;
+		const tw = tip.offsetWidth, th = tip.offsetHeight, cw = ent.historyChart.clientWidth, ch = ent.historyChart.clientHeight;
+		const tx = px + 12 + tw > cw - 8 ? px - tw - 12 : px + 12;
+		const ty = py - th - 12 < 8 ? py + 12 : py - th - 12;
+		tip.style.left = ((ent.historyChart.scrollLeft || 0) + Math.max(8, Math.min(tx, cw - tw - 8))) + 'px';
+		tip.style.top = ((ent.historyChart.scrollTop || 0) + Math.max(8, Math.min(ty, ch - th - 8))) + 'px';
+	};
+	const select = (row, active, ev) => {
 		readout.textContent = row.date + ' · ↑ ' + fmt.fmtBytes(row.upload) + ' · ↓ ' + fmt.fmtBytes(row.download);
 		tip.textContent = readout.textContent;
-		tip.style.left = ((ent.historyChart.scrollLeft || 0) + 8) + 'px';
 		tip.hidden = !active;
+		if (active) positionTip(ev);
 	};
 	rows.forEach((row, i) => {
 		for (const key of ['upload', 'download']) {
@@ -78,7 +89,7 @@ function drawHistory(ent, res) {
 				width: barWidth, height: bottom - y(value), rx: 3, tabindex: 0, 'aria-label': label,
 				'class': 'history-bar ' + (key === 'upload' ? 'ul' : 'dl') });
 			bar.appendChild(historySvg('title', {}, label));
-			for (const event of ['mouseenter', 'focus', 'click']) bar.addEventListener(event, () => select(row, true));
+			for (const event of ['mouseenter', 'focus', 'click']) bar.addEventListener(event, ev => select(row, true, ev));
 			chart.appendChild(bar);
 		}
 	});
@@ -93,7 +104,7 @@ function drawHistory(ent, res) {
 		const bounds = chart.getBoundingClientRect();
 		const px = (ev.clientX - bounds.left) * width / Math.max(1, bounds.width);
 		if (px < left || px > right) { tip.hidden = true; return; }
-		select(rows[Math.min(rows.length - 1, Math.max(0, Math.floor((px - left) / slot)))], true);
+		select(rows[Math.min(rows.length - 1, Math.max(0, Math.floor((px - left) / slot)))], true, ev);
 	};
 	for (const event of ['pointermove', 'pointerdown', 'click']) chart.addEventListener(event, inspect);
 	chart.addEventListener('pointerleave', () => { tip.hidden = true; });
