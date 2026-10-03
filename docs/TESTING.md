@@ -673,8 +673,25 @@ python3 tools/router-storage-acceptance.py --host <router-address> \
 完整、再次保存不重复；另覆盖时钟回到原区间及设备重置。测试直接给状态机传入日期，
 无需改变主机或路由器系统时间。首轮 CI 的 Rust/FFI 与 eBPF 任务通过，旧 Python
 清理测试依赖原函数写法而失败；已改为读取 checkpoint 中实际清理 SQL，验证边界、
-表隔离及清理失败的事务回滚，本地四项通过。完整 CI、目标包、真机复验仍待完成；不据此认定 NTP、
+表隔离及清理失败的事务回滚，本地四项通过。随后完整 CI
+[#37138276031](https://github.com/zdabing/luci-zen/actions/runs/37138276031) 通过，
+两项新增 Rust 用例及 13 项 daemon 单元测试均成功。
+目标构建 [#37137847925](https://github.com/zdabing/luci-zen/actions/runs/37137847925)
+仍在进行；源代码为 `09195c5`，后续测试/文档提交未改变三个包及构建脚本内容。
+目标包、真机修复复验仍待完成；不据此认定 NTP、
 断电或真实午夜满盘已经通过。当前正式安装仍为 r8。
+
+新增测试库 [router-test-clock.c](../tools/router-test-clock.c) 只通过 `LD_PRELOAD`
+影响隔离 daemon 的 realtime 读取，monotonic 与路由器系统时钟不变；不进入安装包。
+CI 构建 AArch64 库与查询工具并附 SHA256；本机子进程测试验证受控时钟、monotonic
+正常推进与无效控制文件回退。使用 [router-storage-acceptance.py](../tools/router-storage-acceptance.py)
+的 `--rollover --clock-library <verified-library>`，测试进程依次经历 9 月 30 日、
+10 月 1 日、10 月 2 日，满盘期间各传输 8 MiB，并在恢复前模拟活动超时离线。
+
+r8 真机隔离重现失败：恢复后设备累计、日/月历史仍只有最初正常保存的
+8,444,092 下载字节，互联网设备累计则为 33,773,916 字节，后两天日历史缺失。
+脚本退出非零，测试资源清理及生产状态检查通过，路由器系统时钟未改变。
+此结果证明该组合故障会漏存，不能当作 r9 已修复的真机证据。
 
 #### P1：隔离实时记录清理（2026-10-03）
 

@@ -17,6 +17,7 @@ import sqlite3
 import tarfile
 import time
 import traceback
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import paramiko
@@ -29,15 +30,20 @@ parser.add_argument('--user', default='root')
 parser.add_argument('--host-key-sha256', required=True, help='Raw SSH key SHA256, 64 hex characters')
 parser.add_argument('--helper', type=Path, required=True, help='Matching read-only tc-filter-dump executable')
 parser.add_argument('--daemon-binary', type=Path, help='Optional verified target binary to stage; installed daemon remains untouched')
+parser.add_argument('--clock-library', type=Path, help='Verified test-only AArch64 clock library, required for --rollover')
+parser.add_argument('--rollover', action='store_true', help='Cross day/month in the isolated process while storage is full; router system clock stays unchanged')
 parser.add_argument('--production-iface', default='br-lan')
 parser.add_argument('--output', type=Path, required=True)
 args = parser.parse_args()
+if args.rollover != bool(args.clock_library):
+    parser.error('--rollover and --clock-library must be supplied together')
 if args.output.exists() or list(args.output.parent.glob(args.output.stem+'-*')):
     parser.error('Use a fresh private output path; existing reports and snapshots are preserved')
 assert re.fullmatch(r'[0-9a-fA-F]{64}', args.host_key_sha256)
 assert re.fullmatch(r'[A-Za-z0-9_.-]{1,15}', args.production_iface)
 helper_bytes = args.helper.read_bytes()
 candidate_bytes = args.daemon_binary.read_bytes() if args.daemon_binary else None
+clock_bytes = args.clock_library.read_bytes() if args.clock_library else None
 spec = importlib.util.spec_from_file_location('attachment_decoder', ROOT / 'tools/tc-attachment-report.py')
 decoder = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(decoder)
@@ -77,7 +83,7 @@ created_links = []
 mounted = False
 base_created = False
 daemon_pid = server_pid = None
-report = {'scope':('Staged target daemon' if candidate_bytes else 'Installed daemon')+'; full 256 KiB disposable tmpfs; isolated WAN-classified IPv4 packets; no clock change',
+report = {'passed':False,'scope':('Staged target daemon' if candidate_bytes else 'Installed daemon')+'; full 256 KiB disposable tmpfs; isolated WAN-classified IPv4 packets; no system clock change',
           'token':token, 'phases':{}, 'samples':[]}
 
 def progress(phase, **details):
@@ -151,7 +157,7 @@ def snapshot(label):
         cur = conn.execute(sql)
         return [dict(zip([d[0] for d in cur.description], r)) for r in cur.fetchall()]
     result = {'integrity':conn.execute('PRAGMA integrity_check').fetchall(),
-              'devices':rows('SELECT mac,rx_total,tx_total FROM devices ORDER BY mac'),
+              'devices':rows('SELECT mac,rx_total,tx_total,last_seen FROM devices ORDER BY mac'),
               'daily':rows('SELECT * FROM daily_usage ORDER BY mac,date'),
               'monthly':rows('SELECT * FROM monthly_usage ORDER BY mac,month'),
               'wan_devices':rows('SELECT * FROM wan_devices ORDER BY mac'),
@@ -171,9 +177,16 @@ def transfer(size):
     assert status==200 and received==size, raw.decode()
     return {'received':received,'http_status':status,'seconds':time.monotonic()-started}
 
+def set_fixture_epoch(epoch):
+    # Replace an owned control file atomically outside the full test volume.
+    run('cat > '+base+'/epoch.new', (str(epoch)+'\n').encode('ascii'))
+    run('mv '+base+'/epoch.new '+base+'/epoch')
+
 try:
     assert run('id -u').strip()==b'0', 'Router test requires root'
     report['production_before']=production()
+    report['real_epoch_before']=int(run('date +%s'))
+    real_mono_start=time.monotonic()
     for executable in ('ip','curl','mount','umount','uhttpd'):
         run('command -v '+executable)
     run('mkdir '+base)
@@ -191,6 +204,20 @@ try:
         run('chmod 700 '+daemon_command)
         assert run('sha256sum '+daemon_command).decode().split()[0]==hashlib.sha256(candidate_bytes).hexdigest()
     report['tested_binary_sha256']=run('sha256sum '+daemon_command).decode().split()[0]
+    daemon_environment=''
+    if clock_bytes:
+        run('cat > '+base+'/test-clock.so', clock_bytes)
+        report['clock_library_sha256']=hashlib.sha256(clock_bytes).hexdigest()
+        assert run('sha256sum '+base+'/test-clock.so').decode().split()[0]==report['clock_library_sha256']
+        offset=run('date +%z').decode().strip()
+        assert re.fullmatch(r'[+-]\d{4}', offset), offset
+        minutes=(int(offset[1:3])*60+int(offset[3:]))*(1 if offset[0]=='+' else -1)
+        fixture_zone=timezone(timedelta(minutes=minutes))
+        fixture_dates=('2026-09-30','2026-10-01','2026-10-02')
+        fixture_epochs=[int(datetime.fromisoformat(day+'T12:00:00').replace(tzinfo=fixture_zone).timestamp()) for day in fixture_dates]
+        set_fixture_epoch(fixture_epochs[0])
+        daemon_environment='env LD_PRELOAD='+base+'/test-clock.so ZEN_TEST_EPOCH_FILE='+base+'/epoch '
+        report['scope']+='; controlled realtime only in isolated daemon; two rollovers and offline recovery'
     report['production_hooks_before']=production_hooks()
     run('mount -t tmpfs -o size=256k,mode=0700 tmpfs '+dbdir)
     mounted=True
@@ -210,7 +237,7 @@ try:
     ns(ns_client,'ip route add 192.0.2.254/32 via 198.18.0.2')
     # Default route exists only in the isolated namespace, for interface ledger sampling.
     ns(ns_router,'ip route add default via 198.18.0.1 dev '+router_port)
-    daemon_pid=int(run('ip netns exec '+ns_router+' '+daemon_command+' -i '+router_port+
+    daemon_pid=int(run('ip netns exec '+ns_router+' '+daemon_environment+daemon_command+' -i '+router_port+
                       ' -P 198.18.0.0/30 -t 1000 -c 30 -d '+dbdir+'/traffic.db >'+base+
                       '/daemon.log 2>&1 </dev/null & echo $!'))
     wait_for(lambda:all(r['count']==1 for r in hooks(ns_router,router_port)), 5, 'TCX attachment')
@@ -222,6 +249,8 @@ try:
     report['baseline_transfer']=transfer(8*1048576)
     wait_for(lambda:'checkpoint 完成' in log(), 35, 'first successful checkpoint')
     before=snapshot('before-fault')
+    if args.rollover:
+        assert {d['date'] for d in before['daily']}=={fixture_dates[0]},'Fixture clock did not control daemon date'
     baseline_device=next(d for d in before['devices'] if d['mac']==mac)
     baseline_wan=next(d for d in before['wan_devices'] if d['mac']==mac)
     assert abs(baseline_device['rx_total']/(8*1048576)-1)<=.1, baseline_device
@@ -252,6 +281,20 @@ try:
     report['bpf_fault_delta']={k:new[k]-old[k] for k in ('wan_tx_bytes','wan_rx_bytes','lan_tx_bytes','lan_rx_bytes')}
     report['failure_atomic']=True
     progress('full-storage-observed', **report['retry_observation'])
+    fault_payload=8*1048576
+    if args.rollover:
+        for date,epoch in zip(fixture_dates[1:],fixture_epochs[1:]):
+            set_fixture_epoch(epoch)
+            wait_for(lambda date=date:date in log(),5,'isolated calendar switch to '+date)
+            unchanged=snapshot('failed-rollover-'+date)
+            for table in ('devices','daily','monthly','wan_devices','wan_window'):
+                assert unchanged[table]==before[table],('Partial rollover commit while full',table)
+            report['samples'].append({'date':date,'transfer':transfer(8*1048576)})
+            fault_payload+=8*1048576
+        time.sleep(2.2)
+        offline_epoch=fixture_epochs[-1]+601
+        set_fixture_epoch(offline_epoch)
+        time.sleep(1.2)
     previous_successes=log().count('checkpoint 完成')
     run('rm -f '+dbdir+'/owned-fill')
     wait_for(lambda:log().count('checkpoint 完成')>previous_successes, 40,'checkpoint recovery')
@@ -261,17 +304,29 @@ try:
     wan_before=next(d for d in before['wan_devices'] if d['mac']==mac)
     wan_after=next(d for d in recovered['wan_devices'] if d['mac']==mac)
     for table,down,up in ((recovered['daily'],'download_bytes','upload_bytes'),(recovered['monthly'],'download_bytes','upload_bytes')):
-        row=next(d for d in table if d['mac']==mac)
-        assert (row[down],row[up])==(device_after['rx_total'],device_after['tx_total'])
+        rows=[d for d in table if d['mac']==mac]
+        assert (sum(row[down] for row in rows),sum(row[up] for row in rows))==(device_after['rx_total'],device_after['tx_total'])
+    if args.rollover:
+        assert device_after['last_seen']<offline_epoch-600,'Test device was not offline during recovery'
+        report['offline_at_recovery']=True
+        days={row['date']:row for row in recovered['daily'] if row['mac']==mac}
+        assert set(days)==set(fixture_dates),days
+        for date,payload in zip(fixture_dates,(16*1048576,8*1048576,8*1048576)):
+            assert abs(days[date]['download_bytes']/payload-1)<=.1,(date,days[date])
+        months={row['month']:row for row in recovered['monthly'] if row['mac']==mac}
+        assert set(months)=={'2026-09','2026-10'},months
+        for month in months:assert abs(months[month]['download_bytes']/(16*1048576)-1)<=.1,months[month]
+        report['rollover_recovery_passed']=True
     assert recovered['wan_window'][0]['since']==before['wan_window'][0]['since']
     mixed_delta=device_after['rx_total']-device_before['rx_total']
     wan_delta=wan_after['download_bytes']-wan_before['download_bytes']
     report['recovery']={'mixed_download_delta':mixed_delta,'wan_download_delta':wan_delta,
-                        'payload':8*1048576,'mixed_error_pct':(mixed_delta/(8*1048576)-1)*100,
-                        'wan_error_pct':(wan_delta/(8*1048576)-1)*100}
+                        'payload':fault_payload,'mixed_error_pct':(mixed_delta/fault_payload-1)*100,
+                        'wan_error_pct':(wan_delta/fault_payload-1)*100}
     assert abs(report['recovery']['mixed_error_pct'])<=10
     assert abs(report['recovery']['wan_error_pct'])<=10
     report['recovery_passed']=True
+    if args.rollover:report['offline_recovery_passed']=True
     progress('storage-recovered', **report['recovery'])
     # No traffic: a second successful batch must leave all byte counters unchanged.
     previous_successes=log().count('checkpoint 完成')
@@ -305,6 +360,10 @@ finally:
     for name in created_links:
         run('ip link delete '+name, check=False)
     cleanup(lambda:report.update(production_after=production()))
+    cleanup(lambda:report.update(real_epoch_after=int(run('date +%s'))))
+    if report.get('real_epoch_before') is not None and report.get('real_epoch_after') is not None:
+        report['system_clock_unchanged']=abs((report['real_epoch_after']-report['real_epoch_before'])-(time.monotonic()-real_mono_start))<=5
+        if not report['system_clock_unchanged']:cleanup_errors.append('Router realtime changed unexpectedly')
     if base_created:
         cleanup(lambda:report.update(production_hooks_after=production_hooks()))
         cleanup(lambda:report.update(daemon_log=log()))
@@ -317,7 +376,7 @@ finally:
         cleanup_errors.append('Production collector or attachments changed')
     # Remove only named, owned files; never recursively delete a computed router path.
     if base_created:
-        for name in ('query','daemon','daemon.log','http.log','http/warmup','http/payload'):
+        for name in ('query','daemon','daemon.log','http.log','http/warmup','http/payload','test-clock.so','epoch','epoch.new'):
             cleanup(lambda name=name:run('rm -f '+base+'/'+name))
         cleanup(lambda:run('rmdir '+base+'/http '+dbdir+' '+base))
     report['cleanup_errors']=cleanup_errors
