@@ -105,6 +105,26 @@ jobs:
             -nostdlib -static -fuse-ld=lld -Wall -Wextra -Werror \
             tools/tc-filter-dump-aarch64.c -o tc-filter-dump
 
+      - name: Compile and verify process-only acceptance clock
+        run: |
+          clang --target=aarch64-linux-gnu -O2 -fPIC -shared -nostdlib \
+            -fno-stack-protector -fuse-ld=lld -Wall -Wextra -Werror \
+            tools/router-test-clock.c -o router-test-clock-aarch64.so
+          cc -O2 -fPIC -shared -nostdlib -fno-stack-protector -Wall -Wextra -Werror \
+            tools/router-test-clock.c -o router-test-clock-native.so
+          python3 tools/test-router-clock.py ./router-test-clock-native.so
+          sha256sum router-test-clock-aarch64.so tc-filter-dump > router-fixture-SHA256SUMS
+
+      - name: Retain private-fixture binaries
+        uses: actions/upload-artifact@v7
+        with:
+          name: router-fixture-tools-${{ github.run_id }}
+          path: |
+            router-test-clock-aarch64.so
+            tc-filter-dump
+            router-fixture-SHA256SUMS
+          retention-days: 7
+
       # 正式数据面（zen-traffic/Makefile 内 bpf.mk 同参数：-O2 -g -target bpf）
       # -I/usr/include/x86_64-linux-gnu：bpf target 下 linux/types.h 找不到 asm/types.h
       - name: Compile zen_traffic.bpf.c (zen-traffic)
