@@ -14,7 +14,8 @@ const release=m=>({tag_name:m.tag,body:'<!-- zen-update-metadata\n'+JSON.stringi
   if(mode==='offline') return route.abort();
   if(mode==='timeout') return;
   if(mode==='rate') return route.fulfill({status:403,contentType:'application/json',body:'{}'});
-  const rows=mode==='legacy'?[{tag_name:'legacy',body:'Old release',published_at:'2026-10-05'}]:mode==='mismatch'?[release({...zen,target:'wrong/target'})]:[release(zen)];
+  const partial={...zen,tag:'theme-v0.3.0-r2',packages:[{...zen.packages[0],version:'0.3.0-r2',filename:'luci-theme-zen-0.3.0-r2.apk'}]};
+  const rows=mode==='legacy'?[{tag_name:'legacy',body:'Old release',published_at:'2026-10-05'}]:mode==='mismatch'?[release({...zen,target:'wrong/target'})]:mode==='partial'?[release(partial)]:mode==='independent'?[release(partial),release(zen)]:[release(zen)];
   return route.fulfill({contentType:'application/json',body:JSON.stringify(rows)});
  });
  const clickCheck=async()=>{await page.getByRole('button',{name:'检查更新',exact:true}).click();await page.waitForFunction(()=>!document.querySelector('#zen-updates .cbi-button-action').disabled);};
@@ -42,6 +43,12 @@ const release=m=>({tag_name:m.tag,body:'<!-- zen-update-metadata\n'+JSON.stringi
   assert.equal(await panel.locator('.zen-update-file').count(),3);
   assert.equal(await panel.locator('a[href*="/releases/download/"]').count(),3);
   assert.ok((await panel.innerText()).includes('有可用更新'));
+  mode='partial';await clickCheck();
+  assert.equal(await panel.locator('.zen-update-file').count(),1,'Standalone theme release is accepted');
+  assert.equal(await panel.locator('a[href*="/releases/download/"][href*="/luci-theme-zen-"]').count(),1);
+  mode='independent';await clickCheck();
+  assert.equal(await panel.locator('.zen-update-file').count(),3,'Theme release does not hide previous traffic package releases');
+  mode='matched';await clickCheck();
   for(const width of [1440,1024,769,390,320])for(const layout of ['sidebar','top'])for(const appearance of [{accent:'macaron',material:'glass'},{accent:'nord',material:'aurora'},{accent:'honey',material:'paper'},{accent:'blue',material:'outline'},{accent:'coast',material:'duotone'}])for(const theme of ['light','dark']){
    await page.setViewportSize({width,height:1000});await page.evaluate(v=>ZenAppearance.set(v),{...appearance,mode:theme,layout});
    await page.waitForTimeout(30);

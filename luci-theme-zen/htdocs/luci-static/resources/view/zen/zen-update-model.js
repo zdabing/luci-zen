@@ -48,15 +48,18 @@ function metadata(release) {
 		const m = JSON.parse(match[1]);
 		if (m.schema !== 1 || m.repo !== REPO || m.tag !== release.tag_name || typeof m.target !== 'string') return null;
 		const rows = m.packages;
-		if (!Array.isArray(rows) || !rows.length || rows.length > 30) return null;
+		if (!Array.isArray(rows) || !rows.length || rows.length > PACKAGES.length) return null;
 		const assets = release.assets || [];
 		const names = new Set();
+		const packageNames = new Set();
 		for (const file of rows) {
+			if (!PACKAGES.includes(file.name) || packageNames.has(file.name) || compare(file.version, file.version) !== 0 || !file.filename?.endsWith('.apk')) return null;
 			if (typeof file.filename !== 'string' || !/^[\w.+-]+$/.test(file.filename) || names.has(file.filename) || !/^[a-f0-9]{64}$/.test(file.sha256) || !Number.isSafeInteger(file.size) || file.size <= 0) return null;
 			if (!assets.some(a => a.name === file.filename && a.size === file.size && a.state === 'uploaded' && (!a.digest || a.digest === 'sha256:' + file.sha256))) return null;
 			names.add(file.filename);
+			packageNames.add(file.name);
 		}
-		if (!m.sdk_version || rows.length !== 3 || !PACKAGES.every(name => rows.filter(p => p.name === name && compare(p.version, p.version) === 0 && p.filename.endsWith('.apk')).length === 1)) return null;
+		if (packageNames.has('zen-traffic') && !m.sdk_version) return null;
 		return m;
 	} catch (e) { return null; }
 }
@@ -69,7 +72,8 @@ function select(releases, board, name) {
 	const target = board.release?.target;
 	// The two LuCI packages contain no target binaries (PKGARCH=all).
 	// Only the native daemon needs a matching target and SDK version.
-	const match = candidates.find(c => name !== 'zen-traffic' || (c.meta.target === target && c.meta.sdk_version === board.release?.version));
+	const match = candidates.find(c => c.meta.packages.some(file => file.name === name) &&
+		(name !== 'zen-traffic' || (c.meta.target === target && c.meta.sdk_version === board.release?.version)));
 	// A newer legacy/malformed release must not make an older structured release
 	// appear to be the latest. Fail closed when its compatibility is unknown.
 	const unknown = stable.find(r => !metadata(r));

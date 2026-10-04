@@ -1,0 +1,110 @@
+name: Theme APK release
+
+on:
+  workflow_dispatch:
+    inputs:
+      sdk_version:
+        description: OpenWrt SDK version
+        default: '25.12.5'
+      sdk_target:
+        description: SDK target/subtarget (theme output is architecture all)
+        default: x86/64
+      publish_release:
+        description: Publish a stable theme release after a successful build
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  theme:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      SDK_VERSION: ${{ inputs.sdk_version }}
+      SDK_TARGET: ${{ inputs.sdk_target }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Prepare SDK build host
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential flex bison g++ gawk gcc-multilib g++-multilib gettext git \
+            libncurses-dev libssl-dev python3 rsync unzip zlib1g-dev file zstd curl ca-certificates
+
+      - name: Download and verify SDK
+        run: |
+          BASE="https://downloads.openwrt.org/releases/$SDK_VERSION/targets/$SDK_TARGET"
+          curl -fsSL --retry 3 "$BASE/sha256sums" -o sha256sums
+          SDK_FILE=$(grep -oE 'openwrt-sdk-[^ ]+\.tar\.zst' sha256sums | head -n1)
+          test -n "$SDK_FILE"
+          grep -F "$SDK_FILE" sha256sums > sdk.sha256
+          curl -fsSL --retry 3 "$BASE/$SDK_FILE" -o "$SDK_FILE"
+          sha256sum -c sdk.sha256
+          tar --zstd -xf "$SDK_FILE"
+          SDK_DIR=$(find . -maxdepth 1 -type d -name 'openwrt-sdk-*' | head -n1)
+          test -n "$SDK_DIR"
+          echo "SDK_DIR=$SDK_DIR" >> "$GITHUB_ENV"
+
+      - name: Build theme APK
+        working-directory: ${{ env.SDK_DIR }}
+        run: |
+          ./scripts/feeds update -a
+          ./scripts/feeds install luci-base
+          cp -R "$GITHUB_WORKSPACE/luci-theme-zen" package/
+          echo 'CONFIG_PACKAGE_luci-theme-zen=m' >> .config
+          make defconfig
+          make package/luci-theme-zen/compile V=s -j"$(nproc)"
+
+      - name: Verify APK and prepare release metadata
+        id: package
+        run: |
+          mkdir out
+          find "$SDK_DIR/bin/packages" -type f -name 'luci-theme-zen-*.apk' -exec cp {} out/ \;
+          test "$(find out -name '*.apk' | wc -l)" -eq 1
+          python3 - <<'PY'
+          import os, re
+          from pathlib import Path
+          source = Path('luci-theme-zen/Makefile').read_text()
+          version = re.search(r'^PKG_VERSION:=(.+)$', source, re.M)[1].strip()
+          revision = re.search(r'^PKG_RELEASE:=(\d+)$', source, re.M)[1]
+          tag = f'theme-v{version}-r{revision}'
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write(f'tag={tag}\nversion={version}-r{revision}\n')
+          Path('release-notes.md').write_text(
+              f'Zen 主题 {version}-r{revision}，APK 架构为 `all`。\n\n'
+              '- 更新页只管理 Zen 软件包，移除固件更新检测与刷写入口。\n'
+              '- 各包独立检查更新，主题可单独安装和发布。\n'
+              '- 静态文件使用固件原生服务，升级仅清理旧 Zen 缓存前缀。\n\n'
+              '安装：下载 APK，在 OpenWrt 软件包页面上传安装，然后选择 Zen 主题。需要 ucode LuCI。\n\n'
+              f'源码提交：`{os.environ["GITHUB_SHA"]}`\n', encoding='utf-8')
+          Path('out/sources.tsv').write_text(
+              f'Zen\t{os.environ["GITHUB_SHA"]}\nSDK\t{os.environ["SDK_VERSION"]}\nTarget\t{os.environ["SDK_TARGET"]}\n')
+          PY
+          TAG=$(sed -n 's/^tag=//p' "$GITHUB_OUTPUT")
+          python3 tools/make-release-metadata.py --assets out --target "$SDK_TARGET" \
+            --sdk-version "$SDK_VERSION" --tag "$TAG" --notes release-notes.md --packages luci-theme-zen
+          (cd out && sha256sum ./*.apk > SHA256SUMS && sha256sum -c SHA256SUMS)
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: zen-theme-apk-${{ github.run_id }}
+          path: out/
+          if-no-files-found: error
+
+      - name: Publish stable theme release
+        if: inputs.publish_release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ steps.package.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: Zen theme ${{ steps.package.outputs.version }}
+          prerelease: false
+          body_path: release-notes.md
+          files: |
+            out/*.apk
+            out/zen-update.json
+            out/SHA256SUMS
+            out/sources.tsv
+          fail_on_unmatched_files: true

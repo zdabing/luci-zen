@@ -16,7 +16,9 @@
 
 - 安装版本：优先读取原生 `package-manager-call list-installed`，回退到 APK 数据库或 opkg status。读取失败显示「无法读取」，可读数据库中缺少包才显示「未安装」。Cargo 版本仅用于发现运行服务与安装包的版本差异，不替代包修订号。
 - 后台包兼容性：通过 `system.board` 读取 target 和 OpenWrt 版本，仅用于筛选匹配的 `zen-traffic` APK。
-- 发布信息：Zen 工作流运行 `tools/make-release-metadata.py`，分别核对三个 Makefile 的版本、修订号和实际 APK，计算 SHA256，产出 `zen-update.json` 并写入发布正文的 `<!-- zen-update-metadata ... -->` 标记。缺包、重复包或空文件会终止发布；各包可以独立修订版本。
+- 发布信息：工作流运行 `tools/make-release-metadata.py`，核对所选包的 Makefile 版本、修订号和实际 APK，计算 SHA256，产出 `zen-update.json` 并写入发布正文的 `<!-- zen-update-metadata ... -->` 标记。所选包缺失、重复或为空会终止发布；各包可以独立修订和发布。
+
+`Theme APK release` 工作流使用 SDK 只编译主题。手动启用 `publish_release` 后发布正式 `theme-v<版本>-r<修订号>` Release，包含主题 APK、更新元数据、SHA256SUMS 和源码记录；关闭时仅保留构建产物。单独主题发布不隐藏其他包此前的发布。
 
 浏览器读取 GitHub API 的发布正文元数据，核对仓库、tag、附件名称、大小及可用的 digest。按数值比较包版本和修订号；未知版本、缺少有效元数据、目标不匹配、断网、15 秒超时或限流均不会显示「已是最新」。查询最近 100 个发布，不计入预发布。
 

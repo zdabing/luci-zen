@@ -8,9 +8,11 @@ from pathlib import Path
 PACKAGES = ('luci-theme-zen', 'luci-app-zen-traffic', 'zen-traffic')
 
 
-def generate(root, assets, target, sdk_version, tag):
+def generate(root, assets, target, sdk_version, tag, packages=PACKAGES):
+    if not packages or len(set(packages)) != len(packages) or any(name not in PACKAGES for name in packages):
+        raise ValueError('Expected a nonempty selection of distinct Zen packages')
     rows = []
-    for name in PACKAGES:
+    for name in packages:
         source = (root / name / 'Makefile').read_text(encoding='utf-8')
         version = re.search(r'^PKG_VERSION:=(.+)$', source, re.M)[1].strip()
         revision = re.search(r'^PKG_RELEASE:=(\d+)$', source, re.M)[1]
@@ -32,8 +34,9 @@ if __name__ == '__main__':
     parser.add_argument('--sdk-version', required=True)
     parser.add_argument('--tag', required=True)
     parser.add_argument('--notes', required=True, type=Path)
+    parser.add_argument('--packages', nargs='+', choices=PACKAGES, default=PACKAGES)
     args = parser.parse_args()
-    metadata = generate(Path(__file__).resolve().parents[1], args.assets, args.target, args.sdk_version, args.tag)
+    metadata = generate(Path(__file__).resolve().parents[1], args.assets, args.target, args.sdk_version, args.tag, args.packages)
     body = json.dumps(metadata, ensure_ascii=False, separators=(',', ':'))
     (args.assets / 'zen-update.json').write_text(body + '\n', encoding='utf-8')
     with args.notes.open('a', encoding='utf-8') as notes:
