@@ -2,12 +2,12 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-theme-zen
 PKG_VERSION:=0.2.0
-PKG_RELEASE:=11
+PKG_RELEASE:=12
 
 PKG_MAINTAINER:=luci-zen maintainers
 PKG_LICENSE:=Apache-2.0 GPL-3.0-only
 PKG_LICENSE_FILES:=LICENSE licenses/sunny-ui-GPL-3.0.txt
-PKG_BUILD_DEPENDS:=luci-base/host
+PKG_BUILD_DEPENDS:=luci-base/host ucode/host
 
 include $(INCLUDE_DIR)/package.mk
 
@@ -38,6 +38,10 @@ endef
 # 工具或翻译转换失败时必须报错，避免发布缺少语言包的主题。
 define Build/Compile
 	mkdir -p $(PKG_BUILD_DIR)
+	# Compile templates before packaging; defer the target-only LuCI module.
+	for template in $(CURDIR)/ucode/template/themes/zen/*.ut; do \
+		$(STAGING_DIR_HOSTPKG)/bin/ucode -T -c,dynlink=luci.core -o /dev/null "$$$$template" || exit $$$$?; \
+	done
 	po2lmo $(CURDIR)/po/zh_Hans/theme.po $(PKG_BUILD_DIR)/zen.zh-cn.lmo
 endef
 

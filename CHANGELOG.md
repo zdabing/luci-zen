@@ -2,6 +2,9 @@
 
 ## 未发布
 
+- 主题 release 升为 12：修正 header.ut 的 ucode `else` 语法，避免主题加载失败后
+  回退 Bootstrap、Zen 首页缺少样式；打包前使用 SDK 的 host ucode 编译检查所有主题模板。
+
 - 主题支持独立生成正式 Release：使用 SDK 只编译主题 APK，附带校验和及更新元数据；
   更新解析接受单包发布，不再要求每个 Release 都包含三个 APK。
 
