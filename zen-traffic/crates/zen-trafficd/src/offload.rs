@@ -22,6 +22,16 @@ impl Status {
         let Ok(output) = Command::new("nft").args(["-j", "list", "flowtables"]).output() else { return Self::default() };
         if !output.status.success() { return Self::default(); }
         let mut status = parse_flowtables(&output.stdout);
+        // nft 1.1.6 can omit flowtable flags from JSON while its text output
+        // correctly contains `flags offload`. Check that output before claiming
+        // hardware was not requested.
+        if status.software && !status.hardware_requested {
+            if let Ok(text) = Command::new("nft").args(["list", "flowtables"]).output() {
+                if text.status.success() {
+                    status.hardware_requested = text_requests_hardware(&text.stdout);
+                }
+            }
+        }
         if status.hardware_requested {
             if let Ok(file) = std::fs::File::open("/proc/net/nf_conntrack") {
                 // Keep probing bounded even on routers with very large tables.
@@ -31,6 +41,21 @@ impl Status {
         }
         status
     }
+}
+
+fn text_requests_hardware(data: &[u8]) -> bool {
+    let text = String::from_utf8_lossy(data);
+    let mut depth = 0usize;
+    for line in text.lines().map(str::trim) {
+        if depth == 0 {
+            if line.starts_with("flowtable ") && line.contains('{') { depth = 1; }
+            continue;
+        }
+        if line.starts_with("flags ") && line.split(|c: char| c.is_whitespace() || c == ',' || c == ';')
+            .any(|word| word == "offload") { return true; }
+        depth = depth.saturating_add(line.matches('{').count()).saturating_sub(line.matches('}').count());
+    }
+    false
 }
 
 fn parse_flowtables(data: &[u8]) -> Status {
@@ -60,5 +85,13 @@ mod tests {
         assert_eq!(Status { hardware_active: true, ..hardware }.mode(), c"hw");
         assert_eq!(parse_flowtables(br#"{"nftables":[{"table":{"name":"fw4"}}]}"#).mode(), c"off");
         assert_eq!(parse_flowtables(b"permission denied").mode(), c"unknown");
+    }
+
+    #[test]
+    fn nft_116_text_preserves_flags_omitted_from_json() {
+        let text = b"table inet fw4 {\n flowtable ft {\n devices = { eth0, eth1 }\n flags offload\n counter\n }\n}\n";
+        assert!(text_requests_hardware(text));
+        assert!(!text_requests_hardware(b"table inet fw4 {\n flowtable ft {\n counter\n }\n}\n"));
+        assert!(!text_requests_hardware(b"table inet offload {\n flags offload\n}\n"));
     }
 }

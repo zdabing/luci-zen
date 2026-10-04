@@ -116,7 +116,11 @@ uci commit zen-traffic
 /etc/init.d/zen-traffic restart
 ```
 
-这里配置的是 LAN 采集接口；WAN 总量通过默认路由上游识别。多个采集接口不要同时覆盖网桥和其端口，以免重复计数。硬件交换及流量卸载可能绕过采集，首次检查先关闭相关加速。
+这里配置的是 LAN 采集接口。后台会将网桥自动展开为成员端口并去重，使软件流量卸载仍经过设备采集点；网络事件及周期检查会更新端口挂载。
+
+WAN 总量通过默认路由上游识别；PPPoE 使用 netifd 提供的底层设备计数，避免软件卸载绕过 PPP 虚拟接口。IPv4/IPv6 共用的设备只计一次，VLAN 保留其独立设备。此口径包含接口封装开销；同一底层设备承载多个 PPPoE 会话时统计的是该底层设备合计，不提供各会话拆分。
+
+`getStatus` 的 `offload` 根据实际 nftables 流表返回 `off`、`sw`、`hw` 或无法检测时的 `unknown`，另有 `hardware_offload_requested` 与 `hardware_offload_active` 区分硬件请求和已观察到的硬件卸载。真正绕过 CPU 的硬件卸载、硬件交换流量仍可能漏计，要求完整设备统计时关闭硬件流量卸载。
 
 数据库默认保存在 `/etc/zen-traffic/traffic.db`。自定义持久存储可设置 `zen-traffic.traffic.db_path`，目标目录须提前挂载且可写；迁移旧数据前先停止服务并备份，避免存放在重启会清空的 `/tmp`。
 
