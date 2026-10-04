@@ -1,9 +1,15 @@
 # luci-zen 架构方案（v3 — eBPF 后端 + Rust daemon + SQLite 持久化）
 
-> 状态：**Phase 2/3 代码交付（zen-traffic + luci-app-zen-traffic），待 SDK/真机验收**。
+> 状态：本文保留架构设计与历史实现记录；当前 R5C 后台 r10 已正式出包、安装并完成定向验收，完整覆盖范围见 README 和 TESTING。
 > 定位：**一个自包含的 OpenWrt/ImmortalWrt LuCI 项目**，自带主题、首页 Dashboard、设备实时流量、LuCI RPC/ubus 接口与流量统计后台。`luci-theme-round` 与 `luci-app-bandix` 仅为源码/设计参考，**不是运行时依赖**。
 > 变更记录：v3 按用户定案**持久化层直接采用 SQLite**（三表 devices/daily_usage/monthly_usage；RAM 实时态 + 批量 checkpoint，不使用 JSON 作为正式历史存储；getHistory 随持久化一并实现）。v2.1 正式 daemon 由 C 切换为 **Rust + Aya**（eBPF 数据面仍为 C/clang 编译 `.bpf.o`；libubus 直连不变，无 HTTP/无 shell 桥）；v2 移除全部 nftables 采集设计，V1 直接采用 eBPF TC。
 > 前置分析保留在本地研究文档中；当前实现与验收状态以根 README 为准。
+
+2026-10-04 增加独立互联网日账本与后台通知线程。流量插件分为实时监控、历史分析、
+通知设置；共享速率组件使用 `baseclass`，由两个父页面渲染，避免 LuCI `view` 自动挂载。
+新增 `getInternetHistory`、`getNotifications`、`setNotifications`、`testNotification` 原生 ubus
+接口，通知设置/预约/发送结果也保存在 SQLite。curl 通过标准输入接收 HTTPS 配置和
+消息，不引入 HTTP 服务。统计窗口、密钥保护与跨重启行为见[页面与通知说明](TRAFFIC_PAGES_AND_NOTIFICATIONS.md)。
 
 ---
 
