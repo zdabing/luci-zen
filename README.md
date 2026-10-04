@@ -9,7 +9,7 @@
 
 ## 版本与更新
 
-当前源码版本：**0.2.0**（2026-09-30），对应标签 `v0.2.0`。三个 OpenWrt 包和 Rust daemon 统一使用此版本。
+当前三个 OpenWrt 包源码版本统一为 **0.2.0-r10**（2026-10-04）。Rust workspace 版本保持 `0.2.0`；已有标签 `v0.2.0` 对应 2026-09-30 的发布，当前 r10 包版本调整尚未发布。
 
 本版新增 7 天 WAN 实时历史查询，修复 ubus 前缀/MAC 解析与日/月清理，完善设备排序、上传/下载双轴图表和中文翻译，并补齐 OpenWrt 集成文档。完整记录见 [CHANGELOG.md](CHANGELOG.md)。
 
@@ -436,3 +436,5 @@ git diff --check
 ## 许可证
 
 仓库默认许可及 `zen-traffic/` 为 [GPL-2.0](LICENSE)；主题为 [Apache-2.0](luci-theme-zen/LICENSE)。流量应用包声明 Apache-2.0，具体以组件许可证与源码声明为准。
+
+右上角「Zen 设置」已集中外观、布局和版本更新；独立设置页支持查看实际安装版本、手动检查 Zen 三个包和 10Wrt 固件发布，并进入原生升级流程：[版本与更新说明](docs/VERSIONS_AND_UPDATES.md)。

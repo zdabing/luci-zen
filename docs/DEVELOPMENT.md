@@ -35,6 +35,53 @@ clang -O2 -g -target bpf \
 SDK/内核树头文件：参照 `poc/rust-spike/scripts/build-bpf.sh` 的 `LINUX_DIR` 用法。
 正式包内由 `zen-traffic/Makefile` 经 `bpf.mk` 的 `CompileBPF` 编译（llvm-bpf 全管线）。
 
+## 主题设置与本地页面预览
+
+Sunny UI 的原始材质文件为 `luci-theme-zen/htdocs/luci-static/zen/appearance.css`，
+保持上游版本不变；LuCI 映射放在 `appearance-zen.css`，原生偏好、共享表单及登录页弹窗代码在
+`appearance.js`。出处和许可见主题目录的 `THIRD_PARTY_NOTICES.md`。
+主题不引入 React、npm 运行时或新的后端接口。
+
+首页使用独立菜单路由 `admin/zen`（`root/usr/share/luci/menu.d/luci-theme-zen.json`），
+由 `view/zen/home.js` 按 LuCI 视图生命周期挂载，`dashboard.js` 仅提供数据和组件，
+导入时不操作 DOM 或启动轮询。菜单排序在标准「状态」之前；管理入口首个可用页面
+及 Logo 指向 Zen 首页。原生 `admin/status/overview` 保留原 action、权限和内容，
+Zen 菜单中显示为「OpenWrt 概览」，不再在它前面插入仪表盘。
+实现对应 [LuCI 25.12 菜单入口](https://github.com/openwrt/luci/blob/openwrt-25.12/modules/luci-base/root/usr/share/luci/menu.d/luci-base.json)
+和 [标准视图生命周期](https://github.com/openwrt/luci/blob/openwrt-25.12/modules/luci-base/htdocs/luci-static/resources/luci.js)。
+
+管理页右上角「Zen 设置」进入独立 `admin/system/zen` 页面，系统菜单也提供同一入口。外观/布局标签复用 `ZenAppearance.render()`，版本/更新标签按需挂载 `zen-updates.js`；首页不加载该模块。登录页仍提供外观弹窗，右上角深浅色快捷切换保持独立。默认马卡龙＋iOS 玻璃，明暗默认跟随系统；
+保留既有 `luci-theme-zen` 明暗存储键，新增 `luci-theme-zen-accent` 和
+`luci-theme-zen-material` 和 `luci-theme-zen-layout`。四个选择互相独立，五个预设只同时调整配色与材质。
+布局默认 `sidebar`（左侧导航），另可选择 `top`（顶部导航）。顶部布局在桌面
+复用 LuCI 菜单树显示横向分类及点击展开的子菜单，内容使用全部可用宽度；
+手机仍显示折叠菜单。布局不会覆盖独立的 `luci-theme-zen-sidebar` 收起偏好。
+未知值回退默认方案，存储不可用时仍可在当前会话切换。
+
+从仓库根目录启动：
+
+```sh
+python -m http.server 8770 --bind 127.0.0.1
+```
+
+打开 `http://127.0.0.1:8770/dev-preview/runtime.html?page=dashboard`。
+`page` 也可为 `realtime`、`history`、`notifications`、`login`。
+`page=overview` 仅展示原生概览的独立入口占位；完整原生页面需要在路由器验收。
+此预览加载正式 LuCI 渲染模块和真实中文翻译，以模拟 RPC 数据验收布局；
+修改/发送/清零 RPC 均拒绝，不连接路由器。`dev-preview` 不安装到目标包。
+
+```sh
+node tools/test-appearance.cjs
+node tools/test-home-view-lifecycle.cjs
+# 可选：开发环境已提供 Playwright 和浏览器时运行。
+node tools/test-appearance-browser.cjs
+```
+
+浏览器测试支持 `ZEN_PREVIEW_URL`、`ZEN_BROWSER_CHANNEL`（如 `msedge`）及
+`ZEN_SCREENSHOT_DIR`。浏览器依赖仅用于开发验收，不加入主题部署包。
+Windows 未安装 GNU make 时，安装资产检查可把 `ZEN_TEST_BASH` 设为 Git Bash 的
+绝对路径，再运行 `python tools/test-package-assets.py`；测试仍执行包中的原安装配方。
+
 ## i18n 校验
 
 ```sh

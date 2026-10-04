@@ -1,0 +1,32 @@
+const fs = require('node:fs'), path = require('node:path'), assert = require('node:assert/strict');
+const root = path.join(__dirname, '..'), base = path.join(root, 'luci-theme-zen/htdocs/luci-static/resources/view/zen');
+const model = new Function('baseclass', fs.readFileSync(path.join(base, 'zen-update-model.js'), 'utf8'))({extend: v => v});
+const board = {board_name: 'friendlyarm,nanopi-r5c', release: {target: 'rockchip/armv8', version: '25.12.5'}};
+assert.deepEqual({...model.installed('[{"name":"zen-traffic","version":"0.2.0-r10"}]')}, {'zen-traffic':'0.2.0-r10'});
+assert.deepEqual({...model.installed('P:luci-theme-zen\nV:0.2.0-r10\n\nP:zen-traffic\nV:0.2.0-r9\n')}, {'luci-theme-zen':'0.2.0-r10','zen-traffic':'0.2.0-r9'});
+assert.deepEqual({...model.installed('Package: zen-traffic\nVersion: 0.2.0-10\nStatus: install ok installed\n\nPackage: luci-theme-zen\nVersion: 0.2.0-10\nStatus: deinstall ok config-files')}, {'zen-traffic':'0.2.0-10'});
+assert.throws(()=>model.installed('cpu 1 2 3')); assert.throws(()=>model.installed('{}'));
+assert.equal(model.compare('0.2.0-r9','0.2.0-r10'),-1); assert.equal(model.compare('0.2.0-10','0.2.0-r10'),0);
+assert.equal(model.compare('0.3.0-r1','0.2.0-r10'),1); assert.equal(model.compare('snapshot','0.2.0-r10'),null);
+assert.equal(model.profile(board,null),'friendlyarm_nanopi-r5c');
+function release(meta, kind, date='2026-10-04T00:00:00Z') {
+ return {tag_name:meta.tag,body:'<!-- '+(kind==='zen'?'zen':'10wrt')+'-update-metadata\n'+JSON.stringify(meta)+'\n-->',published_at:date,assets:(meta.packages||meta.files).map(f=>({name:f.filename,size:f.size,state:'uploaded'}))};
+}
+const file = {filename:'openwrt-r5c-squashfs-sysupgrade.img.gz',size:123,sha256:'a'.repeat(64)};
+const firmware = {schema:1,repo:model.REPOS.firmware,tag:'r5c-2026.10.04-88',target:'rockchip/armv8',profile:'friendlyarm_nanopi-r5c',build_number:88,files:[file]};
+const zen = {schema:1,repo:model.REPOS.zen,tag:'v0.2.0',target:'rockchip/armv8',sdk_version:'25.12.5',packages:model.PACKAGES.map(name=>({name,version:'0.2.0-r10',filename:name+'-0.2.0-r10.apk',size:123,sha256:'a'.repeat(64)}))};
+assert.equal(model.select([release(zen,'zen')],'zen',board,null).state,'matched');
+assert.equal(model.select([release(firmware,'firmware')],'firmware',board,null).state,'matched');
+assert.equal(model.select([release(zen,'zen')],'zen',{release:{target:'x86/64',version:'25.12.5'}},null).state,'incompatible');
+assert.equal(model.select([release(zen,'zen')],'zen',{...board,release:{...board.release,version:'25.12-SNAPSHOT'}},null).state,'incompatible');
+assert.equal(model.select([release({...firmware,profile:'wrong'},'firmware')],'firmware',board,null).state,'incompatible');
+assert.equal(model.select([{...release(zen,'zen'),prerelease:true}],'zen',board,null).state,'empty');
+assert.equal(model.select([{tag_name:'v0.3.0',published_at:'2026-10-05'},release(zen,'zen')],'zen',board,null).state,'metadata','Newer metadata-less release cannot report older release as latest');
+assert.equal(model.metadata({...release(zen,'zen'),assets:[]},'zen'),null);
+assert.equal(model.metadata(release({...zen,packages:[{...zen.packages[0],filename:'../../unsafe.apk'},...zen.packages.slice(1)]},'zen'),'zen'),null);
+assert.equal(model.metadata(release({...firmware,files:[{...file,filename:'rootfs.img.gz'}]},'firmware'),'firmware'),null);
+const x86 = {...firmware,target:'x86/64',profile:'generic',tag:'x86_64-2026.10.04-88',files:[{...file,filename:'openwrt-x86-64-generic-ext4-combined-efi.img.gz'}]};
+assert.ok(model.metadata(release(x86,'firmware'),'firmware'));
+const acl=JSON.parse(fs.readFileSync(path.join(root,'luci-theme-zen/root/usr/share/rpcd/acl.d/luci-theme-zen.json'),'utf8'))['luci-theme-zen'];
+assert.equal(acl.write,undefined); assert.deepEqual(Object.keys(acl.read.file).filter(k=>acl.read.file[k].includes('exec')),['/usr/libexec/package-manager-call list-installed']);
+console.log('PASS: installed APK/opkg versions; numeric revisions; stable releases, target/SDK/profile matching; missing/malicious metadata; no upgrade ACL');

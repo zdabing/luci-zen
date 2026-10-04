@@ -3,77 +3,18 @@
 'require ui';
 'require view.zen.zen-icons as icons';
 
-const STORAGE_KEY = 'luci-theme-zen';
 const SIDEBAR_KEY = 'luci-theme-zen-sidebar';
 const MOBILE_BP = 768;
 const MENU_ICONS = {
+	zen: 'zen-i-status',
 	status: 'zen-i-status',
 	system: 'zen-i-system',
 	services: 'zen-i-services',
 	network: 'zen-i-network'
 };
 
-function currentTheme() {
-	return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
-}
-
-function applyTheme(theme) {
-	document.documentElement.setAttribute('data-theme', theme);
-	document.documentElement.setAttribute('data-darkmode', theme === 'dark' ? 'true' : 'false');
-	try {
-		localStorage.setItem(STORAGE_KEY, theme);
-	} catch (e) { /* private mode */ }
-	syncThemeToggle();
-}
-
-function syncThemeToggle() {
-	const dark = currentTheme() === 'dark';
-	const label = document.getElementById('theme-toggle-label');
-	if (label)
-		label.textContent = dark ? _('Light mode') : _('Dark mode');
-
-	const btn = document.getElementById('theme-toggle');
-	if (btn) {
-		btn.setAttribute('title', dark ? _('Switch to light mode') : _('Switch to dark mode'));
-		btn.setAttribute('aria-label', dark ? _('Switch to light mode') : _('Switch to dark mode'));
-	}
-}
-
-function bindThemeToggle() {
-	const btn = document.getElementById('theme-toggle');
-	if (btn) {
-		btn.addEventListener('click', (ev) => {
-			ev.preventDefault();
-			ev.stopPropagation();
-			applyTheme(currentTheme() === 'dark' ? 'light' : 'dark');
-		});
-	}
-
-	syncThemeToggle();
-
-	const mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
-	if (!mq)
-		return;
-
-	const onSystemChange = (e) => {
-		try {
-			if (!localStorage.getItem(STORAGE_KEY)) {
-				document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
-				document.documentElement.setAttribute('data-darkmode', e.matches ? 'true' : 'false');
-				syncThemeToggle();
-			}
-		} catch (err) { /* ignore */ }
-	};
-
-	if (mq.addEventListener)
-		mq.addEventListener('change', onSystemChange);
-	else if (mq.addListener)
-		mq.addListener(onSystemChange);
-}
-
 return baseclass.extend({
 	__init__() {
-		bindThemeToggle();
 		ui.menu.load().then((tree) => this.render(tree)).catch((e) => {
 			console.warn('menu load failed:', e);
 			const loading = document.querySelector('.main > .loading');
@@ -83,8 +24,6 @@ return baseclass.extend({
 			}
 			ui.addNotification(null, E('p', _('Menu failed to load. Please refresh the page to retry.')), 'error');
 		});
-		if (document.body.getAttribute('data-page') === 'admin-status-overview')
-			L.require('view.zen.dashboard');
 	},
 
 	render(tree) {
@@ -109,6 +48,17 @@ return baseclass.extend({
 			showSide.addEventListener('click', ui.createHandlerFn(this, 'handleSidebarToggle'));
 		if (darkMask)
 			darkMask.addEventListener('click', ui.createHandlerFn(this, 'handleSidebarMask'));
+		document.addEventListener('click', ev => {
+			if (this.isTopNavigation() && !ev.target.closest('#mainmenu')) this.closeTopMenus();
+		});
+		document.addEventListener('zenappearancechange', () => {
+			const layout = document.documentElement.dataset.layout;
+			if (layout !== this._layout) {
+				this._layout = layout;
+				this.setSidebarOpen(false);
+				this.handleSidebarResize();
+			}
+		});
 
 		const loading = document.querySelector('.main > .loading');
 		if (loading) {
@@ -120,12 +70,18 @@ return baseclass.extend({
 			this.setSidebarOpen(false);
 		else
 			this.setDesktopCollapsed(this.readDesktopCollapsed());
+		this._layout = document.documentElement.dataset.layout;
+		this.syncMenuExpansion();
 
 		window.addEventListener('resize', () => {
 			clearTimeout(this._resizeTimer);
 			this._resizeTimer = setTimeout(() => this.handleSidebarResize(), 100);
 		});
 		window.addEventListener('keydown', ev => {
+			if (ev.key === 'Escape' && this.isTopNavigation()) {
+				const open = document.querySelector('#mainmenu .zen-menu-open > a');
+				if (open) { this.closeTopMenus(); open.focus(); ev.preventDefault(); }
+			}
 			if (ev.key === 'Escape' && document.body.classList.contains('sidebar-open')) {
 				this.setSidebarOpen(false);
 				if (showSide) showSide.focus();
@@ -137,6 +93,20 @@ return baseclass.extend({
 		const a = ev.currentTarget;
 		const li = a.parentNode;
 		const submenu = a.nextElementSibling;
+		if (this.isTopNavigation()) {
+			const open = !li.classList.contains('zen-menu-open');
+			this.closeTopMenus();
+			li.classList.toggle('zen-menu-open', open);
+			a.setAttribute('aria-expanded', String(open));
+			if (open && submenu) {
+				submenu.style.left = ''; submenu.style.right = '';
+				if (submenu.getBoundingClientRect().right > window.innerWidth - 16) {
+					submenu.style.left = 'auto'; submenu.style.right = '0';
+				}
+			}
+			ev.preventDefault(); ev.stopPropagation();
+			return;
+		}
 
 		document.querySelectorAll('li.slide.active').forEach((el) => {
 			if (el !== li) {
@@ -152,10 +122,26 @@ return baseclass.extend({
 		const willOpen = !li.classList.contains('active');
 		li.classList.toggle('active', willOpen);
 		a.classList.toggle('active', willOpen);
-		a.blur();
+		this.syncMenuExpansion();
 
 		ev.preventDefault();
 		ev.stopPropagation();
+	},
+
+	isTopNavigation() {
+		return document.documentElement.dataset.layout === 'top' && window.innerWidth > MOBILE_BP;
+	},
+
+	syncMenuExpansion() {
+		document.querySelectorAll('#mainmenu .slide > .menu').forEach(a => {
+			a.setAttribute('aria-expanded', String(a.parentNode.classList.contains(this.isTopNavigation() ? 'zen-menu-open' : 'active')));
+		});
+	},
+
+	closeTopMenus() {
+		document.querySelectorAll('#mainmenu .zen-menu-open').forEach(li => li.classList.remove('zen-menu-open'));
+		document.querySelectorAll('#mainmenu .slide-menu').forEach(ul => { ul.style.left = ''; ul.style.right = ''; });
+		this.syncMenuExpansion();
 	},
 
 	renderMainMenu(tree, url, level) {
@@ -169,6 +155,7 @@ return baseclass.extend({
 		children.forEach(child => {
 			if (child.name === 'logout')
 				return;
+			const title = url === 'admin/status' && child.name === 'overview' ? _('OpenWrt overview') : _(child.title);
 
 			const submenu = this.renderMainMenu(child, url + '/' + child.name, l);
 			const isActive = (L.env.dispatchpath[l] == child.name);
@@ -179,11 +166,12 @@ return baseclass.extend({
 					'href': hasChildren ? '#' : L.url(url, child.name),
 					'class': hasChildren ? 'menu' + (isActive ? ' active' : '') : (isActive ? 'active' : ''),
 					'click': hasChildren ? ui.createHandlerFn(this, 'handleMenuExpand') : '',
-					'data-title': _(child.title),
+					'data-title': title,
 					'aria-current': !hasChildren && isActive ? 'page' : null,
+					'aria-expanded': hasChildren ? String(!this.isTopNavigation() && isActive) : null,
 				}, [
 					...(l === 1 ? [icons.icon(MENU_ICONS[child.name] || 'zen-i-menu', 18)] : []),
-					E('span', { 'class': 'zen-menu-label' }, _(child.title))
+					E('span', { 'class': 'zen-menu-label' }, title)
 				]),
 				submenu
 			]));
@@ -192,11 +180,8 @@ return baseclass.extend({
 		if (l == 1) {
 			const container = document.querySelector('#mainmenu');
 			const footer = container.querySelector('.sidebar-footer');
-			const toggle = document.getElementById('theme-toggle');
 			if (footer)
 				container.insertBefore(ul, footer);
-			else if (toggle)
-				container.insertBefore(ul, toggle);
 			else
 				container.appendChild(ul);
 			container.style.display = '';
@@ -300,13 +285,14 @@ return baseclass.extend({
 	setDesktopCollapsed(collapsed) {
 		document.body.classList.toggle('sidebar-collapsed', collapsed);
 		const toggle = document.querySelector('.showSide');
-		if (toggle) toggle.setAttribute('aria-expanded', String(!collapsed));
+		if (toggle) toggle.setAttribute('aria-expanded', String(this.isTopNavigation() || !collapsed));
 		try {
 			localStorage.setItem(SIDEBAR_KEY, collapsed ? 'collapsed' : 'open');
 		} catch (e) { /* private mode */ }
 	},
 
 	handleSidebarToggle(ev) {
+		if (this.isTopNavigation()) return;
 		if (window.innerWidth > MOBILE_BP)
 			this.setDesktopCollapsed(!document.body.classList.contains('sidebar-collapsed'));
 		else
@@ -329,6 +315,7 @@ return baseclass.extend({
 	},
 
 	handleSidebarResize() {
+		this.closeTopMenus();
 		if (window.innerWidth > MOBILE_BP) {
 			this.setSidebarOpen(false);
 			this.setDesktopCollapsed(this.readDesktopCollapsed());

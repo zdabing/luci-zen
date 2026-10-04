@@ -13,6 +13,9 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 
 /* 9 类设备 + 连接方式 + 界面符号；24 viewBox，stroke 风格统一 */
 const SYMBOLS = {
+	'zen-i-sun': '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+	'zen-i-moon': '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
+	'zen-i-appearance': '<circle cx="12" cy="12" r="9"/><circle cx="8" cy="8" r="1"/><circle cx="14" cy="6" r="1"/><circle cx="17" cy="11" r="1"/><path d="M12 21c-2-3 0-4 2-5s1-3-1-3H9"/>',
 	'zen-i-status': '<rect x="3" y="3" width="18" height="18" rx="4"/><path d="m6 13 3-4 3 6 3-4h3"/>',
 	'zen-i-system': '<path d="m12 3 8 4.5v9L12 21l-8-4.5v-9zM4 7.5l8 4.5 8-4.5M12 12v9"/>',
 	'zen-i-services': '<rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/>',

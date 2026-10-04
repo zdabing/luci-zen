@@ -1,0 +1,19 @@
+{
+	"admin/zen": {
+		"title": "Zen home",
+		"order": 5,
+		"action": {
+			"type": "view",
+			"path": "zen/home"
+		},
+		"depends": {
+			"acl": [ "luci-theme-zen" ]
+		}
+	},
+	"admin/system/zen": {
+		"title": "Zen settings",
+		"order": 90,
+		"action": { "type": "view", "path": "zen/settings" },
+		"depends": { "acl": [ "luci-theme-zen" ] }
+	}
+}

@@ -1,0 +1,222 @@
+/* LuCI host mapping for the vendored Sunny UI appearance.css.
+ * Layout and business selectors stay in their existing modules.
+ */
+:root[data-material] {
+	--bg-base: var(--bg);
+	--bg-panel: var(--surface);
+	--bg-nested: var(--surface-soft);
+	--bg-input: var(--surface-strong);
+	--accent: var(--accent-light);
+	--on-accent: var(--accent-light-ink);
+	--accent-press: color-mix(in srgb, var(--accent) 85%, black);
+	--accent-soft: color-mix(in srgb, var(--accent) 12%, var(--surface));
+	--text-secondary: var(--muted);
+	--text-muted: var(--muted);
+	--radius: var(--material-radius);
+	--radius-sm: 10px;
+	--body-grad: var(--bg);
+	--aside-bg: var(--material-fill);
+	--header-bg: var(--material-control);
+	--btn-bg: var(--surface-soft);
+	--btn-hover-text: var(--text);
+	--chart-bg: var(--surface-soft);
+	--modal-grad: var(--surface);
+	--input-border: var(--material-edge);
+	--input-focus-bg: var(--surface-strong);
+	--focus-ring: color-mix(in srgb, var(--accent) 30%, transparent);
+	--nav-active-bg: var(--accent-soft);
+	--nav-active-text: var(--accent);
+	--nav-active-border: var(--accent);
+	--line-strong: var(--line);
+	--gauge: var(--accent);
+	--danger: #b91c1c;
+	--danger-soft: #fee2e2;
+	--ok: #166534;
+	--ok-soft: #dcfce7;
+	--warn: #854d0e;
+	--warn-soft: #fef3c7;
+	--info: #1e40af;
+	--info-soft: #dbeafe;
+}
+:root[data-material][data-theme="dark"] {
+	--accent: var(--accent-dark);
+	--on-accent: #17202e;
+	--accent-press: color-mix(in srgb, var(--accent) 85%, white);
+	--text: #edf0f6;
+	--danger: #fca5a5;
+	--danger-soft: #451a1a;
+	--ok: #86efac;
+	--ok-soft: #143322;
+	--warn: #fcd34d;
+	--warn-soft: #382c17;
+	--info: #93c5fd;
+	--info-soft: #172b45;
+}
+:root[data-material="outline"] { --line: color-mix(in srgb, var(--accent) 22%, var(--surface-2)); }
+:root[data-material] .main-left { background: var(--material-fill); backdrop-filter: var(--material-blur); -webkit-backdrop-filter: var(--material-blur); }
+:root[data-material] body > header { background: var(--material-control); backdrop-filter: var(--material-blur); -webkit-backdrop-filter: var(--material-blur); }
+
+/* Large sheets. Do not style the map/form wrappers or change their grid. */
+:root[data-material] :is(.zen-dash-panel, .zen-login-card, .cbi-section, .panel, .zen-updates) {
+	background: var(--material-fill);
+	border: 1px solid var(--material-edge);
+	border-radius: var(--material-radius);
+	box-shadow: var(--shadow-card);
+	backdrop-filter: var(--material-blur);
+	-webkit-backdrop-filter: var(--material-blur);
+}
+/* A summary grid is a transparent layout, not another material sheet. */
+:root[data-material] .zen-traffic-page > .zen-tf-summary { background: transparent; border: 0; padding: 0; box-shadow: none; backdrop-filter: none; }
+:root[data-material] .zen-login-card .cbi-section { background: transparent; border: 0; padding: 0; border-radius: 0; box-shadow: none; backdrop-filter: none; }
+
+/* Small surfaces retain a distinct, lighter material weight. No blur on every row. */
+:root[data-material] :is(.zen-dash-card, .zen-dash-stat, .zen-dash-dev-detail, .zen-share-card, .zen-tf-sum-item, .zen-tf-detail, .zen-rt-summary > div, .zen-notify-rule, .zen-appearance-sample, .zen-version-item) {
+	background: var(--material-inner);
+	border: 1px solid var(--material-edge);
+	border-radius: max(8px, calc(var(--material-radius) - 3px));
+	box-shadow: var(--material-control-shadow);
+}
+:root[data-material] :is(.zen-dash-chart, .zen-traffic-page .zen-rt-chart, .zen-traffic-page .zen-tf-chart-svg) { background: var(--material-inner); border-radius: max(8px, calc(var(--material-radius) - 3px)); }
+:root[data-material] :is(.zen-login-theme, .zen-login-reveal, .theme-toggle, .zen-appearance-trigger, .zen-dash-dev-more, .zen-dash-dev-sort, .zen-traffic-page .zen-tf-expand, .zen-traffic-page .zen-tf-tabs, .zen-traffic-page select, .zen-traffic-page input:not([type="checkbox"]):not([type="radio"]), .zen-login-card input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]), .zen-appearance-host .appearance-control) {
+	background: var(--material-control);
+	border: 1px solid var(--material-edge);
+	box-shadow: var(--material-control-shadow);
+}
+/* Primary and destructive actions keep their own meaning and readable ink. */
+:root[data-material] :is(.cbi-button-save, .cbi-button-apply, .cbi-button-positive, .zen-login-submit, .zen-traffic-page .important) { background: var(--accent); color: var(--on-accent); border-color: transparent; }
+:root[data-material] :is(.cbi-button-remove, .cbi-button-negative, .cbi-input-remove, .btn.danger) { background: var(--danger-soft); color: var(--danger); border-color: var(--danger); }
+:root[data-material] .zen-traffic-page .zen-history-tip { background: var(--surface-strong); }
+:root[data-material] #maincontent :is(input[type="text"], input[type="password"], input[type="number"], input[type="url"], input[type="time"], select, textarea, .cbi-input-text, .cbi-dropdown:not(.btn):not(.cbi-button)) {
+	background: var(--material-control); border-color: var(--material-edge); box-shadow: var(--material-control-shadow);
+}
+
+.zen-appearance-trigger { min-height: 40px; padding: 8px 12px; flex-shrink: 0; display: inline-flex; align-items: center; gap: 7px; }
+.zen-appearance-trigger svg { flex-shrink: 0; }
+body > header .zen-appearance-trigger { margin-left: 0; }
+body > header .brand { min-width: 0; }
+.zen-appearance-dialog { color: var(--text); }
+.zen-appearance-host .appearance-content { color: var(--text); }
+.zen-appearance-host .appearance-content header { position: static; height: auto; background: none; border: 0; backdrop-filter: none; -webkit-backdrop-filter: none; }
+.zen-appearance-host .appearance-content header > div { min-width: 0; }
+.zen-appearance-host .appearance-content header .icon { font-size: 24px; }
+.zen-appearance-host .appearance-content h2 { border: 0; padding: 0; }
+.zen-appearance-host .appearance-content fieldset { background: transparent; box-shadow: none; border-radius: 0; }
+.zen-appearance-host .appearance-content legend { width: auto; padding: 0; border: 0; color: var(--text); }
+.zen-appearance-host .appearance-modes { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.zen-appearance-presets { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.zen-appearance-host .appearance-content .zen-appearance-presets button { justify-content: flex-start; text-align: left; padding: 10px 12px; }
+.zen-appearance-host .appearance-content fieldset button { min-width: 0; overflow-wrap: anywhere; }
+.zen-appearance-host .appearance-color-strip { width: 26px; height: 26px; border-radius: 50%; }
+.zen-appearance-host .appearance-materials small { font-size: 12px; line-height: 1.5; }
+.zen-appearance-host .appearance-materials button > span:last-child { min-width: 0; }
+.zen-appearance-host .appearance-preview p { font-size: 13px; color: var(--muted); line-height: 1.6; }
+.zen-appearance-sample { padding: 12px; margin: 14px 0 10px; font-size: 13px; }
+.zen-appearance-host .appearance-control { width: 100%; max-width: none; min-height: 44px; border-radius: 10px; }
+.zen-appearance-host .appearance-preview-action { color: var(--accent-ink); }
+.zen-appearance-host .appearance-content footer { position: static; padding: 0; border: 0; text-align: left; background: transparent; }
+@media (max-width: 700px) {
+	.zen-appearance-host .appearance-materials { grid-template-columns: 1fr; }
+	.zen-appearance-host .appearance-swatches { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+	.zen-appearance-host .appearance-content { padding: 18px; }
+	.zen-appearance-host .appearance-content fieldset button { min-height: 44px; }
+	.zen-appearance-host .appearance-content header .icon { width: 44px; height: 44px; flex-basis: 44px; }
+	.zen-appearance-trigger { min-height: 44px; }
+	body > header .zen-appearance-trigger { width: 44px; height: 44px; padding: 0; }
+	body > header .zen-appearance-trigger .zen-appearance-label { display: none; }
+	:root[data-material] :is(.zen-tf-table .zen-tf-row, .zen-tf-table .zen-tf-detail-row) { background: var(--material-fill); }
+}
+@media (hover: hover) and (pointer: fine) {
+	.zen-appearance-trigger:hover { border-color: var(--accent); }
+}
+@media (prefers-reduced-motion: reduce) {
+	.zen-appearance-host button, .zen-appearance-trigger { transition: none; }
+}
+@media (pointer: coarse) {
+	.zen-appearance-host input { font-size: 16px; }
+}
+@supports not (backdrop-filter: blur(1px)) {
+	:root[data-material] { --material-fill: var(--surface); --material-inner: var(--surface-soft); --material-control: var(--surface-strong); --material-blur: none; --material-edge: var(--line); }
+}
+@media (forced-colors: active) {
+	:root[data-material] { --material-fill: Canvas; --material-inner: Canvas; --material-control: Canvas; --material-edge: CanvasText; --material-blur: none; --shadow-card: none; --material-control-shadow: none; }
+	.zen-appearance-host button[aria-pressed="true"] { outline: 2px solid Highlight; }
+}
+
+/* Appearance controls stay available when navigation is hidden. */
+.zen-header-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+body > header .zen-mode-toggle, .zen-login-topbar .zen-mode-toggle {
+ width: auto; min-height: 44px; padding: 8px 12px; color: var(--text); border: 1px solid var(--material-edge);
+ box-shadow: var(--material-control-shadow); border-radius: 999px;
+}
+.zen-mode-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.zen-appearance-layouts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.zen-appearance-host .zen-appearance-layouts button { justify-content: flex-start; text-align: left; }
+.zen-appearance-layouts strong, .zen-appearance-layouts small { display: block; }
+.zen-appearance-layouts small { color: var(--muted); font-size: 12px; line-height: 1.5; margin-top: 4px; }
+.zen-appearance-layouts button > span:last-child { min-width: 0; }
+.zen-layout-mini { position: relative; flex: 0 0 56px; height: 40px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); overflow: hidden; }
+.zen-layout-mini i { position: absolute; background: var(--accent-soft); border-radius: 2px; }
+.zen-layout-mini i:nth-child(1) { inset: 3px 3px auto; height: 5px; background: var(--accent); }
+.zen-layout-mini-sidebar i:nth-child(2) { top: 11px; bottom: 3px; left: 3px; width: 11px; background: var(--accent); opacity: .6; }
+.zen-layout-mini-sidebar i:nth-child(3) { inset: 11px 3px 3px 17px; }
+.zen-layout-mini-top i:nth-child(2) { top: 11px; left: 3px; right: 3px; height: 5px; background: var(--accent); opacity: .6; }
+.zen-layout-mini-top i:nth-child(3) { inset: 19px 3px 3px; }
+@media (min-width: 769px) {
+ :root[data-layout="top"] .main { display: block; }
+ :root[data-layout="top"] body:not(.zen-login-page) > header .showSide { display: none; }
+ :root[data-layout="top"] .main-left, :root[data-layout="top"] body.sidebar-collapsed .main-left {
+  position: sticky; top: calc(var(--header-h) + 8px); left: auto; width: auto; height: auto;
+  margin: 16px 24px 0; padding: 8px; border: 1px solid var(--material-edge);
+  border-radius: var(--material-radius); display: flex; flex-direction: row; align-items: center; gap: 8px;
+  overflow: visible; pointer-events: auto; transition: none; box-shadow: var(--shadow-card);
+ }
+ :root[data-layout="top"] .main-left .nav { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; overflow: visible; }
+ :root[data-layout="top"] .main-left .nav > li { position: relative; flex: 0 0 auto; }
+ :root[data-layout="top"] .main-left .nav > li > a { margin: 0; gap: 8px; }
+ :root[data-layout="top"] .main-left .menu::after { margin-left: 4px; transform: rotate(45deg); }
+ :root[data-layout="top"] .main-left .zen-menu-open > .menu::after { transform: rotate(225deg); }
+ :root[data-layout="top"] .main-left .slide-menu {
+  display: none; position: absolute; top: calc(100% + 8px); left: 0; z-index: 31;
+  min-width: 220px; max-width: calc(100vw - 48px); max-height: calc(100vh - var(--header-h) - 120px);
+  overflow-y: auto; margin: 0; padding: 8px; border: 1px solid var(--material-edge); border-radius: var(--radius-sm);
+  background: var(--surface); box-shadow: var(--shadow-card);
+ }
+ :root[data-layout="top"] .main-left .zen-menu-open > .slide-menu { display: block; }
+ :root[data-layout="top"] .main-left .slide-menu a { min-height: 44px; display: flex; align-items: center; }
+ :root[data-layout="top"] .main-left .slide-menu a::before { display: none; }
+ :root[data-layout="top"] .sidebar-footer { width: auto; margin: 0; padding: 0; border: 0; }
+ :root[data-layout="top"] .sidebar-footer:empty { display: none; }
+ :root[data-layout="top"] #maincontent, :root[data-layout="top"] #maincontent > .container { max-width: none; }
+}
+@media (max-width: 768px) {
+ body > header .container { gap: 8px; }
+ body > header .zen-mode-toggle, .zen-login-topbar .zen-mode-toggle { width: 44px; height: 44px; padding: 0; justify-content: center; }
+ .zen-mode-toggle .zen-mode-label { display: none; }
+ .zen-login-topbar { gap: 8px; }
+ .zen-login-topbar .zen-appearance-trigger { width: 44px; height: 44px; padding: 0; justify-content: center; }
+ .zen-login-topbar .zen-appearance-label { display: none; }
+ .zen-appearance-layouts { grid-template-columns: 1fr; }
+}
+
+/* Shared controls render in the authenticated settings page or login dialog. */
+.zen-settings-page { max-width: 1200px; margin: 0 auto; }
+.zen-settings-page > h2 { border: 0; margin: 0 0 20px; padding: 0; font-size: 24px; }
+.zen-settings-tabs { display: flex; gap: 8px; margin-bottom: 18px; }
+.zen-settings-tabs button { min-height: 44px; padding: 10px 18px; border: 1px solid var(--line); border-radius: 12px; color: var(--text); background: var(--material-control); font: inherit; cursor: pointer; }
+.zen-settings-tabs button[aria-selected="true"] { background: var(--accent-soft); border-color: var(--accent); }
+.zen-settings-tabs button:focus-visible, .zen-appearance-host :is(button, a, input):focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 3px; }
+.zen-settings-panel { color: var(--text); background: var(--material-fill); border: 1px solid var(--material-edge); border-radius: var(--material-radius); box-shadow: var(--shadow-card); backdrop-filter: var(--material-blur); }
+.zen-settings-panel[hidden] { display: none !important; }
+.zen-settings-panel .appearance-content { padding: 24px; }
+.zen-settings-panel > .zen-updates { margin: 0; background: transparent !important; border: 0 !important; box-shadow: none !important; backdrop-filter: none !important; }
+.zen-settings-page .appearance-materials { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.zen-settings-page .zen-appearance-presets { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.zen-settings-link { text-decoration: none; color: var(--text); border-radius: 12px; min-height: 44px; font-size: 14px; }
+.zen-settings-link:hover { color: var(--text); }
+@media (max-width: 768px) {
+ .zen-settings-page > h2 { font-size: 21px; }
+ .zen-settings-tabs button { flex: 1; padding: 10px 8px; }
+ .zen-settings-panel .appearance-content { padding: 16px; }
+ .zen-settings-page .zen-appearance-presets { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+ .zen-settings-page .appearance-materials { grid-template-columns: minmax(0, 1fr); }
+}

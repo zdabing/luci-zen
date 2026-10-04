@@ -1,5 +1,6 @@
 'use strict';
 'require view';
+'require view.zen.zen-icons as icons';
 
 return view.extend({
 	render() {
@@ -11,20 +12,21 @@ return view.extend({
 		const host = source.getAttribute('data-hostname') || 'OpenWrt';
 		document.body.classList.add('zen-login-page');
 
-		const theme = E('button', { type: 'button', 'class': 'zen-login-theme' });
-		const syncTheme = () => {
-			const dark = document.documentElement.getAttribute('data-theme') === 'dark';
-			theme.textContent = dark ? _('Light mode') : _('Dark mode');
-			theme.setAttribute('aria-label', dark ? _('Switch to light mode') : _('Switch to dark mode'));
-		};
-		theme.addEventListener('click', () => {
-			const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-			document.documentElement.setAttribute('data-theme', next);
-			document.documentElement.setAttribute('data-darkmode', String(next === 'dark'));
-			try { localStorage.setItem('luci-theme-zen', next); } catch (e) { /* private mode */ }
-			syncTheme();
-		});
-		syncTheme();
+		const theme = E('button', {
+			type: 'button', 'class': 'zen-login-theme zen-appearance-trigger',
+			'aria-label': _('Theme settings'), 'aria-haspopup': 'dialog',
+			'aria-controls': 'zen-appearance-dialog'
+		}, [icons.icon('zen-i-appearance', 18), E('span', { 'class': 'zen-appearance-label' }, _('Theme settings'))]);
+		const dark = document.documentElement.dataset.theme === 'dark';
+		const quickMode = E('button', {
+			type: 'button', 'class': 'theme-toggle zen-mode-toggle',
+			'aria-label': dark ? _('Switch to light mode') : _('Switch to dark mode'),
+			title: dark ? _('Switch to light mode') : _('Switch to dark mode')
+		}, [
+			E('span', { 'class': 'theme-icon theme-icon-sun' }, icons.icon('zen-i-sun', 18)),
+			E('span', { 'class': 'theme-icon theme-icon-moon' }, icons.icon('zen-i-moon', 18)),
+			E('span', { 'class': 'zen-mode-label' }, dark ? _('Light mode') : _('Dark mode'))
+		]);
 
 		if (pwd) {
 			const reveal = E('button', {
@@ -66,7 +68,7 @@ return view.extend({
 		return E('main', { 'class': 'zen-login-shell' }, [
 			E('div', { 'class': 'zen-login-topbar' }, [
 				E('span', { 'class': 'zen-login-brand' }, [E('span', { 'class': 'zen-login-mark', 'aria-hidden': 'true' }, 'Z'), 'OpenWrt']),
-				theme
+				E('div', { 'class': 'zen-header-actions' }, [quickMode, theme])
 			]),
 			E('section', { 'class': 'zen-login-card', 'aria-labelledby': 'zen-login-title' }, [
 				E('div', { 'class': 'zen-login-heading' }, [

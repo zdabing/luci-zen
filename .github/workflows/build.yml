@@ -267,6 +267,7 @@ jobs:
         env:
           RELEASE_SDK: ${{ inputs.sdk_version || '25.12.5' }}
           RELEASE_TARGET: ${{ inputs.sdk_target || 'x86/64' }}
+          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && format('build-{0}-{1}', github.run_id, github.run_attempt) || github.ref_name }}
         run: |
           python3 - <<'PY'
           import os
@@ -281,6 +282,7 @@ jobs:
           )
           Path('release-notes.md').write_text(notes + metadata, encoding='utf-8')
           PY
+          python3 tools/make-release-metadata.py --assets release-assets --target "$RELEASE_TARGET" --sdk-version "$RELEASE_SDK" --tag "$RELEASE_TAG" --notes release-notes.md
 
       - name: Publish release
         uses: softprops/action-gh-release@v3
@@ -290,5 +292,7 @@ jobs:
           prerelease: ${{ github.event_name == 'workflow_dispatch' }}
           name: "${{ github.event_name == 'workflow_dispatch' && format('SDK build #{0} ({1})', github.run_number, inputs.sdk_target || 'x86/64') || github.ref_name }}"
           body_path: release-notes.md
-          files: release-assets/**/*.apk
+          files: |
+            release-assets/**/*.apk
+            release-assets/zen-update.json
           fail_on_unmatched_files: true

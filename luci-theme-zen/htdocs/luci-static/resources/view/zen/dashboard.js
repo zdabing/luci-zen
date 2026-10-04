@@ -9,7 +9,7 @@
 'require view.zen.zen-wan-share as wanShare';
 
 /*
- * view.zen.dashboard — luci-theme-zen 首页（admin/status/overview）。
+ * view.zen.dashboard — Zen 首页的数据与组件，供 admin/zen 的独立视图使用。
  *
  * 结构：状态条(主机名·型号·运行时间) + 系统四卡(负载/CPU/RAM/根文件系统，环形进度)
  *       + 网络状态卡(WAN 状态/WAN IPv4/WAN IPv6/LAN IP/在线客户端/DHCP 租约)
@@ -103,42 +103,29 @@ function settled(value, fallback) {
 }
 
 return baseclass.extend({
-	__init__() {
+	start(dash) {
+		if (!dash) return;
+		if (this.dash === dash) return;
+		if (this._poll) poll.remove(this._poll);
 		this.prevCpu = null;
 		this.prevNet = null;
 		this.prevAt = 0;
 		this.history = [];
 		this.iface = 'all';
-		this.dash = this.mount();
+		this.dash = dash;
 		if (!this.dash)
 			return;
-		poll.add(() => this.tick(), POLL_SECS);
+		this._poll = () => {
+			if (!document.hidden && this.dash.isConnected) return this.tick();
+		};
+		poll.add(this._poll, POLL_SECS);
+		this.ready = this.tick();
 
 		// 设备流量模块独立探测（zen.traffic 缺失时仅显示提示，不影响其他卡）
 		wanShare.mount(this.dash).catch((e) => console.warn('zen-wan-share', e));
 		try {
 			devices.mount(this.dash).catch((e) => console.warn('zen-devices', e));
 		} catch (e) { /* 模块缺失不阻塞首页 */ }
-	},
-
-	mount() {
-		if (document.getElementById('zen-dashboard'))
-			return document.getElementById('zen-dashboard');
-
-		const container = document.querySelector('#maincontent > .container') || document.getElementById('maincontent');
-		if (!container)
-			return null;
-
-		const dash = this.build();
-		const view = document.getElementById('view');
-		const tab = document.getElementById('tabmenu');
-		if (view)
-			container.insertBefore(dash, view);
-		else if (tab && tab.parentNode === container)
-			container.insertBefore(dash, tab.nextSibling);
-		else
-			container.insertBefore(dash, container.firstChild);
-		return dash;
 	},
 
 	buildRing(key, label) {

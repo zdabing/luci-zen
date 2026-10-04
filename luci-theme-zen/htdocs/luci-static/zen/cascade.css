@@ -2143,10 +2143,8 @@ div.cbi-value var.cbi-tooltip-container .cbi-tooltip,
 }
 
 /* ---------- Overview dashboard (zen) ---------- */
-body.node-status-overview #maincontent,
-body.node-status-overview #maincontent > .container,
-body.node-admin-status-overview #maincontent,
-body.node-admin-status-overview #maincontent > .container {
+body.node-admin-zen #maincontent,
+body.node-admin-zen #maincontent > .container {
 	max-width: none;
 }
 
@@ -3225,4 +3223,30 @@ header .showSide:focus-visible { outline: 2px solid var(--accent); outline-offse
  .zen-share-content { gap: 16px; }
  .zen-share-ring { max-width: 180px; }
  .zen-share-legend { grid-template-columns: 1fr; gap: 4px; }
+}
+
+/* Home version and update sheet: the same material hierarchy as the dashboard. */
+.zen-updates { margin-top: 20px; padding: 24px; background: var(--bg-panel); border: 1px solid var(--line); border-radius: var(--radius); }
+.zen-update-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.zen-updates h2 { margin: 0 0 6px; font-size: 18px; }
+.zen-updates h3 { margin: 0 0 10px; font-size: 15px; }
+.zen-updates p { margin: 8px 0; }
+.zen-update-note { color: var(--text-secondary); font-size: 12px; line-height: 1.6; }
+.zen-update-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.zen-update-actions .btn { min-height: 44px; white-space: normal; }
+.zen-version-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.zen-version-item { display: flex; flex-direction: column; gap: 8px; padding: 14px; background: var(--bg-nested); min-width: 0; border-radius: var(--radius-sm); border: 1px solid var(--line); }
+.zen-version-item > span { font-size: 12px; color: var(--text-secondary); }
+.zen-version-item strong { font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.zen-update-results { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 18px 0; font-size: 13px; }
+.zen-update-result { padding: 16px; border: 1px solid var(--line); border-radius: var(--radius-sm); min-width: 0; overflow-wrap: anywhere; }
+.zen-update-results > .zen-update-note { grid-column: 1 / -1; }
+.zen-update-file { margin: 12px 0; }
+.zen-update-file summary { cursor: pointer; padding: 8px 0; }
+.zen-update-file code { display: block; margin-top: 8px; font-size: 11px; overflow-wrap: anywhere; white-space: normal; }
+@media (max-width: 768px) {
+ .zen-updates { padding: 16px; }
+ .zen-update-heading { flex-direction: column; }
+ .zen-version-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+ .zen-update-results { grid-template-columns: minmax(0, 1fr); }
 }

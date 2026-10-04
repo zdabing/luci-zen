@@ -387,3 +387,258 @@ msgstr "互联网占比需要更新流量服务并校准系统时间。"
 
 msgid "Usage temporarily unavailable; showing the last result."
 msgstr "暂时无法读取用量，正在显示上次结果。"
+
+msgid "Theme settings"
+msgstr "主题设置"
+
+msgid "Macaron"
+msgstr "马卡龙"
+
+msgid "Nord"
+msgstr "北境极光"
+
+msgid "Honey"
+msgstr "蜂蜜麦田"
+
+msgid "Sunny blue"
+msgstr "晴蓝"
+
+msgid "Coast"
+msgstr "海盐日落"
+
+msgid "iOS glass"
+msgstr "iOS 玻璃"
+
+msgid "Aurora glass"
+msgstr "极光玻璃"
+
+msgid "Archive paper"
+msgstr "纸页档案"
+
+msgid "Fine outline"
+msgstr "精致描边"
+
+msgid "Duotone gradient"
+msgstr "双色渐层"
+
+msgid "Frosted surfaces, bright edges and floating depth"
+msgstr "磨砂表面、明亮边缘与悬浮层次"
+
+msgid "Translucent layers with soft ambient color"
+msgstr "半透明层次与柔和环境色光"
+
+msgid "Warm paper, fine lines and quiet reading"
+msgstr "暖色纸面、纤细边线与安静阅读"
+
+msgid "Clear surfaces, fine edges and restrained depth"
+msgstr "清晰实色、精致描边与克制层次"
+
+msgid "Directional color gradients with solid surfaces"
+msgstr "有方向的双色渐变与实色表面"
+
+msgid "Bright macaron glass"
+msgstr "马卡龙明亮玻璃"
+
+msgid "Northern aurora"
+msgstr "北境极光半透流光"
+
+msgid "Honey paper"
+msgstr "蜂蜜麦田暖色纸页"
+
+msgid "Clear blue outline"
+msgstr "晴蓝清晰描边"
+
+msgid "Coastal sunset"
+msgstr "海盐日落双色渐层"
+
+msgid "Color, material, display mode and layout are independent. Changes apply immediately."
+msgstr "配色、质感、明暗与布局分别选择，调整立即生效。"
+
+msgid "Display mode"
+msgstr "显示模式"
+
+msgid "Follow system"
+msgstr "跟随系统"
+
+msgid "Style presets"
+msgstr "风格预设"
+
+msgid "Color palette"
+msgstr "配色"
+
+msgid "Surface material"
+msgstr "界面质感"
+
+msgid "Clear content, consistent layers"
+msgstr "清晰的内容，一致的层次"
+
+msgid "Cards and controls share the material. Traffic and status colors keep their meaning."
+msgstr "大小卡片与控件共享质感，流量和状态颜色保留原有含义。"
+
+msgid "Small card"
+msgstr "小卡片"
+
+msgid "Your network"
+msgstr "我的网络"
+
+msgid "Preview input"
+msgstr "预览输入框"
+
+msgid "Primary action"
+msgstr "主要操作"
+
+msgid "Saved in this browser"
+msgstr "已保存在此浏览器"
+
+msgid "Storage unavailable; appearance applies for this session only"
+msgstr "浏览器存储不可用，设置仅在本次会话生效"
+
+msgid "Navigation layout"
+msgstr "导航布局"
+
+msgid "Left navigation"
+msgstr "左侧导航"
+
+msgid "Top navigation"
+msgstr "顶部导航"
+
+msgid "Navigation stays on the left"
+msgstr "导航栏位于页面左侧"
+
+msgid "Horizontal on desktop; collapsible menu on mobile"
+msgstr "桌面横向导航，手机折叠菜单"
+
+msgid "Zen home"
+msgstr "Zen 首页"
+
+msgid "OpenWrt overview"
+msgstr "OpenWrt 概览"
+
+msgid "Zen theme"
+msgstr "Zen 主题"
+
+msgid "Zen traffic interface"
+msgstr "Zen 流量界面"
+
+msgid "Zen traffic service"
+msgstr "Zen 流量服务"
+
+msgid "Reading…"
+msgstr "读取中…"
+
+msgid "Refresh versions"
+msgstr "刷新版本"
+
+msgid "Check for updates"
+msgstr "检查更新"
+
+msgid "Updates have not been checked."
+msgstr "尚未检查更新。"
+
+msgid "Versions & updates"
+msgstr "版本与更新"
+
+msgid "Installed versions are read from this router."
+msgstr "显示此路由器实际安装的版本。"
+
+msgid "Router firmware"
+msgstr "路由器固件"
+
+msgid "Kernel"
+msgstr "内核"
+
+msgid "Checks use public GitHub releases for Zen and 10Wrt. Component installation and firmware backup, validation and flashing continue in OpenWrt."
+msgstr "检查 Zen 和 10Wrt 的 GitHub 正式发布。组件安装、固件备份、校验和刷写在 OpenWrt 中完成。"
+
+msgid "Not installed"
+msgstr "未安装"
+
+msgid "Unable to read"
+msgstr "无法读取"
+
+msgid "10Wrt build identity is unavailable; firmware freshness cannot be determined."
+msgstr "未找到 10Wrt 构建标识，无法判断固件是否为最新。"
+
+msgid "Zen package versions differ. Upgrade the three components together."
+msgstr "Zen 三个包版本不一致，建议一起升级。"
+
+msgid "The running traffic service differs from its installed version. Restart the service after upgrading."
+msgstr "运行中的流量服务与安装版本不同，升级后请重启服务。"
+
+msgid "Manage Zen packages"
+msgstr "管理 Zen 软件包"
+
+msgid "Backup / flash firmware"
+msgstr "备份 / 升级固件"
+
+msgid "Read only"
+msgstr "只读"
+
+msgid "Upgrade pages are unavailable for this account."
+msgstr "当前账号没有可用的升级页面。"
+
+msgid "Checking releases…"
+msgstr "正在检查发布…"
+
+msgid "Zen components"
+msgstr "Zen 三个组件"
+
+msgid "10Wrt firmware"
+msgstr "10Wrt 固件"
+
+msgid "GitHub rate limit reached. Try again later."
+msgstr "GitHub 请求次数已达上限，请稍后重试。"
+
+msgid "Release source is unavailable."
+msgstr "发布源不可用。"
+
+msgid "Update check failed. Check connectivity and retry."
+msgstr "检查更新失败，请检查网络后重试。"
+
+msgid "Last checked: %s"
+msgstr "检查时间：%s"
+
+msgid "No stable releases found."
+msgstr "未找到正式发布。"
+
+msgid "Release metadata is missing. Compatibility and freshness cannot be determined."
+msgstr "发布版本缺少有效的更新信息，无法确认兼容性或是否最新。"
+
+msgid "No compatible release found for this router."
+msgstr "未找到适配此路由器的发布。"
+
+msgid "Unable to compare"
+msgstr "无法比较"
+
+msgid "Update available"
+msgstr "有可用更新"
+
+msgid "Up to date"
+msgstr "已是最新"
+
+msgid "Installed version is newer"
+msgstr "当前安装版本较新"
+
+msgid "Compatible image available; current build is unknown."
+msgstr "有适配固件可下载，当前构建版本未知。"
+
+msgid "Download the three matching APKs, then use Manage Zen packages to upload and install them. Do not bypass dependency or signature checks."
+msgstr "下载匹配的三个 APK，然后进入「管理 Zen 软件包」上传安装。请保留依赖与签名检查。"
+
+msgid "Choose the correct filesystem image, download it, then use Backup / flash firmware. OpenWrt validates the image before confirmation."
+msgstr "选择与当前文件系统及启动方式一致的镜像，下载后进入「备份 / 升级固件」。OpenWrt 会先校验镜像，再确认刷写。"
+
+msgid "View releases"
+msgstr "查看发布"
+
+msgid "Unknown"
+msgstr "未知"
+
+msgid "Zen settings"
+msgstr "Zen 设置"
+
+msgid "Appearance & layout"
+msgstr "外观与布局"
+
+msgid "Appearance controls are available when using the Zen theme."
+msgstr "使用 Zen 主题时可设置外观与布局。"
