@@ -21,6 +21,8 @@ mod persistence;
 mod realtime;
 mod state;
 mod totals;
+mod topology;
+mod offload;
 mod ubus;
 mod wifi;
 mod wan;
@@ -76,6 +78,7 @@ fn main() {
         if let Err(e) = unsafe { netif::refresh(d) } {
             eprintln!("[zen-trafficd] 启动前缀学习: {e}");
         }
+        totals::detect_upstream(d);
     });
 
     println!(
@@ -110,7 +113,7 @@ fn main() {
 
 const USAGE: &str = "用法: zen-trafficd [选项]
   -b, --bpf PATH        BPF 对象路径（默认 /usr/share/zen-traffic/zen_traffic.bpf.o）
-  -i, --iface NAME      LAN 桥设备（可重复，默认 br-lan）
+  -i, --iface NAME      LAN 设备（网桥自动展开为端口，可重复，默认 br-lan）
   -t, --interval-ms N   轮询周期（默认 1000，最小 100）
   -o, --offline SEC     设备离线判定秒数（默认 600）
   -c, --checkpoint SEC  SQLite checkpoint 周期秒数（默认 300）

@@ -20,6 +20,10 @@ on:
       sdk_target:
         description: 'SDK target/subtarget (download path segment)'
         default: 'x86/64'
+      publish_release:
+        description: 'Publish packages after building (disable for router acceptance)'
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -243,7 +247,7 @@ jobs:
   publish:
     name: Publish APKs to Releases
     needs: [luci-theme-zen, zen-traffic]
-    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+    if: (github.event_name == 'workflow_dispatch' && inputs.publish_release) || startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7

@@ -16,6 +16,13 @@ use crate::persistence::Db;
 use crate::state::{now_epoch, now_mono_ms, Config, DevState, HostSrc};
 use crate::{accounting, totals};
 
+pub struct Attachment {
+    pub name: String,
+    ifindex: u32,
+    ingress: aya::programs::tc::SchedClassifierLinkId,
+    egress: aya::programs::tc::SchedClassifierLinkId,
+}
+
 pub struct Daemon {
     pub cfg: Config,
     pub bpf: Ebpf,
@@ -44,6 +51,8 @@ pub struct Daemon {
 
     // ---- getTotal ----
     pub upstream: Vec<u32>,
+    pub pppoe_devices: Vec<(String, String)>,
+    pub offload: crate::offload::Status,
     pub up_prev: HashMap<u32, (u64, u64)>,
     pub rx_r: u64,
     pub tx_r: u64,
@@ -51,7 +60,7 @@ pub struct Daemon {
     pub last_totals_mono: u64,
 
     // ---- 生命周期 ----
-    pub ifaces_meta: Vec<(String, bool)>, // (iface, qdisc 是否本次创建)
+    pub ifaces_meta: Vec<Attachment>,
     pub started: u64,
 }
 
@@ -121,25 +130,11 @@ impl Daemon {
         }
 
         // 3) netlink
-        let mut nl = Netlink::open().map_err(|e| format!("netlink socket: {e}"))?;
+        let nl = Netlink::open().map_err(|e| format!("netlink socket: {e}"))?;
 
         // 4) BPF：加载 + 残留 filter 清理 + attach
-        let mut bpf = zen_bpf::load(std::path::Path::new(&cfg.bpf_path))?;
+        let bpf = zen_bpf::load(std::path::Path::new(&cfg.bpf_path))?;
         zen_bpf::describe(&bpf);
-
-        let mut ifaces_meta: Vec<(String, bool)> = Vec::new();
-        for name in &cfg.ifaces {
-            // 幂等：清理本项目的残留 filter（Aya 崩溃后 link 不自动 detach）
-            unsafe {
-                clean_stale(&mut nl, name);
-            }
-            let created = zen_bpf::qdisc_ensure(name)?;
-            zen_bpf::attach(&mut bpf, "zen_ingress", name, aya::programs::TcAttachType::Ingress)?;
-            zen_bpf::attach(&mut bpf, "zen_egress", name, aya::programs::TcAttachType::Egress)?;
-            println!("[zen-trafficd] attached: {name}（clsact {}）",
-                     if created { "created" } else { "existing" });
-            ifaces_meta.push((name.clone(), created));
-        }
 
         let mut d = Daemon {
             cfg,
@@ -160,21 +155,60 @@ impl Daemon {
             cur_month,
             pending_periods: accounting::PendingPeriods::default(),
             upstream: Vec::new(),
+            pppoe_devices: Vec::new(),
+            offload: crate::offload::Status::default(),
             up_prev: HashMap::new(),
             rx_r: 0,
             tx_r: 0,
             route_checked_mono: now_mono,
             last_totals_mono: now_mono,
-            ifaces_meta,
+            ifaces_meta: Vec::new(),
             started: now,
         };
 
         // 5) 全局速率基线 + 本地前缀
+        d.reconcile_interfaces()?;
         totals::detect_upstream(&mut d);
         let n = unsafe { netif::refresh(&mut d) }?;
         println!("[zen-trafficd] local_prefixes 已写入 {n} 条");
 
         Ok(d)
+    }
+
+    /// Follow bridge port changes without resetting maps or accounting baselines.
+    pub fn reconcile_interfaces(&mut self) -> Result<(), String> {
+        let desired = crate::topology::lan_ifaces(&self.cfg.ifaces)?;
+        let links = self.nl.links();
+        if links.is_empty() { return Err("读取网络接口失败".into()); }
+        let mut i = 0;
+        while i < self.ifaces_meta.len() {
+            let old = &self.ifaces_meta[i];
+            if desired.contains(&old.name) && links.iter().any(|l| l.name == old.name && l.ifindex == old.ifindex) {
+                i += 1; continue;
+            }
+            let old = self.ifaces_meta.remove(i);
+            let ingress = zen_bpf::detach(&mut self.bpf, "zen_ingress", old.ingress);
+            let egress = zen_bpf::detach(&mut self.bpf, "zen_egress", old.egress);
+            ingress?; egress?;
+        }
+        for name in desired {
+            if self.ifaces_meta.iter().any(|a| a.name == name) { continue; }
+            let Some(link) = links.iter().find(|l| l.name == name) else { continue };
+            unsafe { clean_stale(&mut self.nl, &name); }
+            zen_bpf::qdisc_ensure(&name)?;
+            let ingress = zen_bpf::attach(&mut self.bpf, "zen_ingress", &name, aya::programs::TcAttachType::Ingress)?;
+            let egress = match zen_bpf::attach(&mut self.bpf, "zen_egress", &name, aya::programs::TcAttachType::Egress) {
+                Ok(link) => link,
+                Err(error) => {
+                    let _ = zen_bpf::detach(&mut self.bpf, "zen_ingress", ingress);
+                    return Err(error);
+                }
+            };
+            println!("[zen-trafficd] attached: {name}");
+            self.ifaces_meta.push(Attachment { name, ifindex: link.ifindex, ingress, egress });
+        }
+        if self.ifaces_meta.is_empty() { return Err("没有可用的 LAN 采集接口".into()); }
+        Ok(())
     }
 
     /// 1s 主循环（uloop timer 回调调用）
