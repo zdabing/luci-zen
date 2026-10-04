@@ -357,6 +357,13 @@ header .status {
 	max-width: 1200px;
 }
 
+@media (min-width: 769px) {
+	body.sidebar-collapsed #maincontent,
+	body.sidebar-collapsed #maincontent > .container {
+		max-width: none;
+	}
+}
+
 .darkMask {
 	display: none;
 }
