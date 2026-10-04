@@ -3,12 +3,27 @@
 		"description": "zen-traffic daemon ubus access",
 		"read": {
 			"ubus": {
-				"zen.traffic": [ "getStatus", "getDevices", "getTotal", "getHistory", "getRealtimeHistory" ]
+				"zen.traffic": [
+					"getStatus",
+					"getDevices",
+					"getTotal",
+					"getHistory",
+					"getRealtimeHistory",
+					"getWanUsage",
+					"getInternetHistory",
+					"getNotifications"
+				]
 			}
 		},
 		"write": {
 			"ubus": {
-				"zen.traffic": [ "setHostname", "resetDevice", "reloadPrefixes" ]
+				"zen.traffic": [
+					"setHostname",
+					"resetDevice",
+					"reloadPrefixes",
+					"setNotifications",
+					"testNotification"
+				]
 			}
 		}
 	}

@@ -1,6 +1,9 @@
 'use strict';
 'require view';
 'require rpc';
+'require ui';
+'require view.zen-traffic.rate-history as rateHistory';
+'require view.zen-traffic.style as trafficStyle';
 
 /*
  * view.zen-traffic.history — luci-app-zen-traffic 历史曲线页。
@@ -9,7 +12,7 @@
  * daemon 端落盘）。方向约定 download=rx（下载）、upload=tx（上传）。
  *
  * 交互：日/月聚合切换（90 天 / 12 个月）、设备选择（可选，默认全设备 SUM）。
- * 渲染：SVG 折线（一次构建），切换/刷新只重写 path 与坐标文本。
+ * 渲染：每个日期一组上传/下载柱，长历史只滚动图表。
  */
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -28,8 +31,19 @@ const callDevices = rpc.declare({
 const callHistory = rpc.declare({
 	object: 'zen.traffic',
 	method: 'getHistory',
-	params: ['agg', 'mac']
+	params: ['agg', 'mac'],
+	reject: true
 });
+
+/* Omit the optional filter for all devices, including on older daemons. */
+const callAllHistory = rpc.declare({
+	object: 'zen.traffic',
+	method: 'getHistory',
+	params: ['agg'],
+	reject: true
+});
+const callInternetHistory = rpc.declare({object:'zen.traffic',method:'getInternetHistory',params:['agg','mac'],reject:true});
+const callReset = rpc.declare({object:'zen.traffic',method:'resetDevice',params:['mac'],reject:true});
 
 function fmtBytes(n) {
 	n = Math.max(0, Number(n) || 0);
@@ -80,14 +94,15 @@ function injectStyles() {
 		'.zen-tf-tabs { display: flex; gap: 8px; }',
 		'.zen-tf-chart-svg { display: block; width: 100%; height: 260px; background: rgba(127,127,127,.04); border-radius: 12px; }',
 		'.zen-tf-controls > select { min-width: 0; max-width: 100%; }',
+		'.zen-analysis-table { width: 100%; table-layout: fixed; } .zen-analysis-table th:first-child { width: 40%; } .zen-analysis-table td, .zen-analysis-table th { overflow-wrap: anywhere; }',
+		'@media(max-width:600px) { .zen-analysis-table td, .zen-analysis-table th { padding: 10px 6px; font-size: 12px; } }',
 		'.zen-tf-bar-ul { fill: var(--ul, #ea580c); }',
 		'.zen-tf-bar-dl { fill: var(--dl, #15803d); }',
+		'.zen-tf-chart-scroll { max-width: 100%; overflow-x: auto; }',
+		'.zen-tf-bar-ul:focus, .zen-tf-bar-dl:focus { outline: none; stroke: currentColor; stroke-width: 2; }',
+		'.zen-tf-readout { padding-top: 8px; font-size: 13px; font-variant-numeric: tabular-nums; }',
 		'.zen-tf-grid { stroke: currentColor; opacity: .12; }',
 		'.zen-tf-ax { font-size: 11px; fill: currentColor; opacity: .65; }',
-		'.zen-tf-line-dl { stroke: var(--dl, currentColor); stroke-width: 2; }',
-		'.zen-tf-line-ul { stroke: var(--ul, currentColor); stroke-width: 2; stroke-dasharray: 5 5; }',
-		'.zen-tf-point-dl { fill: var(--dl, currentColor); }',
-		'.zen-tf-point-ul { fill: var(--bg-panel, white); stroke: var(--ul, currentColor); stroke-width: 2; }',
 		'.zen-tf-legend { display: flex; gap: 16px; padding-top: 6px; font-size: 13px; }',
 		'.zen-tf-legend .zen-tf-dl { color: var(--dl, currentColor); }',
 		'.zen-tf-legend .zen-tf-ul { color: var(--ul, currentColor); }'
@@ -100,6 +115,7 @@ return view.extend({
 	handleSave: null,
 	handleReset: null,
 	agg: 'day',
+	scope: 'internet',
 	mac: '',
 	chart: null,
 	labels: {},
@@ -114,11 +130,14 @@ return view.extend({
 	render(data) {
 		const status = data[0];
 		const devs = (data[1] && data[1].dev) || [];
+		this.scope = status && status.wan_daily ? 'internet' : 'all';
+		this.mac = new URLSearchParams(window.location.search).get('mac') || '';
 
 		injectStyles();
+		trafficStyle.inject();
 
 		if (!status)
-			return E('div', { 'class': 'cbi-map' }, [
+			return E('div', { 'class': 'cbi-map zen-traffic-page' }, [
 				E('h2', {}, _('Traffic History')),
 				E('div', { 'class': 'cbi-section' }, [
 					E('p', { 'class': 'alert-message warning' },
@@ -127,7 +146,7 @@ return view.extend({
 			]);
 
 		/* 设备选择（单选 + 全设备） */
-		const sel = E('select', { 'class': 'cbi-input-select', 'change': L.bind(function (ev) {
+		const sel = E('select', { id: 'zen-tf-history-device', 'class': 'cbi-input-select', 'change': L.bind(function (ev) {
 			this.mac = ev.target.value;
 			this.refresh();
 		}, this) }, [
@@ -136,22 +155,40 @@ return view.extend({
 
 		const tabs = E('div', { 'class': 'zen-tf-tabs' }, [
 			this.tabBtn('day', _('Daily (90 days)')),
-			this.tabBtn('month', _('Monthly (12 months)'))
+			this.monthTab = this.tabBtn('month', this.scope === 'internet' ? _('Monthly (retained days)') : _('Monthly (12 months)'))
 		]);
+		const internetOption = E('option', {value:'internet'}, _('Internet only'));
+		internetOption.disabled = !(status && status.wan_daily);
+		const scope = E('select', {'aria-label': _('Traffic scope'), change: ev => {
+			this.scope = ev.target.value;
+			this.monthTab.textContent = this.scope === 'internet' ? _('Monthly (retained days)') : _('Monthly (12 months)');
+			this.refresh();
+		}}, [internetOption,E('option',{value:'all'},_('Internet + local (existing history)'))]);
+		scope.value = this.scope;
+		const reset = E('button', {type:'button','class':'cbi-button cbi-button-negative',click:()=>this.resetSelected()}, _('Reset selected device counters'));
+		this.resetButton = reset;
+		this.rateView = Object.create(rateHistory);
 
-		const root = E('div', { 'class': 'cbi-map', 'id': 'zen-traffic-history' }, [
-			E('h2', {}, _('Traffic History')),
+		const root = E('div', { 'class': 'cbi-map zen-traffic-page', 'id': 'zen-traffic-history' }, [
+			E('h2', {}, _('History analysis')),
 			E('div', { 'class': 'cbi-map-descr' },
-				_('Daily and monthly usage aggregated from the zen-traffic SQLite database. download = rx, upload = tx.')),
+				_('Compare recorded usage by date and device, then inspect past internet rates. Current speeds are in Realtime monitoring.')),
 			E('div', { 'class': 'cbi-section zen-tf-controls' }, [
-				E('label', {}, _('Device')), sel,
-				tabs
+				E('label', { 'for': 'zen-tf-history-device' }, _('Device')), sel,
+				tabs, E('label', {}, [_('Traffic scope'), scope]), reset
 			]),
 			E('div', { 'class': 'cbi-section' },
-				(this.chart = E('div', { 'class': 'zen-tf-chart' }, [])))
+				[this.statusText = E('p', { 'class': 'zen-tf-status', role: 'status' }),
+				this.scopeNote = E('p', {'class':'zen-app-muted'}),
+				this.usageSummary = E('div', {'class':'zen-rt-summary'}),
+				(this.chart = E('div', { 'class': 'zen-tf-chart' }, []))]),
+			E('section',{'class':'cbi-section'},[E('h3',{},_('Device usage ranking')),this.ranking = E('div')]),
+			this.rateView.render({data:{samples:[],interfaces:[],step:5}})
 		]);
 
 		this.sel = sel;
+		this.sel.value = this.mac;
+		this.rateView.query();
 		if (this.resizeObserver) this.resizeObserver.disconnect();
 		if (typeof ResizeObserver !== 'undefined') {
 			this.resizeObserver = new ResizeObserver(() => {
@@ -166,14 +203,18 @@ return view.extend({
 
 	tabBtn(agg, label) {
 		const btn = E('button', {
+			type: 'button', 'aria-pressed': String(this.agg === agg),
 			'class': 'cbi-button' + (this.agg === agg ? ' cbi-button-action important' : ''),
 			'click': L.bind(function (ev) {
 				ev.preventDefault();
 				this.agg = agg;
 				/* 同级 tab 互斥高亮 */
-				for (const b of ev.target.parentElement.querySelectorAll('.cbi-button'))
+				for (const b of ev.target.parentElement.querySelectorAll('.cbi-button')) {
 					b.classList.remove('cbi-button-action', 'important');
+					b.setAttribute('aria-pressed', 'false');
+				}
 				ev.target.classList.add('cbi-button-action', 'important');
+				ev.target.setAttribute('aria-pressed', 'true');
 				this.refresh();
 			}, this)
 		}, label);
@@ -185,12 +226,64 @@ return view.extend({
 			return;
 
 		const request = this.request = (this.request || 0) + 1;
-		return callHistory(this.agg, this.mac || null).then(L.bind((res) => {
-			if (request === this.request)
+		this.statusText.textContent = _('Loading history…');
+		this.resetButton.disabled = !this.mac;
+		this.scopeNote.textContent = this.scope === 'internet' ?
+			_('Internet-only daily records start when this version is installed and retain 90 days. Monthly bars sum these retained days. Older mixed records cannot be converted.') :
+			_('Existing history includes internet and local transfers: 90 days of daily records and 12 months of monthly records.');
+		const query = this.scope === 'internet' ? callInternetHistory(this.agg, this.mac).then(r=>JSON.parse(r.json)) :
+			(this.mac ? callHistory(this.agg, this.mac) : callAllHistory(this.agg));
+		return query.then(L.bind((res) => {
+			if (request === this.request) {
+				this.statusText.textContent = '';
 				this.draw(res);
+				this.drawAnalysis(res);
+			}
 		}, this)).catch((e) => {
+			if (request === this.request) {
+				this.statusText.textContent = _('Unable to load history. Please try again.');
+				this.chart.textContent = '';
+				this.usageSummary.replaceChildren(); this.ranking.replaceChildren();
+				this.lastResult = null;
+			}
 			console.warn('zen-traffic history', e);
 		});
+	},
+
+	resetSelected() {
+		if (!this.mac) return;
+		const mac = this.mac, name = this.sel.selectedOptions[0].textContent;
+		ui.showModal(_('Reset counters'), [E('p',{},_('Reset all counters for %s?').format(name)),
+			E('div',{'class':'zen-tf-modal-actions'},[
+				E('button',{type:'button','class':'btn',click:ui.hideModal},_('Cancel')),
+				E('button',{type:'button','class':'btn cbi-button-negative',click:()=>{
+					ui.hideModal(); callReset(mac).then(()=>this.refresh()).catch(()=>ui.addNotification(null,E('p',{},_('Unable to reset device counters.'))));
+				}},_('Reset counters'))])]);
+	},
+
+	drawAnalysis(res) {
+		const rows = res.days || res.months || [];
+		const totals = rows.reduce((s,r)=>({upload:s.upload+(r.upload||0),download:s.download+(r.download||0)}),{upload:0,download:0});
+		this.usageSummary.replaceChildren(...[[ _('Recorded upload'), totals.upload, 'zen-tf-ul'],[_('Recorded download'),totals.download,'zen-tf-dl']]
+			.map(([label,value,cls])=>E('div',{},[E('span',{},label),E('strong',{'class':cls},fmtBytes(value))])));
+		this.ranking.replaceChildren();
+		if (this.scope !== 'internet') {
+			this.ranking.appendChild(E('p',{'class':'zen-app-muted'},_('Choose Internet only to compare devices with the upstream total.'))); return;
+		}
+		this.ranking.appendChild(E('p',{'class':'zen-app-muted'},_('Ranking covers the same retained 90-day internet window. Percentages use the upstream total; unassigned traffic is shown separately.')));
+		const names = new Map(Array.from(this.sel.options).map(o=>[o.value,o.textContent]));
+		const total = (res.network_upload || 0) + (res.network_download || 0);
+		const table = E('table',{'class':'table zen-analysis-table'},[
+			E('thead',{},E('tr',{},[_('Device'),_('Upload'),_('Download'),_('Share')].map(t=>E('th',{scope:'col'},t)))),
+			E('tbody',{},(res.ranking || []).map(r=>E('tr',{},[
+				E('td',{},names.get(r.mac)||r.mac),E('td',{'class':'zen-tf-ul'},fmtBytes(r.upload)),
+				E('td',{'class':'zen-tf-dl'},fmtBytes(r.download)),E('td',{},total ? ((r.upload+r.download)*100/total).toFixed(1)+'%' : '—')
+			]))) ]);
+		this.ranking.appendChild(table);
+		if (res.unassigned_upload || res.unassigned_download)
+			this.ranking.appendChild(E('p',{},_('Unassigned') + ': ↑ '+fmtBytes(res.unassigned_upload)+' · ↓ '+fmtBytes(res.unassigned_download)));
+		if (res.excess_upload || res.excess_download)
+			this.ranking.appendChild(E('p',{'class':'alert-message warning'},_('Attributed device usage exceeds the upstream total; percentages may exceed 100%.')));
 	},
 
 	draw(res) {
@@ -199,7 +292,7 @@ return view.extend({
 			return;
 		this.lastResult = res;
 		this.chartWidth = el.clientWidth;
-		const W = Math.max(280, el.clientWidth || 860);
+		const viewportW = Math.max(280, el.clientWidth || 860);
 
 		const isMonth = (res && res.agg === 'month');
 		const rows = (isMonth ? (res.months || []) : ((res && res.days) || []))
@@ -213,10 +306,12 @@ return view.extend({
 			return;
 		}
 
+		const n = rows.length;
+		const W = Math.max(viewportW, PAD_L + PAD_R + n * 24);
 		const max = niceMax(Math.max(...rows.map((r) => Math.max(r.dl, r.ul))));
 		const iw = W - PAD_L - PAD_R, ih = H - PAD_T - PAD_B;
-		const n = rows.length;
-		const x = (i) => PAD_L + (n === 1 ? iw / 2 : (i * iw / (n - 1)));
+		const slot = iw / n, barWidth = Math.min(40, slot * .3), gap = Math.min(8, slot * .1);
+		const x = (i) => PAD_L + (i + .5) * slot;
 		const y = (v) => PAD_T + ih - (Math.min(v, max) * ih / max);
 
 		const grid = [];
@@ -237,46 +332,67 @@ return view.extend({
 			}, [document.createTextNode(rows[i].k)]));
 		}
 
-		const path = (key) => svg('path', {
-			d: rows.map((r, i) => (i ? 'L' : 'M') + x(i).toFixed(1) + ',' + y(r[key]).toFixed(1)).join(' '),
-			'fill': 'none', 'class': key === 'dl' ? 'zen-tf-line-dl' : 'zen-tf-line-ul'
-		});
-		/* 单日/月使用两根柱；多日/月保留曲线和圆点。 */
+		const tip = E('div', { 'class': 'zen-history-tip', role: 'tooltip', hidden: true });
+		const positionTip = ev => {
+			if (!ev) return;
+			const box = el.getBoundingClientRect(), anchor = (ev.currentTarget || chartSvg).getBoundingClientRect();
+			const px = (Number.isFinite(ev.clientX) ? ev.clientX : anchor.left + anchor.width / 2) - box.left;
+			const py = (Number.isFinite(ev.clientY) ? ev.clientY : anchor.top) - box.top;
+			const tw = tip.offsetWidth, th = tip.offsetHeight, cw = el.clientWidth, ch = el.clientHeight;
+			const tx = px + 12 + tw > cw - 8 ? px - tw - 12 : px + 12;
+			const ty = py - th - 12 < 8 ? py + 12 : py - th - 12;
+			tip.style.left = Math.max(8, Math.min(tx, cw - tw - 8)) + 'px';
+			tip.style.top = Math.max(8, Math.min(ty, ch - th - 8)) + 'px';
+		};
+		const readout = E('div', { 'class': 'zen-tf-readout', role: 'status' });
+		const showRow = (r, active, ev) => {
+			readout.textContent = r.k + ' · ↑ ' + fmtBytes(r.ul) + ' · ↓ ' + fmtBytes(r.dl);
+			tip.textContent = readout.textContent; tip.hidden = !active;
+			if (active) positionTip(ev);
+		};
+		showRow(rows[n - 1]);
 		const points = [];
 		rows.forEach((r, i) => {
 			for (const key of ['ul', 'dl']) {
-				if (n === 1) {
-					const center = x(0) + (key === 'ul' ? -32 : 32);
-					const height = Math.max(2, H - PAD_B - y(r[key]));
-					const top = H - PAD_B - height;
-					points.push(svg('rect', { x: center - 20, y: top, width: 40, height, rx: 4, 'class': 'zen-tf-bar-' + key }, [
-						svg('title', {}, [document.createTextNode(r.k + ' · ' + (key === 'ul' ? _('Upload') : _('Download')) + ': ' + fmtBytes(r[key]))])
-					]));
+				const center = x(i) + (key === 'ul' ? -1 : 1) * (barWidth + gap) / 2;
+				const top = y(r[key]), height = H - PAD_B - top;
+				const label = r.k + ' · ' + (key === 'ul' ? _('Upload') : _('Download')) + ': ' + fmtBytes(r[key]);
+				const bar = svg('rect', { x: center - barWidth / 2, y: top, width: barWidth, height,
+					rx: Math.min(4, barWidth / 4), tabindex: 0, 'aria-label': label, 'class': 'zen-tf-bar-' + key },
+					[svg('title', {}, [document.createTextNode(label)])]);
+				for (const event of ['mouseenter', 'focus', 'click'])
+					bar.addEventListener(event, ev => showRow(r, true, ev));
+				points.push(bar);
+				if (n === 1)
 					points.push(svg('text', { x: center, y: top - 8, 'text-anchor': 'middle', 'class': 'zen-tf-ax' }, [document.createTextNode(fmtBytes(r[key]))]));
-					continue;
-				}
-				points.push(svg('circle', {
-					cx: x(i), cy: y(r[key]), r: key === 'dl' ? 4 : 3,
-					'class': 'zen-tf-point-' + key
-				}, [svg('title', {}, [document.createTextNode(
-					r.k + ' · ' + (key === 'dl' ? _('Download') : _('Upload')) + ': ' + fmtBytes(r[key])
-				)])]));
 			}
 		});
 
 		const legend = E('div', { 'class': 'zen-tf-legend' }, [
-			E('span', { 'class': 'zen-tf-ul' }, '— ' + _('Upload')),
-			E('span', { 'class': 'zen-tf-dl' }, '— ' + _('Download'))
+			E('span', { 'class': 'zen-tf-ul' }, '■ ' + _('Upload')),
+			E('span', { 'class': 'zen-tf-dl' }, '■ ' + _('Download'))
 		]);
 
 		const chartSvg = svg('svg', {
 			viewBox: '0 0 %d %d'.format(W, H),
 			'preserveAspectRatio': 'xMidYMid meet',
 			role: 'img', 'aria-label': _('Traffic History'),
-			'class': 'zen-tf-chart-svg'
-		}, [].concat(grid, ytexts, xticks, n === 1 ? [] : [path('ul'), path('dl')], points));
+			'class': 'zen-tf-chart-svg', style: 'width: ' + W + 'px; max-width: none;'
+		}, [].concat(grid, ytexts, xticks, points));
 
-		el.appendChild(chartSvg);
+		const inspect = ev => {
+			const bounds = chartSvg.getBoundingClientRect();
+			const px = (ev.clientX - bounds.left) * W / Math.max(1, bounds.width);
+			if (px < PAD_L || px > W - PAD_R) { tip.hidden = true; return; }
+			showRow(rows[Math.min(n - 1, Math.max(0, Math.floor((px - PAD_L) / slot)))], true, ev);
+		};
+		for (const event of ['pointermove', 'pointerdown', 'click']) chartSvg.addEventListener(event, inspect);
+		chartSvg.addEventListener('pointerleave', () => { tip.hidden = true; });
+		el.appendChild(tip);
+		el.appendChild(E('div', { 'class': 'zen-tf-chart-scroll', tabindex: 0 }, [chartSvg]));
 		el.appendChild(legend);
+		if (W > viewportW)
+			el.appendChild(E('p', { 'class': 'zen-app-muted' }, _('Swipe or scroll to see more dates.')));
+		el.appendChild(readout);
 	}
 });

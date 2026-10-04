@@ -339,3 +339,51 @@ msgstr "按从低到高排序"
 
 msgid "Independent scales"
 msgstr "左右轴独立刻度"
+
+msgid "Other devices"
+msgstr "其他设备"
+
+msgid "Unassigned"
+msgstr "未归属"
+
+msgid "Upload share"
+msgstr "上传占比"
+
+msgid "Download share"
+msgstr "下载占比"
+
+msgid "Recorded traffic"
+msgstr "已统计流量"
+
+msgid "No internet traffic recorded yet"
+msgstr "暂无互联网流量"
+
+msgid "WAN interface: %s"
+msgstr "WAN 接口：%s"
+
+msgid "Device-side excess: %s; shares use device-side totals."
+msgstr "设备侧多计 %s；占比按设备侧总量计算。"
+
+msgid "Loading internet usage…"
+msgstr "正在读取互联网用量…"
+
+msgid "Internet usage by device"
+msgstr "设备互联网用量"
+
+msgid "How shares are counted"
+msgstr "占比如何计算"
+
+msgid "Only internet traffic recorded since the date above is included. Earlier combined LAN/WAN history is excluded. Collection pauses while the service is stopped."
+msgstr "仅统计上述日期开始采集的互联网流量，旧的局域网与互联网混合历史不纳入占比。服务停止期间不采集。"
+
+msgid "Unassigned is interface traffic not allocated to a device, including possible router traffic, cleared devices and accounting differences."
+msgstr "未归属指接口中尚未分配给设备的流量，可能包含路由器自身流量、已清零设备的记录和统计口径差异。"
+
+msgid "Internet traffic since %s"
+msgstr "互联网用量统计开始于 %s"
+
+msgid "Internet shares require an updated zen-traffic service and a valid system clock."
+msgstr "互联网占比需要更新流量服务并校准系统时间。"
+
+msgid "Usage temporarily unavailable; showing the last result."
+msgstr "暂时无法读取用量，正在显示上次结果。"

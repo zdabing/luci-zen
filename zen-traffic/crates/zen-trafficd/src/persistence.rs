@@ -18,6 +18,13 @@ pub struct Db {
     conn: Connection,
 }
 
+fn nonnegative(row: &rusqlite::Row<'_>, index: usize) -> rusqlite::Result<u64> {
+    let value: i64 = row.get(index)?;
+    u64::try_from(value).map_err(|error| rusqlite::Error::FromSqlConversionFailure(
+        index, rusqlite::types::Type::Integer, Box::new(error),
+    ))
+}
+
 pub struct DeviceRow {
     pub mac: String,
     pub hostname: Option<String>,
@@ -29,15 +36,204 @@ pub struct DeviceRow {
     pub tx_total: i64,
 }
 
+#[cfg(test)]
+mod transaction_tests {
+    use super::*;
+    use crate::wan::WanUsage;
+    use zen_bpf::{DevStats, MacKey};
+    use crate::accounting::{prepare_rollover, save, PendingPeriods};
+    use std::collections::HashMap;
+
+    #[test]
+    #[cfg(unix)]
+    fn opening_legacy_database_restricts_existing_wal_and_shm_permissions() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = std::env::temp_dir().join(format!("zen-db-mode-{}-{}",std::process::id(),crate::state::now_mono_ms()));
+        std::fs::create_dir(&dir).unwrap();
+        let path = dir.join("traffic.db"); let filename = path.to_str().unwrap();
+        let first = Db::open(filename).unwrap(); first.save_setting("fixture", "value").unwrap();
+        let files = [filename.to_owned(),format!("{filename}-wal"),format!("{filename}-shm")];
+        for file in &files { assert!(Path::new(file).exists());
+            std::fs::set_permissions(file,std::fs::Permissions::from_mode(0o644)).unwrap(); }
+        let reopened = Db::open(filename).unwrap();
+        assert_eq!(reopened.setting("fixture").unwrap(),Some("value".into()));
+        for file in &files { assert_eq!(std::fs::metadata(file).unwrap().permissions().mode() & 0o777,0o600); }
+        drop(reopened); drop(first); std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn failed_rollovers_preserve_old_periods_and_offline_usage_until_atomic_retry() {
+        let db = Db::open(":memory:").unwrap();
+        let mac = MacKey { b: [2, 0, 0, 0, 0, 9] };
+        let key = mac_str(&mac.b);
+        let mut device = DevState::new(mac, DevStats::default(), 1, 10, 20);
+        device.rx_today = 10; device.tx_today = 20;
+        device.rx_month = 10; device.tx_month = 20;
+        db.checkpoint(&[&device], "2026-09-30", "2026-09", 1).unwrap();
+        db.conn.execute("INSERT INTO daily_usage VALUES(?1,'2020-01-01',1,2)", params![key]).unwrap();
+        db.conn.execute("INSERT INTO monthly_usage VALUES(?1,'2020-01',1,2)", params![key]).unwrap();
+        // Traffic arrives before a full-storage month boundary, then goes offline.
+        device.rx_today = 100; device.tx_today = 200;
+        device.rx_month = 100; device.tx_month = 200;
+        device.rx_total = 100; device.tx_total = 200;
+        device.online = false;
+        let mut devs = HashMap::from([(mac, device)]);
+        let mut day = "2026-09-30".to_owned();
+        let mut month = "2026-09".to_owned();
+        let mut pending = PendingPeriods::default();
+        let mut wan = WanUsage::load(&db, crate::state::MIN_SYNC_EPOCH).unwrap();
+        wan.device_delta(mac, 33, 44);
+        db.conn.execute_batch("CREATE TRIGGER reject_wan BEFORE INSERT ON wan_devices BEGIN SELECT RAISE(ABORT,'full storage'); END;").unwrap();
+        prepare_rollover(&db, &mut devs, &mut day, &mut month, &mut pending, "2026-10-01", "2026-10").unwrap();
+        assert_eq!((devs[&mac].rx_today, devs[&mac].rx_month), (0, 0));
+        assert!(save(&db, &devs, &day, &month, &wan, &mut pending).is_err());
+        assert_eq!(pending.days[&("2026-09-30".into(), key.clone())], (100, 200));
+        assert_eq!(db.load_day("2026-09-30").unwrap(), [(key.clone(), 10, 20)]);
+        assert!(db.load_day("2026-10-01").unwrap().is_empty());
+        assert_eq!(db.lifetime_totals(), (10, 20));
+        assert!(db.wan_window().unwrap().is_none());
+        assert_eq!(db.load_day("2020-01-01").unwrap().len(), 1);
+        assert_eq!(db.load_month("2020-01").unwrap().len(), 1);
+        let d = devs.get_mut(&mac).unwrap();
+        d.rx_today = 5; d.tx_today = 7; d.rx_month = 5; d.tx_month = 7;
+        d.rx_total += 5; d.tx_total += 7;
+        prepare_rollover(&db, &mut devs, &mut day, &mut month, &mut pending, "2026-10-02", "2026-10").unwrap();
+        assert_eq!((devs[&mac].rx_today, devs[&mac].rx_month), (0, 5));
+        assert!(save(&db, &devs, &day, &month, &wan, &mut pending).is_err());
+        let d = devs.get_mut(&mac).unwrap();
+        d.rx_today = 11; d.tx_today = 13; d.rx_month += 11; d.tx_month += 13;
+        d.rx_total += 11; d.tx_total += 13;
+        db.conn.execute_batch("DROP TRIGGER reject_wan").unwrap();
+        for _ in 0..2 {
+            save(&db, &devs, &day, &month, &wan, &mut pending).unwrap();
+            assert!(pending.days.is_empty() && pending.months.is_empty());
+            assert_eq!(db.load_day("2026-09-30").unwrap(), [(key.clone(), 100, 200)]);
+            assert_eq!(db.load_day("2026-10-01").unwrap(), [(key.clone(), 5, 7)]);
+            assert_eq!(db.load_day("2026-10-02").unwrap(), [(key.clone(), 11, 13)]);
+            assert_eq!(db.load_month("2026-09").unwrap(), [(key.clone(), 100, 200)]);
+            assert_eq!(db.load_month("2026-10").unwrap(), [(key.clone(), 16, 20)]);
+            assert_eq!(db.lifetime_totals(), (116, 220));
+            assert_eq!(db.wan_devices().unwrap(), [(key.clone(), 33, 44)]);
+            assert!(db.load_day("2020-01-01").unwrap().is_empty());
+            assert!(db.load_month("2020-01").unwrap().is_empty());
+        }
+    }
+
+    #[test]
+    fn reopened_intervals_restore_pending_values_and_reset_drops_closed_usage() {
+        let db = Db::open(":memory:").unwrap();
+        let mac = MacKey { b: [2, 0, 0, 0, 0, 10] };
+        let key = mac_str(&mac.b);
+        let mut device = DevState::new(mac, DevStats::default(), 1, 10, 20);
+        device.rx_today = 10; device.tx_today = 20;
+        device.rx_month = 10; device.tx_month = 20;
+        db.checkpoint(&[&device], "2026-09-30", "2026-09", 1).unwrap();
+        device.rx_today = 100; device.tx_today = 200;
+        device.rx_month = 100; device.tx_month = 200;
+        device.rx_total = 100; device.tx_total = 200;
+        let mut devs = HashMap::from([(mac, device)]);
+        let mut day = "2026-09-30".to_owned(); let mut month = "2026-09".to_owned();
+        let mut pending = PendingPeriods::default();
+        let wan = WanUsage::load(&db, crate::state::MIN_SYNC_EPOCH).unwrap();
+        prepare_rollover(&db, &mut devs, &mut day, &mut month, &mut pending, "2026-10-01", "2026-10").unwrap();
+        // Clock goes back before the pending old interval was saved.
+        prepare_rollover(&db, &mut devs, &mut day, &mut month, &mut pending, "2026-09-30", "2026-09").unwrap();
+        assert_eq!((devs[&mac].rx_today, devs[&mac].tx_today, devs[&mac].rx_month), (100, 200, 100));
+        let d = devs.get_mut(&mac).unwrap();
+        d.rx_today += 3; d.rx_month += 3; d.rx_total += 3;
+        save(&db, &devs, &day, &month, &wan, &mut pending).unwrap();
+        assert_eq!(db.load_day("2026-09-30").unwrap(), [(key.clone(), 103, 200)]);
+        // Reopening after a commit restores SQLite, too.
+        prepare_rollover(&db, &mut devs, &mut day, &mut month, &mut pending, "2026-10-01", "2026-10").unwrap();
+        save(&db, &devs, &day, &month, &wan, &mut pending).unwrap();
+        prepare_rollover(&db, &mut devs, &mut day, &mut month, &mut pending, "2026-09-30", "2026-09").unwrap();
+        assert_eq!((devs[&mac].rx_today, devs[&mac].rx_month), (103, 103));
+        db.reset_device(&key).unwrap();
+        pending.remove_device(&key);
+        let d = devs.get_mut(&mac).unwrap();
+        d.rx_today = 0; d.tx_today = 0; d.rx_month = 0; d.tx_month = 0;
+        d.rx_total = 0; d.tx_total = 0;
+        save(&db, &devs, &day, &month, &wan, &mut pending).unwrap();
+        assert_eq!(db.lifetime_totals(), (0, 0));
+        assert!(db.load_day("2026-10-01").unwrap().is_empty());
+        assert_eq!(db.load_day("2026-09-30").unwrap(), [(key, 0, 0)]);
+    }
+
+    #[test]
+    fn failed_wan_write_rolls_back_legacy_and_window_counters_together() {
+        let db = Db::open(":memory:").unwrap();
+        let mac = MacKey { b: [2, 0, 0, 0, 0, 3] };
+        let mut device = DevState::new(mac, DevStats::default(), 1, 10, 20);
+        device.rx_today = 10;
+        device.tx_today = 20;
+        device.rx_month = 10;
+        device.tx_month = 20;
+        db.checkpoint(&[&device], "2026-10-03", "2026-10", 1).unwrap();
+        let mut wan = WanUsage::load(&db, crate::state::MIN_SYNC_EPOCH).unwrap();
+        wan.device_delta(mac, 30, 40);
+        device.rx_total = 100;
+        device.tx_total = 200;
+        device.rx_today = 100;
+        device.tx_today = 200;
+        device.rx_month = 100;
+        device.tx_month = 200;
+        db.conn.execute_batch("CREATE TRIGGER reject_wan BEFORE INSERT ON wan_devices BEGIN SELECT RAISE(ABORT,'test full storage'); END;").unwrap();
+        assert!(db.checkpoint_with_wan(&[&device], "2026-10-03", "2026-10", 2, &wan).is_err());
+        assert_eq!(db.lifetime_totals(), (10, 20));
+        assert_eq!(db.load_day("2026-10-03").unwrap(), [(mac_str(&mac.b), 10, 20)]);
+        assert_eq!(db.load_month("2026-10").unwrap(), [(mac_str(&mac.b), 10, 20)]);
+        assert!(db.wan_window().unwrap().is_none());
+        assert!(db.wan_devices().unwrap().is_empty());
+
+        db.conn.execute_batch("DROP TRIGGER reject_wan").unwrap();
+        for _ in 0..2 {
+            db.checkpoint_with_wan(&[&device], "2026-10-03", "2026-10", 3, &wan).unwrap();
+            assert_eq!(db.lifetime_totals(), (100, 200));
+            assert_eq!(db.load_day("2026-10-03").unwrap(), [(mac_str(&mac.b), 100, 200)]);
+            assert_eq!(db.load_month("2026-10").unwrap(), [(mac_str(&mac.b), 100, 200)]);
+            assert_eq!(db.wan_window().unwrap(), Some((crate::state::MIN_SYNC_EPOCH, 0, 0)));
+            assert_eq!(db.wan_devices().unwrap(), [(mac_str(&mac.b), 30, 40)]);
+        }
+    }
+}
+
 impl Db {
+    #[cfg(test)]
+    pub fn conn_for_test_reject_settings(&self) {
+        self.conn.execute_batch("CREATE TRIGGER reject_settings BEFORE INSERT ON app_settings BEGIN SELECT RAISE(ABORT,'full storage'); END;").unwrap();
+    }
+    #[cfg(test)]
+    pub fn conn_for_test_reject_notification_delivery(&self) {
+        self.conn.execute_batch("CREATE TRIGGER reject_settings BEFORE INSERT ON app_settings WHEN NEW.name='notifications_deliveries' BEGIN SELECT RAISE(ABORT,'full storage'); END;").unwrap();
+    }
+    #[cfg(test)]
+    pub fn conn_for_test_allow_settings(&self) {
+        self.conn.execute_batch("DROP TRIGGER reject_settings").unwrap();
+    }
     pub fn open(path: &str) -> Result<Db, String> {
         if let Some(dir) = Path::new(path).parent() {
             std::fs::create_dir_all(dir)
                 .map_err(|e| format!("创建 {} 失败: {e}", dir.display()))?;
         }
         let conn = Connection::open(path).map_err(|e| format!("打开 {path} 失败: {e}"))?;
+        #[cfg(unix)]
+        if path != ":memory:" {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))
+                .map_err(|_| "Unable to restrict database permissions".to_owned())?;
+        }
         conn.pragma_update(None, "journal_mode", "WAL")
             .map_err(|e| e.to_string())?;
+        #[cfg(unix)]
+        if path != ":memory:" {
+            use std::os::unix::fs::PermissionsExt;
+            for sidecar in [format!("{path}-wal"), format!("{path}-shm")] {
+                if Path::new(&sidecar).exists() {
+                    std::fs::set_permissions(sidecar, std::fs::Permissions::from_mode(0o600))
+                        .map_err(|_| "Unable to restrict database journal permissions".to_owned())?;
+                }
+            }
+        }
         conn.pragma_update(None, "synchronous", "NORMAL")
             .map_err(|e| e.to_string())?;
         conn.execute_batch(
@@ -73,6 +269,23 @@ impl Db {
                  download_bytes INTEGER NOT NULL DEFAULT 0,
                  upload_bytes   INTEGER NOT NULL DEFAULT 0,
                  PRIMARY KEY (mac, month)
+             );
+             CREATE TABLE IF NOT EXISTS wan_devices (
+                 mac TEXT PRIMARY KEY,
+                 download_bytes INTEGER NOT NULL DEFAULT 0,
+                 upload_bytes INTEGER NOT NULL DEFAULT 0
+             );
+             CREATE TABLE IF NOT EXISTS wan_daily (
+                 date TEXT NOT NULL, mac TEXT NOT NULL,
+                 download_bytes INTEGER NOT NULL, upload_bytes INTEGER NOT NULL,
+                 PRIMARY KEY(date,mac)
+             );
+             CREATE TABLE IF NOT EXISTS app_settings (name TEXT PRIMARY KEY, value TEXT NOT NULL);
+             CREATE TABLE IF NOT EXISTS wan_window (
+                 id INTEGER PRIMARY KEY CHECK (id = 1),
+                 since INTEGER NOT NULL,
+                 download_bytes INTEGER NOT NULL DEFAULT 0,
+                 upload_bytes INTEGER NOT NULL DEFAULT 0
              );",
         )
         .map_err(|e| format!("建表失败: {e}"))?;
@@ -138,7 +351,45 @@ impl Db {
         month: &str,
         _now_epoch: i64,
     ) -> Result<(), String> {
+        self.checkpoint_inner(devs, date, month, None, None)
+    }
+
+    pub fn checkpoint_with_wan(
+        &self, devs: &[&DevState], date: &str, month: &str, _now_epoch: i64,
+        wan: &crate::wan::WanUsage,
+    ) -> Result<(), String> {
+        self.checkpoint_inner(devs, date, month, Some(wan), None)
+    }
+
+    pub fn checkpoint_with_pending(
+        &self, devs: &[&DevState], date: &str, month: &str,
+        wan: &crate::wan::WanUsage, pending: &crate::accounting::PendingPeriods,
+    ) -> Result<(), String> {
+        self.checkpoint_inner(devs, date, month, Some(wan), Some(pending))
+    }
+
+    fn checkpoint_inner(
+        &self, devs: &[&DevState], date: &str, month: &str,
+        wan: Option<&crate::wan::WanUsage>,
+        pending: Option<&crate::accounting::PendingPeriods>,
+    ) -> Result<(), String> {
         let tx = self.conn.unchecked_transaction().map_err(|e| e.to_string())?;
+        if let Some(pending) = pending {
+            for (table, period_column, rows) in [
+                ("daily_usage", "date", &pending.days),
+                ("monthly_usage", "month", &pending.months),
+            ] {
+                let sql = format!("INSERT INTO {table}(mac,{period_column},download_bytes,upload_bytes)
+                    VALUES(?1,?2,?3,?4) ON CONFLICT(mac,{period_column}) DO UPDATE SET
+                    download_bytes=excluded.download_bytes,upload_bytes=excluded.upload_bytes");
+                let mut insert = tx.prepare_cached(&sql).map_err(|e| e.to_string())?;
+                for ((period, mac), (rx, tx_bytes)) in rows {
+                    insert.execute(params![mac, period, *rx as i64, *tx_bytes as i64])
+                        .map_err(|e| e.to_string())?;
+                }
+            }
+        }
+        // Current counters win if a clock adjustment reopens a pending period.
         for d in devs {
             let mac = mac_str(&d.mac.b);
             tx.execute(
@@ -187,7 +438,77 @@ impl Db {
             )
             .map_err(|e| e.to_string())?;
         }
+        if let Some(wan) = wan {
+            let integer = |value: u64| value.min(i64::MAX as u64) as i64;
+            tx.execute(
+                "INSERT INTO wan_window (id,since,download_bytes,upload_bytes) VALUES (1,?1,?2,?3)
+                 ON CONFLICT(id) DO UPDATE SET since=excluded.since,
+                 download_bytes=excluded.download_bytes,upload_bytes=excluded.upload_bytes",
+                params![integer(wan.since), integer(wan.interface.download), integer(wan.interface.upload)],
+            ).map_err(|e| e.to_string())?;
+            for (mac, download, upload) in wan.rows() {
+                tx.execute(
+                    "INSERT INTO wan_devices (mac,download_bytes,upload_bytes) VALUES (?1,?2,?3)
+                     ON CONFLICT(mac) DO UPDATE SET download_bytes=excluded.download_bytes,
+                     upload_bytes=excluded.upload_bytes",
+                    params![mac, integer(download), integer(upload)],
+                ).map_err(|e| e.to_string())?;
+            }
+            for ((day, mac), bytes) in &wan.daily {
+                tx.execute("INSERT INTO wan_daily VALUES(?1,?2,?3,?4) ON CONFLICT(date,mac)
+                    DO UPDATE SET download_bytes=excluded.download_bytes,upload_bytes=excluded.upload_bytes",
+                    params![day, mac, integer(bytes.download), integer(bytes.upload)]).map_err(|e| e.to_string())?;
+            }
+            tx.execute("INSERT INTO app_settings VALUES('wan_daily_since',?1) ON CONFLICT(name) DO UPDATE SET value=excluded.value",
+                params![wan.daily_since.to_string()]).map_err(|e| e.to_string())?;
+            let cutoff = crate::state::date_shift(&wan.day, crate::state::RETENTION_DAYS);
+            tx.execute("DELETE FROM wan_daily WHERE date < ?1", params![cutoff]).map_err(|e| e.to_string())?;
+        }
+        if let Some((before_day, before_month)) = pending.and_then(|p| p.prune_before.as_ref()) {
+            tx.execute("DELETE FROM daily_usage WHERE date < ?1", params![before_day])
+                .map_err(|e| e.to_string())?;
+            tx.execute("DELETE FROM monthly_usage WHERE month < ?1", params![before_month])
+                .map_err(|e| e.to_string())?;
+        }
         tx.commit().map_err(|e| format!("checkpoint 提交失败: {e}"))
+    }
+
+    pub fn wan_window(&self) -> Result<Option<(u64, u64, u64)>, String> {
+        self.conn.query_row("SELECT since,download_bytes,upload_bytes FROM wan_window WHERE id=1", [],
+            |r| Ok((nonnegative(r, 0)?, nonnegative(r, 1)?, nonnegative(r, 2)?))).optional().map_err(|e| e.to_string())
+    }
+
+    pub fn wan_daily(&self) -> Result<std::collections::BTreeMap<(String, String), crate::wan::Bytes>, String> {
+        let mut query = self.conn.prepare("SELECT date,mac,download_bytes,upload_bytes FROM wan_daily").map_err(|e| e.to_string())?;
+        let rows = query.query_map([], |r| Ok(((r.get(0)?, r.get(1)?), crate::wan::Bytes {
+            download: nonnegative(r, 2)?, upload: nonnegative(r, 3)?,
+        }))).map_err(|e| e.to_string())?;
+        rows.collect::<Result<_, _>>().map_err(|e| e.to_string())
+    }
+
+    pub fn setting(&self, name: &str) -> Result<Option<String>, String> {
+        self.conn.query_row("SELECT value FROM app_settings WHERE name=?1", params![name], |r| r.get(0))
+            .optional().map_err(|e| e.to_string())
+    }
+
+    pub fn save_setting(&self, name: &str, value: &str) -> Result<(), String> {
+        self.conn.execute("INSERT INTO app_settings VALUES(?1,?2) ON CONFLICT(name) DO UPDATE SET value=excluded.value",
+            params![name, value]).map(|_| ()).map_err(|e| e.to_string())
+    }
+
+    pub fn save_settings(&self, values: &[(&str, String)]) -> Result<(), String> {
+        let tx = self.conn.unchecked_transaction().map_err(|_| "Unable to save settings".to_owned())?;
+        for (name, value) in values {
+            tx.execute("INSERT INTO app_settings VALUES(?1,?2) ON CONFLICT(name) DO UPDATE SET value=excluded.value",
+                params![name, value]).map_err(|_| "Unable to save settings".to_owned())?;
+        }
+        tx.commit().map_err(|_| "Unable to save settings".to_owned())
+    }
+
+    pub fn wan_devices(&self) -> Result<Vec<(String, u64, u64)>, String> {
+        let mut query = self.conn.prepare("SELECT mac,download_bytes,upload_bytes FROM wan_devices").map_err(|e| e.to_string())?;
+        let rows = query.query_map([], |r| Ok((r.get(0)?, nonnegative(r, 1)?, nonnegative(r, 2)?))).map_err(|e| e.to_string())?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
     }
 
     /// 日切仅清理日记录；保留截止日期本身。
@@ -265,16 +586,19 @@ impl Db {
 
     /// resetDevice：删除设备及其全部累计
     pub fn reset_device(&self, mac: &str) -> Result<(), String> {
-        self.conn
+        let tx = self.conn.unchecked_transaction().map_err(|e| e.to_string())?;
+        tx
             .execute("DELETE FROM devices WHERE mac = ?1", params![mac])
             .map_err(|e| e.to_string())?;
-        self.conn
+        tx
             .execute("DELETE FROM daily_usage WHERE mac = ?1", params![mac])
             .map_err(|e| e.to_string())?;
-        self.conn
+        tx
             .execute("DELETE FROM monthly_usage WHERE mac = ?1", params![mac])
-            .map(|_| ())
-            .map_err(|e| e.to_string())
+            .map_err(|e| e.to_string())?;
+        tx.execute("DELETE FROM wan_devices WHERE mac=?1", params![mac]).map_err(|e| e.to_string())?;
+        tx.execute("DELETE FROM wan_daily WHERE mac=?1", params![mac]).map_err(|e| e.to_string())?;
+        tx.commit().map_err(|e| e.to_string())
     }
 
     /// getHistory：按日聚合（mac=None 时全设备 SUM），范围 [start,end]（含端点）

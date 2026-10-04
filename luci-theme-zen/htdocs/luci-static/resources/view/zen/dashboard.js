@@ -6,6 +6,7 @@
 'require poll';
 'require view.zen.zen-format as fmt';
 'require view.zen.zen-devices as devices';
+'require view.zen.zen-wan-share as wanShare';
 
 /*
  * view.zen.dashboard — luci-theme-zen 首页（admin/status/overview）。
@@ -114,6 +115,7 @@ return baseclass.extend({
 		poll.add(() => this.tick(), POLL_SECS);
 
 		// 设备流量模块独立探测（zen.traffic 缺失时仅显示提示，不影响其他卡）
+		wanShare.mount(this.dash).catch((e) => console.warn('zen-wan-share', e));
 		try {
 			devices.mount(this.dash).catch((e) => console.warn('zen-devices', e));
 		} catch (e) { /* 模块缺失不阻塞首页 */ }
@@ -283,6 +285,8 @@ return baseclass.extend({
 		this.lastH = 0;
 		this.yLabels = [];
 		chart.addEventListener('pointermove', (ev) => this.onChartHover(ev));
+		chart.addEventListener('pointerdown', (ev) => this.onChartHover(ev));
+		chart.addEventListener('click', (ev) => this.onChartHover(ev));
 		chart.addEventListener('pointerleave', () => this.hideHover());
 
 		return E('div', { id: 'zen-dashboard' }, [

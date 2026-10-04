@@ -125,6 +125,9 @@ pub struct AttrRef<'a> {
 
 impl<'a> AttrRef<'a> {
     pub fn as_str(&self) -> Option<&'a str> {
+        if self.ty != BLOBMSG_TYPE_STRING as u8 {
+            return None;
+        }
         // blobmsg string：载荷含结尾 NUL
         let end = self.data.iter().position(|&b| b == 0).unwrap_or(self.data.len());
         std::str::from_utf8(&self.data[..end]).ok()
@@ -664,6 +667,19 @@ const _: () = {
     assert!(std::mem::offset_of!(ubus_request, priv_) == if cfg!(target_pointer_width = "64") { 96 } else { 56 });
 };
 
+#[cfg(target_pointer_width = "64")]
+const _: () = {
+    assert!(std::mem::size_of::<ubus_method>() == 48);
+    assert!(std::mem::offset_of!(ubus_method, policy) == 32);
+    assert!(std::mem::size_of::<ubus_object>() == 120);
+    assert!(std::mem::offset_of!(ubus_object, methods) == 104);
+    assert!(std::mem::size_of::<ubus_object_type>() == 32);
+    assert!(std::mem::offset_of!(ubus_context, sock) == 80);
+    assert!(std::mem::size_of::<uloop_fd>() == 16);
+    assert!(std::mem::size_of::<uloop_timeout>() == 48);
+    assert!(std::mem::offset_of!(uloop_timeout, time) == 32);
+};
+
 #[cfg(test)]
 mod blobmsg_tests {
     use super::*;
@@ -742,6 +758,18 @@ mod blobmsg_tests {
                 assert_eq!(attrs[1].as_str(), Some(mac));
             });
         }
+    }
+
+    #[test]
+    fn null_and_numeric_attributes_are_not_strings() {
+        let null_mac = wire(0, Some("mac"), &[]);
+        let empty_mac = wire(3, Some("empty"), b"\0");
+        let numeric = wire(5, Some("number"), &0u32.to_be_bytes());
+        with_message(&wire(7, None, &[null_mac, empty_mac, numeric].concat()), |attrs| {
+            assert_eq!(attrs[0].as_str(), None);
+            assert_eq!(attrs[1].as_str(), Some(""));
+            assert_eq!(attrs[2].as_str(), None);
+        });
     }
 
     #[test]

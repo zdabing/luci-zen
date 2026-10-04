@@ -40,10 +40,15 @@ const fn cs(s: &'static [u8]) -> *const c_char {
 // ubus 方法表
 // ---------------------------------------------------------------------------
 
-static METHODS: [ubus::ubus_method; 8] = [
+static METHODS: [ubus::ubus_method; 13] = [
     m(b"getStatus\0", handle_get_status),
     m(b"getDevices\0", handle_get_devices),
     m(b"getTotal\0", handle_get_total),
+    m(b"getWanUsage\0", handle_get_wan_usage),
+    m(b"getInternetHistory\0", handle_get_internet_history),
+    m(b"getNotifications\0", handle_get_notifications),
+    m(b"setNotifications\0", handle_set_notifications),
+    m(b"testNotification\0", handle_test_notification),
     m(b"getHistory\0", handle_get_history),
     m(b"getRealtimeHistory\0", handle_get_realtime_history),
     m(b"setHostname\0", handle_set_hostname),
@@ -91,6 +96,58 @@ unsafe fn send(ctx: *mut ubus::ubus_context, req: *mut ubus::ubus_request_data, 
 // handlers
 // ---------------------------------------------------------------------------
 
+unsafe fn send_json(ctx: *mut ubus::ubus_context, req: *mut ubus::ubus_request_data, value: serde_json::Value) -> c_int {
+    let mut b = reply(ctx, req);
+    add_str(&mut b, b"json\0", &value.to_string());
+    send(ctx, req, &mut b);
+    ubus::UBUS_STATUS_OK
+}
+
+unsafe extern "C" fn handle_get_internet_history(ctx: *mut ubus::ubus_context, _obj: *mut ubus::ubus_object,
+    req: *mut ubus::ubus_request_data, _method: *const c_char, msg: *mut ubus::blob_attr) -> c_int {
+    let (mut agg, mut mac) = ("day".to_owned(), String::new());
+    for a in ubus::parse_msg(msg) {
+        match a.name {
+            Some("agg") => match a.as_str() { Some("day" | "month") => agg = a.as_str().unwrap().into(), _ => return ubus::UBUS_STATUS_INVALID_ARGUMENT },
+            Some("mac") => match a.as_str() { Some(s) if s.is_empty() || parse_mac(s).is_some() => mac = s.to_ascii_lowercase(), _ => return ubus::UBUS_STATUS_INVALID_ARGUMENT },
+            _ => {}
+        }
+    }
+    match with_daemon(|d| d.wan.history(&agg, &mac)) {
+        Some(v) => send_json(ctx, req, v), None => ubus::UBUS_STATUS_NOT_SUPPORTED,
+    }
+}
+
+unsafe extern "C" fn handle_get_notifications(ctx: *mut ubus::ubus_context, _obj: *mut ubus::ubus_object,
+    req: *mut ubus::ubus_request_data, _method: *const c_char, _msg: *mut ubus::blob_attr) -> c_int {
+    match with_daemon(|d| d.notifications.public(&d.wan)) {
+        Some(v) => send_json(ctx, req, v), None => ubus::UBUS_STATUS_NOT_SUPPORTED,
+    }
+}
+
+unsafe extern "C" fn handle_set_notifications(ctx: *mut ubus::ubus_context, _obj: *mut ubus::ubus_object,
+    req: *mut ubus::ubus_request_data, _method: *const c_char, msg: *mut ubus::blob_attr) -> c_int {
+    let input = ubus::parse_msg(msg).into_iter().find(|a| a.name == Some("json")).and_then(|a| a.as_str().map(str::to_owned));
+    let Some(input) = input else { return ubus::UBUS_STATUS_INVALID_ARGUMENT; };
+    match with_daemon(|d| d.notifications.configure(&d.db, &input)) {
+        Some(Ok(())) => send_json(ctx, req, serde_json::json!({"ok":true})),
+        // Errors are fixed strings; never return request text, URLs or secrets.
+        Some(Err(e)) => send_json(ctx, req, serde_json::json!({"ok":false,"error":e})),
+        None => ubus::UBUS_STATUS_NOT_SUPPORTED,
+    }
+}
+
+unsafe extern "C" fn handle_test_notification(ctx: *mut ubus::ubus_context, _obj: *mut ubus::ubus_object,
+    req: *mut ubus::ubus_request_data, _method: *const c_char, msg: *mut ubus::blob_attr) -> c_int {
+    let channel = ubus::parse_msg(msg).into_iter().find(|a| a.name == Some("channel")).and_then(|a| a.as_str().map(str::to_owned));
+    let Some(channel) = channel else { return ubus::UBUS_STATUS_INVALID_ARGUMENT; };
+    match with_daemon(|d| d.notifications.test(&d.db, &channel, now_epoch(), crate::state::now_mono_ms())) {
+        Some(Ok(())) => send_json(ctx, req, serde_json::json!({"ok":true})),
+        Some(Err(e)) => send_json(ctx, req, serde_json::json!({"ok":false,"error":e})),
+        None => ubus::UBUS_STATUS_NOT_SUPPORTED,
+    }
+}
+
 /// getStatus → { backend, offload, since, version, interval_ms, devices, synced }
 unsafe extern "C" fn handle_get_status(
     ctx: *mut ubus::ubus_context,
@@ -107,6 +164,9 @@ unsafe extern "C" fn handle_get_status(
         offload_cstr().as_ptr().cast(),
     );
     ubus::blobmsg_add_u64(&mut b, cs(b"since\0"), now_epoch());
+    blobmsg_add_bool(&mut b, cs(b"device_wan_rates\0"), true);
+    blobmsg_add_bool(&mut b, cs(b"wan_daily\0"), true);
+    blobmsg_add_bool(&mut b, cs(b"notifications\0"), true);
     ubus::blobmsg_add_string(
         &mut b,
         cs(b"version\0"),
@@ -175,6 +235,10 @@ unsafe extern "C" fn handle_get_devices(
                 ubus::blobmsg_add_u64(&mut b, cs(b"last\0"), s.last_active);
                 ubus::blobmsg_add_u64(&mut b, cs(b"rx_r\0"), s.rx_r());
                 ubus::blobmsg_add_u64(&mut b, cs(b"tx_r\0"), s.tx_r());
+                ubus::blobmsg_add_u64(&mut b, cs(b"wan_rx_r\0"), s.wan_rx_r);
+                ubus::blobmsg_add_u64(&mut b, cs(b"wan_tx_r\0"), s.wan_tx_r);
+                ubus::blobmsg_add_u64(&mut b, cs(b"lan_rx_r\0"), s.lan_rx_r);
+                ubus::blobmsg_add_u64(&mut b, cs(b"lan_tx_r\0"), s.lan_tx_r);
                 ubus::blobmsg_add_u64(&mut b, cs(b"rx_today\0"), s.rx_today);
                 ubus::blobmsg_add_u64(&mut b, cs(b"tx_today\0"), s.tx_today);
                 ubus::blobmsg_add_u64(&mut b, cs(b"rx_month\0"), s.rx_month);
@@ -190,6 +254,44 @@ unsafe extern "C" fn handle_get_devices(
     ubus::UBUS_STATUS_OK
 }
 
+/// Internet-only usage since the persisted collection window began.
+unsafe extern "C" fn handle_get_wan_usage(
+    ctx: *mut ubus::ubus_context, _obj: *mut ubus::ubus_object,
+    req: *mut ubus::ubus_request_data, _method: *const c_char, _msg: *mut ubus::blob_attr,
+) -> c_int {
+    let mut b = reply(ctx, req);
+    with_daemon(|d| {
+        let attributed = d.wan.attributed();
+        let interface = d.wan.interface;
+        for (name, value) in [
+            (b"since\0".as_slice(), d.wan.since),
+            (b"interface_download\0", interface.download),
+            (b"interface_upload\0", interface.upload),
+            (b"attributed_download\0", attributed.download),
+            (b"attributed_upload\0", attributed.upload),
+            (b"unassigned_download\0", interface.download.saturating_sub(attributed.download)),
+            (b"unassigned_upload\0", interface.upload.saturating_sub(attributed.upload)),
+            (b"excess_download\0", attributed.download.saturating_sub(interface.download)),
+            (b"excess_upload\0", attributed.upload.saturating_sub(interface.upload)),
+        ] { ubus::blobmsg_add_u64(&mut b, cs(name), value); }
+        let arr = ubus::blobmsg_open_array(&mut b, cs(b"dev\0"));
+        let mut rows: Vec<_> = d.wan.devices.iter().collect();
+        rows.sort_by_key(|(mac, _)| mac.b);
+        for (mac, bytes) in rows {
+            if bytes.download == 0 && bytes.upload == 0 { continue; }
+            let row = ubus::blobmsg_open_table(&mut b, std::ptr::null());
+            add_str(&mut b, b"mac\0", &mac_str(&mac.b));
+            if let Some(device) = d.devs.get(mac) { add_opt_str(&mut b, b"host\0", &device.host); }
+            ubus::blobmsg_add_u64(&mut b, cs(b"download\0"), bytes.download);
+            ubus::blobmsg_add_u64(&mut b, cs(b"upload\0"), bytes.upload);
+            ubus::blobmsg_close_table(&mut b, row);
+        }
+        ubus::blobmsg_close_array(&mut b, arr);
+    });
+    send(ctx, req, &mut b);
+    ubus::UBUS_STATUS_OK
+}
+
 /// getTotal → { rx_r, tx_r, rx_today, tx_today, rx_month, tx_month, rx_total, tx_total }
 unsafe extern "C" fn handle_get_total(
     ctx: *mut ubus::ubus_context,
@@ -200,12 +302,10 @@ unsafe extern "C" fn handle_get_total(
 ) -> c_int {
     let mut b = reply(ctx, req);
 
-    // 实时速率：netlink 上游接口差分；today/month：DB SUM（口径与设备归因一致）；
-    // lifetime：devices 表 SUM
+    // 实时速率：netlink 上游接口差分；用量：与设备 API 相同的 RAM 当前值。
+    // SQLite 仍批量落盘，读取汇总不应额外等待 checkpoint 或触发写入。
     let stats = with_daemon(|d| {
-        let (rt, tt) = sum_day(d, &d.cur_day);
-        let (rm, tm) = sum_month(d, &d.cur_month);
-        let (lr, lt) = d.db.lifetime_totals();
+        let [rt, tt, rm, tm, lr, lt] = crate::state::usage_totals(d.devs.values());
         (d.rx_r, d.tx_r, rt, tt, rm, tm, lr, lt)
     })
     .unwrap_or((0, 0, 0, 0, 0, 0, 0, 0));
@@ -221,30 +321,6 @@ unsafe extern "C" fn handle_get_total(
     ubus::blobmsg_add_u64(&mut b, cs(b"tx_total\0"), tx_total);
     send(ctx, req, &mut b);
     ubus::UBUS_STATUS_OK
-}
-
-fn sum_day(d: &Daemon, date: &str) -> (u64, u64) {
-    d.db
-        .history_days(None, date, date)
-        .map(|rows| {
-            rows.iter()
-                .fold((0u64, 0u64), |(a, b), (_, dl, ul)| {
-                    (a + (*dl).max(0) as u64, b + (*ul).max(0) as u64)
-                })
-        })
-        .unwrap_or((0, 0))
-}
-
-fn sum_month(d: &Daemon, month: &str) -> (u64, u64) {
-    d.db
-        .history_months(None, month, month)
-        .map(|rows| {
-            rows.iter()
-                .fold((0u64, 0u64), |(a, b), (_, dl, ul)| {
-                    (a + (*dl).max(0) as u64, b + (*ul).max(0) as u64)
-                })
-        })
-        .unwrap_or((0, 0))
 }
 
 /// getHistory {mac?, agg?("day"|"month"), start_ms?, end_ms?}
@@ -268,7 +344,7 @@ unsafe extern "C" fn handle_get_history(
                     agg = s.to_string();
                 }
             }
-            Some("mac") => mac = a.as_str().map(|s| s.to_string()),
+            Some("mac") => mac = a.as_str().filter(|s| !s.is_empty()).map(|s| s.to_string()),
             Some("start_ms") => start_ms = a.as_u64(),
             Some("end_ms") => end_ms = a.as_u64(),
             _ => {}
@@ -479,6 +555,8 @@ unsafe extern "C" fn handle_reset_device(
 
     match with_daemon(|d| -> Result<(), String> {
         d.db.reset_device(&mac_l)?;
+        d.pending_periods.remove_device(&mac_l);
+        d.wan.remove_device(m);
         if let Some(s) = d.devs.get_mut(&m) {
             s.rx_today = 0;
             s.tx_today = 0;
