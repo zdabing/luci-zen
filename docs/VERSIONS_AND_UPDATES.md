@@ -1,27 +1,29 @@
 # Zen 设置与版本更新
 
-右上角「Zen 设置」和「系统 → Zen 设置」都进入独立路由 `admin/system/zen`。页面包含「外观与布局」和「版本与更新」两个标签。前者复用 `appearance.js` 的控制与本地偏好，后者显示路由器的固件、内核、LuCI 和三个 Zen 包的实际安装版本。点击「刷新版本」重新读取本机；点击「检查更新」分别读取 `zdabing/luci-zen` 与 `zdabing/10Wrt` 的 GitHub 正式发布。首页仅保留监控及简短固件版本，不加载更新模块。设置页默认打开外观标签，切入版本标签才读取包与版本；GitHub 检查仍需手动点击，不自动升级。登录页保留只含外观控制的弹窗。
+右上角「Zen 设置」和「系统 → Zen 设置」进入独立路由 `admin/system/zen`，包含「外观与布局」和「版本与更新」两个标签。版本页仅显示 `luci-theme-zen`、`luci-app-zen-traffic`、`zen-traffic` 三个包的实际安装版本；点击「刷新版本」重新读取本机，点击「检查更新」读取 `zdabing/luci-zen` 的 GitHub 正式发布。不检测固件更新，不读取 10Wrt 构建标识，也不提供固件下载或刷写入口。
 
-组件升级：检查结果匹配本机 target 和 OpenWrt 版本后，展开三个 APK 的文件条目查看下载链接和 SHA256，再通过「管理 Zen 软件包」进入 OpenWrt 原生软件包页面上传安装。也可以在该页面刷新软件源、安装软件源提供的 Zen 版本。三个包版本不一致会显示提示。页面没有授予安装权限、自动修改软件源或绕过依赖/签名校验；发布 APK 必须满足设备现有信任和依赖配置。
+首页不加载更新模块；设置页切入版本标签才读取包清单。GitHub 检查需手动点击，不自动安装。登录页保留外观弹窗。
 
-固件升级：检查结果匹配设备 target/profile 后提供可刷写镜像。R5C 使用 sysupgrade 镜像，x86 使用 combined/combined-efi 镜像，选择与当前文件系统和启动方式一致的文件。通过「备份 / 升级固件」进入原生页面，执行备份、上传、镜像校验、保留配置选择和最终确认。下载 SHA256 展示的是发布信息；刷写前的实际镜像校验由 OpenWrt 执行。
+## 软件包更新
 
-没有权限或未安装原生页面时隐藏对应入口；只读账号的入口标为「只读」，写入仍由 OpenWrt 原有 ACL 控制。页面只新增 `luci.getVersion`、固定的 `package-manager-call list-installed`、包数据库及固件标识的读取权限。包数据库回退使用 CGI 直接读取，避免 ubus 大消息截断。
+每个包独立比较安装版本和发布版本。主题与流量页面为 `all` 架构，不按固件品牌、target 或 SDK 版本限制更新查询；原生后台包需匹配本机 target 和 OpenWrt 版本。只为已安装的包提供 APK 下载，不要求安装可选组件，也不要求三个包版本一致。
 
-## 版本和发布信息来源
+展开 APK 文件条目可查看下载链接和 SHA256，下载后通过「管理 Zen 软件包」进入 OpenWrt 原生软件包页面上传安装，也可使用该页面的软件源更新。`all` 代表包不含目标二进制，主题仍需要 ucode LuCI；安装时继续由包管理器检查实际依赖。
 
-- 三个 Zen 包：优先用 OpenWrt 原生软件包管理 helper 读取安装记录；兼容 APK JSON、APK 数据库和 opkg status。失败显示「无法读取」，可读数据库内缺少包才显示「未安装」。守护进程的 Cargo 版本只用于发现运行版本漂移，不替代包的 `-rN` 修订号。
-- 固件和内核：`system.board`；LuCI：`luci.getVersion`。
-- 10Wrt 构建：`/usr/share/10wrt/release.json`。此路径不属于通常保留的 `/etc` 配置，刷新固件后由新镜像提供。旧固件没有这个文件时仍显示 OpenWrt 版本，但不能判断当前 10Wrt 构建是否最新。
+没有软件包管理权限或未安装原生页面时隐藏入口，只读账号显示「只读」。安装继续使用 OpenWrt 原有权限、依赖和签名校验；更新页不授予写入权限或修改软件源。
 
-Zen 发布工作流运行 `tools/make-release-metadata.py`，从三个 Makefile 的版本/修订号匹配真实 APK 文件并计算 SHA256，产出 `zen-update.json` 并把同一 JSON 放入发布正文的 `<!-- zen-update-metadata ... -->`。三个版本不同、缺包、重复包或空文件会终止发布。
+## 信息来源与匹配
 
-10Wrt `dev/zen` 的构建流程在编译前运行 `scripts/firmware-update-metadata.py stamp`，将 tag、target、profile、run number 和配置提交写入固件覆盖层。编译后 `release` 从 OpenWrt `profiles.json` 选择同一 profile 的可刷写镜像，并验证其文件大小及 SHA256，生成 `10wrt-update.json` 和正文标记 `<!-- 10wrt-update-metadata ... -->`。安装标识与发布 tag 使用同一个构建前计算的值，避免跨日构建不一致。
+- 安装版本：优先读取原生 `package-manager-call list-installed`，回退到 APK 数据库或 opkg status。读取失败显示「无法读取」，可读数据库中缺少包才显示「未安装」。Cargo 版本仅用于发现运行服务与安装包的版本差异，不替代包修订号。
+- 后台包兼容性：通过 `system.board` 读取 target 和 OpenWrt 版本，仅用于筛选匹配的 `zen-traffic` APK。
+- 发布信息：Zen 工作流运行 `tools/make-release-metadata.py`，分别核对三个 Makefile 的版本、修订号和实际 APK，计算 SHA256，产出 `zen-update.json` 并写入发布正文的 `<!-- zen-update-metadata ... -->` 标记。缺包、重复包或空文件会终止发布；各包可以独立修订版本。
 
-浏览器从 GitHub API 的发布正文读取元数据，避免跨域读取 release 附件失败。元数据必须与正式发布 tag、仓库和已上传附件名称/大小匹配；API 提供附件 digest 时也必须一致。代码按数值比较包版本和修订号，固件按同 profile 的构建号比较。未知版本格式、最新发布缺少有效元数据、目标不匹配、断网、15 秒超时或限流均不会显示「已是最新」。检查范围是最近 100 个发布，预发布不计入正式更新。
+浏览器读取 GitHub API 的发布正文元数据，核对仓库、tag、附件名称、大小及可用的 digest。按数值比较包版本和修订号；未知版本、缺少有效元数据、目标不匹配、断网、15 秒超时或限流均不会显示「已是最新」。查询最近 100 个发布，不计入预发布。
+
+读取权限只包含包清单 helper 和包数据库；数据库回退使用 CGI 直接读取，避免 ubus 大消息截断。不需要 LuCI 版本查询或固件构建标识读取权限。
 
 ## 验证
 
-`node tools/test-zen-updates.cjs` 和 `python tools/test-release-metadata.py` 验证解析、比较、兼容性及发布元数据；10Wrt 的 `python scripts/test-firmware-update-metadata.py` 验证 R5C/x86 镜像筛选与损坏检测。可选的 `tools/test-zen-settings-browser.cjs` 验证真实入口、100 组外观/布局/明暗/屏宽组合、键盘标签、延迟版本读取、刷新及登录页回退；`tools/test-zen-updates-browser.cjs` 使用真实 LuCI 模块和只读 RPC/GitHub fixtures，检查 200 组配色、质感、布局、屏宽和明暗状态，以及权限、故障回退及零写入。
+`node tools/test-zen-updates.cjs` 和 `python tools/test-release-metadata.py` 验证安装版本解析、比较、target/SDK 匹配、发布元数据及权限。浏览器回归使用实际 LuCI 模块和只读 fixtures：`tools/test-zen-settings-browser.cjs` 检查设置入口、外观、键盘标签和延迟读取；`tools/test-zen-updates-browser.cjs` 检查三个包、单一 Zen 更新源、响应式布局、故障回退、权限及无固件操作。
 
-本地预览的软件包/固件链接显示入口占位；实际原生流程需要在 OpenWrt 上验收。历史发布没有结构化更新信息时不会猜测兼容性，下一次包含上述元数据的正式构建才提供完整比较。
+本地预览的软件包链接显示入口占位，实际安装流程需在 OpenWrt 上验收。旧发布没有有效更新元数据时，不推测其兼容性或是否最新。

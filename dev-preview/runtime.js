@@ -43,7 +43,6 @@
    getWanUsage:{since:now-7*86400,interface_upload:10e9,interface_download:60e9,dev:devices.map(d=>({mac:d.mac,host:d.host,upload:d.tx_today,download:d.rx_today}))},
    getNotifications:{json:JSON.stringify({config:notificationConfig,recent:[]})},
    info:{uptime:1062720,localtime:now,load:[14000,12000,9000],memory:{total:1024**3,available:600*1024**2},root:{total:8*1024**2,used:2*1024**2}},
-   getVersion:{branch:'LuCI openwrt-25.12',revision:'26.275.48303'},
    board:{kernel:'6.12.74',board_name:'friendlyarm,nanopi-r5c',hostname:'OpenWrt',model:'FriendlyElec NanoPi R5C',system:'ARMv8 Processor',release:{description:'OpenWrt 25.12.5',version:'25.12.5',target:'rockchip/armv8'}},
    status:{'pppoe-wan':{up:true,statistics:{rx_bytes:40e9,tx_bytes:8e9}}},
    getDHCPLeases:{dhcp_leases:devices.map(d=>({hostname:d.host,macaddr:d.mac,ipaddr:d.ip4})),dhcp6_leases:[]},

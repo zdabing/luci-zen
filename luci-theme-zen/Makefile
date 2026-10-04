@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-theme-zen
 PKG_VERSION:=0.2.0
-PKG_RELEASE:=10
+PKG_RELEASE:=11
 
 PKG_MAINTAINER:=luci-zen maintainers
 PKG_LICENSE:=Apache-2.0 GPL-3.0-only
@@ -65,9 +65,6 @@ define Package/luci-theme-zen/install
 	$(INSTALL_DATA) ./ucode/template/themes/zen/footer.ut $(1)/usr/share/ucode/luci/template/themes/zen/footer.ut
 	$(INSTALL_DATA) ./ucode/template/themes/zen/sysauth.ut $(1)/usr/share/ucode/luci/template/themes/zen/sysauth.ut
 
-	$(INSTALL_DIR) $(1)/usr/share/ucode/luci-zen
-	$(INSTALL_DATA) ./root/usr/share/ucode/luci-zen/zen-cache.uc $(1)/usr/share/ucode/luci-zen/zen-cache.uc
-
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./root/etc/uci-defaults/30_luci-theme-zen $(1)/etc/uci-defaults/30_luci-theme-zen
 
@@ -92,16 +89,8 @@ endef
 define Package/luci-theme-zen/postrm
 #!/bin/sh
 [ -n "$${IPKG_INSTROOT}" ] || {
-	uci -q delete luci.themes.Zen
-	uci -q commit luci
+	uci -q delete luci.themes.Zen && uci -q commit luci
 	rm -f /tmp/luci-indexcache /tmp/luci-modulecache/* 2>/dev/null
-
-	H=/usr/share/ucode/luci-zen/zen-cache.uc
-	for P in /luci-static/zen /luci-static/resources/menu-zen.js /luci-static/resources/view/zen; do
-		uci -q del_list uhttpd.main.ucode_prefix="$$P=$$H"
-	done
-	uci commit uhttpd
-	/etc/init.d/uhttpd restart >/dev/null 2>&1 || true
 }
 exit 0
 endef

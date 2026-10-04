@@ -21,8 +21,6 @@ def generate(root, assets, target, sdk_version, tag):
         file = matches[0]
         rows.append(dict(name=name, version=f'{version}-r{revision}', filename=filename,
                          size=file.stat().st_size, sha256=hashlib.sha256(file.read_bytes()).hexdigest()))
-    if len({row['version'] for row in rows}) != 1:
-        raise ValueError('The three Zen package revisions must match')
     return dict(schema=1, repo='zdabing/luci-zen', tag=tag, target=target,
                 sdk_version=sdk_version, packages=rows)
 

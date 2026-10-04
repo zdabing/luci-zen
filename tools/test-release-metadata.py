@@ -28,8 +28,8 @@ class MetadataTests(unittest.TestCase):
                 module.generate(source, assets, 'rockchip/armv8', '25.12.5', 'v0.2.0')
             (assets / 'zen-traffic-0.2.0-r9.apk').write_bytes(b'old package')
             (source / 'zen-traffic/Makefile').write_text('PKG_VERSION:=0.2.0\nPKG_RELEASE:=9\n')
-            with self.assertRaisesRegex(ValueError, 'revisions must match'):
-                module.generate(source, assets, 'rockchip/armv8', '25.12.5', 'v0.2.0')
+            data = module.generate(source, assets, 'rockchip/armv8', '25.12.5', 'v0.2.0')
+            self.assertEqual([p['version'] for p in data['packages']], ['0.2.0-r10', '0.2.0-r10', '0.2.0-r9'])
 
 
 if __name__ == '__main__':

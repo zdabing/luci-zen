@@ -1,207 +1,54 @@
 # LuCI Zen
 
-面向 OpenWrt / ImmortalWrt 的 LuCI 主题与流量统计项目：统一登录页和仪表盘，提供实时监控、历史分析及飞书/企业微信流量通知。
+面向使用 ucode LuCI 的 OpenWrt 系固件（包括 ImmortalWrt）的主题与流量统计插件，提供仪表盘、实时监控、历史分析和飞书/企业微信通知。
 
-界面参考 Obsidian 的黑白层次与 apple-design 的交互细节；上传为橙色、下载为绿色、在线状态为绿色。后台使用 **Rust + Aya + TC eBPF + 原生 ubus + SQLite**，不依赖 Bandix，不额外启动 HTTP 服务。
-
-> **当前状态（2026-10-04）：功能已实现，验收范围按下方记录区分。**
-> R5C 已正式安装 backend r10/app r7/theme r7，插件另应用四份前端修正。新互联网日账本、满盘跨日期恢复、通知配置与三个页面均已真机验证；正式 app r8 正在匹配目标构建。自动通知默认关闭，真实机器人需自行配置并测试。最新版本和验证边界见[页面与通知说明](docs/TRAFFIC_PAGES_AND_NOTIFICATIONS.md)，构建源码记录不能仅由版本号推断。
-
-## 版本与更新
-
-当前三个 OpenWrt 包源码版本统一为 **0.2.0-r10**（2026-10-04）。Rust workspace 版本保持 `0.2.0`；已有标签 `v0.2.0` 对应 2026-09-30 的发布，当前 r10 包版本调整尚未发布。
-
-本版新增 7 天 WAN 实时历史查询，修复 ubus 前缀/MAC 解析与日/月清理，完善设备排序、上传/下载双轴图表和中文翻译，并补齐 OpenWrt 集成文档。完整记录见 [CHANGELOG.md](CHANGELOG.md)。
-
-安装包以 [GitHub Actions](https://github.com/zdabing/luci-zen/actions/workflows/build.yml) 成功构建并发布到 [Releases](https://github.com/zdabing/luci-zen/releases) 为准；源码版本号不代表构建或真机验收已经通过。
-
-## 阅读导航
-
-- [安装包与依赖](#三个安装包)
-- [已完成的功能](#已完成代码实现)
-- [待完成与验收顺序](#还需要做)
-- [统计口径与限制](#统计口径与限制)
-- [集成到 OpenWrt：固件内置、SDK 出包、路由器安装](#集成到-openwrt)
-- [采集接口与数据库配置](#采集与存储配置)
-- [验收和故障排查](#检查和排查)
-- [开发检查与发布](#开发检查和发布)
-
-## 三个安装包
-
-| 包 / 源码目录 | 作用 | 依赖与架构 |
-| --- | --- | --- |
-| `luci-theme-zen` | 登录页、浅色/深色主题、首页仪表盘 | `luci-base`；架构 `all` |
-| `zen-traffic` | eBPF 采集、Rust daemon、ubus、SQLite、通知发送 | 按目标架构编译；依赖 libubus、libubox、TC/BPF、curl、ca-bundle 等 |
-| `luci-app-zen-traffic` | 实时监控、历史分析、通知设置 | `zen-traffic`、`luci-base`；架构 `all` |
-
-可以只安装主题，首页通过 `zen.traffic` 能力探测启用设备统计。流量应用必须配套安装后台，也可以在其他 LuCI 主题下使用。
-
-## 已完成（代码实现）
-
-以下勾选表示功能已落入正式源码，适配范围和真机验证仍以待办清单为准。
-
-### 三个流量页面
-
-| 页面 | 职责 |
+| 包 | 用途 |
 | --- | --- |
-| 实时监控 | 当前全网/设备互联网速度、最近五分钟曲线、在线状态和设备属性；原设备页合并到此处 |
-| 历史分析 | 互联网日/月用量、设备筛选、同窗口排名/WAN 占比、过去七天速率查询；原混合历史单独标注保留 |
-| 通知设置 | 飞书/企业微信渠道、全网或指定设备的今日上传/下载/总用量阈值、定时每日报告及发送记录 |
+| `luci-theme-zen` | Zen 主题、登录页和首页仪表盘，可单独安装 |
+| `zen-traffic` | 流量采集与存储后台 |
+| `luci-app-zen-traffic` | 流量页面，依赖 `zen-traffic`，也可在其他主题下使用 |
 
-- [x] 通知默认关闭，设置保存不重启采集，支持飞书可选签名和显式测试。
-- [x] 每条规则每天向每个渠道提醒一次；失败最多三次尝试，发送预约与结果持久化。
-- [x] 每日报告显示当天截至推送时间的全网用量和设备前五，使用路由器本地时间。
-- [x] Webhook/签名密钥不回显、不进入命令行；数据库及 WAL/SHM 仅 root 可读写。
+## 安装与使用
 
-### 主题、首页与设备界面
+从 [Releases](https://github.com/zdabing/luci-zen/releases) 或 [构建产物](https://github.com/zdabing/luci-zen/actions/workflows/build.yml) 下载包，上传到路由器 `/tmp`。主题和流量页面包为 `all` 架构；后台包须匹配固件版本与 target/subtarget。每种包只放一个版本，按实际包管理器选择一组命令：
 
-- [x] 登录页、侧栏、明暗模式、响应式布局与减少动态效果适配。
-- [x] 系统信息、运行时间、启动时间、负载、CPU、内存、存储展示。
-- [x] 网络接口、协议、地址、连接状态；WAN 优先选择。
-- [x] 实时上传/下载、接口累计发送/接收。
-- [x] 首页与实时历史查询页双 Y 轴：左轴橙色上传，右轴绿色下载，各自缩放。
-- [x] 首页图表悬停显示时间与真实速率；刷新恢复 WAN 最近 5 分钟历史。
-- [x] 设备类型图标、在线状态、IP、MAC、连接方式和最后活动时间。
-- [x] 首页实时上传/下载独立列及排序，上传在前。
-- [x] 默认按实时上传＋下载合计降序，相同时按今日用量合计降序。
-- [x] 首页默认展示前 8 台，居中的“显示全部”按钮；目前首页最多渲染前 50 台。
-- [x] 点击/键盘展开详情，展示今日、本月、累计用量与每日历史。
-- [x] 独立历史页与首页设备详情都使用上传、下载分组柱状图，单日与多日保持一致。只读历史页去掉保存/复位按钮。
-- [x] 复用设备行和图标，顺序变化时才移动行，减少轮询重排。
-- [x] 流量应用复用首页卡片、颜色和明暗样式；手机设备列表显示为卡片，详情可展开。
-- [x] 自有页面中文翻译随包生成 `.lmo`；翻译工具或转换失败时构建报错。
+```sh
+# apk 固件
+apk update
+apk add --allow-untrusted /tmp/zen-traffic-*.apk \
+  /tmp/luci-app-zen-traffic-*.apk /tmp/luci-theme-zen-*.apk
+```
 
-### 采集、存储与查询
+```sh
+# opkg 固件：使用对应 SDK 生成的 .ipk
+opkg update
+opkg install /tmp/zen-traffic_*.ipk \
+  /tmp/luci-app-zen-traffic_*.ipk /tmp/luci-theme-zen_*.ipk
+```
 
-- [x] TC ingress/egress 按 MAC 统计 IPv4/IPv6 流量，可配置多个采集接口。
-- [x] 自动学习本地前缀，区分 LAN-local/WAN；eBPF 只统计，返回 `TC_ACT_OK`。
-- [x] DHCP、邻居表和 hostapd 信息合并；异步查询并缓存 Wi-Fi 客户端。
-- [x] daemon 原生 ubus 查询、设备名称覆盖、设备统计重置。
-- [x] SQLite 设备累计、每日和每月记录，内存累计后批量写盘。
-- [x] 日/月清理分别执行，避免一种历史的清理误删另一种历史。
-- [x] 全部设备日/月查询省略 MAC；历史使用上传/下载分组柱，长历史可在图表内滚动。
-- [x] WAN 实时速率每 5 秒采样、每 5 分钟批量落盘、保留 7 天。
-- [x] 实时监控固定显示最近 5 分钟；历史分析支持接口、1 小时/24 小时/7 天/自定义区间和分页数据表。
-- [x] 全网与设备分别保存互联网日用量，保留 90 天；互联网月柱汇总这些已保留的日期。
-- [x] 实时预设区间以路由器时间查询；ubus 查询失败显示错误提示。
-- [x] 查询包含未落盘样本，长区间按平均速率聚合并限制返回点数。
-- [x] 网络接口事件刷新前缀/上游，不重启 daemon；修改服务配置仍需重启。
-- [x] 修复 ubus 普通容器与 4 字节名字头解析，覆盖前缀学习和按 MAC 查询。
+依赖由匹配的软件源安装；离线安装需另外准备依赖包。内核模块必须匹配固件 ABI，不能只按 CPU 架构选包。
 
-## 还需要做
+安装后，在 LuCI「系统 → 系统 → 语言和界面」选择 Zen，或执行：
 
-建议先完成 P0，再做 P1；P2 按实际需求安排。下面的未勾选项不表示已有功能不可运行，表示仍缺少验收证据或实现。
+```sh
+uci set luci.main.mediaurlbase='/luci-static/zen'
+uci commit luci
+/etc/init.d/rpcd restart
+/etc/init.d/zen-traffic enable
+/etc/init.d/zen-traffic start
+```
 
-2026-09-30 至 10-01 已在 NanoPi R5C 完成部署核对、两个 LAN 客户端分别及并发方向/独立计数、服务重启
-和性能基线：正常后台流量下 daemon 约 0.25% 单核 CPU、3.16 MiB RSS，TCP 用量误差
-单客户端低于 0.5%，并发传输低于 1.75%。10 月 1 日自然跨日/月连续性与历史落盘通过；CI 的 AArch64/musl ABI
-检查通过。全球 IPv6 WAN 上/下行已知大小验证通过，误差分别 +1.31% / +6.14%，归并到同一 MAC。
-当时的 P0 尚未全部通过，详细范围、限制及后续补验见
-[真机验收记录](docs/TESTING.md#2026-09-30-nanopi-r5c-验收记录)。
+只使用主题时，仅安装 `luci-theme-zen`，跳过流量服务命令。安装或升级后强制刷新浏览器。
 
-10 月 3 日安装 backend r7 后，正常后台流量下约 0.35% 单核 CPU、4.52 MiB RSS。
-独立互联网账目通过 IPv6 上/下行各 16 MiB、LAN 载荷排除和正常服务重启连续性验证。
-当前 r7 的电脑与 NAS 真实并发 LAN 上/下行也已重新验证，两设备使用不同载荷大小，
-误差分别低于 0.48% 与 0.22%。随后电脑 24 MiB、NAS 16 MiB 的全球 IPv6 WAN 并发
-上传和下载也通过：电脑互联网计量误差分别 +1.710% / +1.798%，NAS +1.719% / +4.993%，
-均符合预设 ±10% 判据，两个 MAC 独立计数。此前 NAS 的 curl 下载收到 HTTP 403；
-改用其自带 Python 严格校验证书的 HTTPS 客户端后完成载荷，403 的具体原因未确定。
-当前 R5C、`br-lan`、卸载关闭下的 P0 出包、安装、FFI 与双客户端方向/独立用量证据已齐。
-隔离软件网桥端口和跨 VLAN 的两个客户端各方向计数误差低于 0.2%；物理交换机、
-Wi-Fi、卸载路径和 P1 长期稳定性仍未据此认定通过。详细条件见 [r7 验收](docs/TESTING.md#r7-安装性能与实际页面验收2026-10-03)。
+- **首页仪表盘**：查看系统、网络和设备用量；右上角「Zen 设置」调整外观、布局及检查 Zen 软件包更新。
+- **状态 → Zen 流量**：进入实时监控、历史分析、通知设置。
+- **通知设置**：默认关闭，配置飞书或企业微信 Webhook，测试成功后启用阈值提醒或每日报告。
 
-P1 隔离满盘测试已验证 r7 的事务回滚、空间恢复后补存及重复保存不重复计数；
-同时发现失败后每秒重试的问题。源码 backend r8 已改为按配置周期重试，
-匹配目标包构建、CI 与真机隔离满盘复验已通过，后台已正式升级为 r8，
-原累计和互联网统计起点保留。合成旧记录的七天清理与目标平台短测页复用通过；
-实际七天连续运行仍待验证，详见 [P1 记录](docs/TESTING.md#p1隔离满盘与恢复2026-10-03)。
-继续审查发现跨日/月前保存失败会清零未提交的旧区间。源码 backend r9 改为保留
-旧区间快照，恢复时与当前计数同一事务补存；离线设备也不再因活动超时跳过保存。
-r9 与 r10 的匹配目标包、CI 和真机隔离满盘跨区间复验已通过。r10 在两次日期切换后
-恢复设备累计、原日/月历史、独立互联网账目和新互联网日表，三次未保存传输误差 0.86%；
-冻结测试接口后重复 checkpoint 各表精确不变。后台已正式安装 r10，旧累计和 WAN 起点保留。
-这是隔离实例的进程时钟与 SQLITE_FULL 测试，仍不能代替真实断电、NTP/PPP 和长期运行。
+## 集成到固件
 
-| 优先级 | 工作 | 完成判据 |
-| --- | --- | --- |
-| P0：部署基线 | 最新提交 SDK 出包、安装、FFI 与数据准确性验收 | 三包能安装；ubus 返回正常；两台设备的方向与独立用量正确；记录固件、内核、提交及误差 |
-| P1：稳定性与兼容 | 重启/校时/重连、长期存储、卸载路径和不同拓扑 | 有可复现的测试记录，明确支持与不支持的配置 |
-| P2：功能与性能 | 大量设备、导出/备份、配置界面、高 PPS 优化 | 按需求实现并附对应性能或行为验证 |
+以下构建命令在 Linux 或 WSL2 的 Linux 文件系统内执行。OpenWrt / ImmortalWrt 源码、feeds 和目标设备须匹配；基础构建环境需提前准备好。
 
-### 优先验收：准确性与稳定性
-
-- [ ] 最新完整版本 SDK 出包与安装；r10 后台和此前配套插件已通过，最终 app r8 正式包待完成。Rust 单元测试、匹配 libubus FFI 与前端回归已通过。
-- [x] 当前 R5C、br-lan、卸载关闭下核对 LAN 前缀、PPPoE WAN、不同设备 MAC 筛选及上传/下载方向。
-- [ ] 重启、跨日/月、NTP 校时、PPPoE 重连、接口变化后的统计连续性。
-- [x] 当前 R5C 配置的真实双客户端 LAN/WAN、全球 IPv6，以及隔离软件网桥/VLAN 的已知大小传输，范围及误差见验收记录。
-- [ ] 软件/硬件卸载关闭与开启时的覆盖率，明确支持配置。
-- [ ] 长时间验证 7 天清理、SQLite 页复用、写入失败恢复及突然断电行为。
-- [ ] 多桥、多 WAN、Wi-Fi、VLAN 和其他 CPU 架构验收。
-- [x] 前端模块查询、图表交互、通知表单、布尔属性与共享组件生命周期回归纳入 CI，并执行实际包安装配方检查。
-- [ ] 完整浏览器端到端回归自动化；实际 LuCI 页面和手机布局目前仍需真机操作复测。
-
-### 后续优化与可选功能
-
-- [ ] 高 PPS 实测后决定 per-CPU 计数、减少 helper、批量读取 map 等优化。
-- [ ] 移除剩余同步 ubus 发现/查询对事件循环的潜在阻塞。
-- [ ] 大量设备分页、首页 50 台限制、历史设备淘汰、数据库空间监控。
-- [ ] 数据导出、备份/恢复、采样/保留期限配置界面。
-- [ ] 按设备保存实时速率历史；当前 7 天细粒度记录针对 WAN 上游接口。
-- [ ] 视需求增加 DNS 分析、连接统计、限速和配额；当前尚未实现。
-
-## 统计口径与限制
-
-| 数据 | 来源与含义 |
-| --- | --- |
-| 原设备今日/本月/累计、原混合日/月历史 | TC MAC 计数，包含实际经过采集钩子的 LAN 和 WAN 流量 |
-| 实时监控设备互联网速度 | TC MAC 计数中的 WAN 部分；设备详情另显示当前局域网速度 |
-| WAN 实时速率、累计发送/接收 | netlink 上游接口计数器；累计受接口/系统计数器重置影响，不是终身用量 |
-| 7 天实时历史 | 默认路由上游接口的上传/下载速率，每 5 秒采样 |
-| 互联网日/月历史与阈值通知 | `wan_daily` 分别记录上游总量与设备归属用量；日记录保留 90 天，月汇总限这些日期 |
-| 新版设备互联网占比 | `getWanUsage` 独立 WAN 账目；从新采集起点累计，分别显示上传、下载环形图 |
-
-- **设备合计不必等于 WAN 总量**：采集位置、协议开销、路由器自身流量及 LAN-local 流量的口径不同。
-- 历史排名使用同一份互联网日记录的上游总量为分母，并显示未归属或设备超额；新记录从启用时开始，首日可能不完整，旧混合记录不会补算。
-- 新版首页互联网环形图分别显示上传、下载，鼠标移到色块上显示设备名、用量和占比；
-  支持键盘聚焦和手机点击。图表保留未归属部分，并显示设备侧超过接口侧时的口径差异；
-  旧的混合用量不会补算成互联网历史。服务停止期间不采集，设备清零后的历史会归入
-  未归属部分。backend r7 的独立账目已在真机验证；缺失的图表模块、圆环布局、统一历史柱图及跟随数量提示已通过正式 app r6/theme r7 安装验证。
-- 硬件交换/卸载和加速路径可能绕过 TC，首次验收先关闭相关加速。不能凭“支持多个接口”认定复杂拓扑已验证。
-- 当前家庭网络仍采集单个 `br-lan`。backend r7 已修复多个接口的程序重复加载和参数覆盖问题；
-  真机隔离软件网桥端口及跨 VLAN 定向计数已通过。不要同时采集网桥主接口和其端口而未验证重复计数。
-  物理网络的支持范围仍以 [验收记录](docs/TESTING.md) 为准。
-- eBPF 不丢包、不限速、不改路由，但仍有逐包开销；低负载结果不能证明高 PPS 满速性能。
-- 前缀学习失败时保留旧前缀；启动时若只剩默认前缀，本地流量分类可能不准确，应检查日志。
-- 长区间图表显示平均速率，“最高显示速率”不是原始瞬时峰值。双轴刻度独立，不能直接比较曲线高度。
-- 突然断电可能丢失最近约 5 分钟未落盘数据；正常退出会尝试最终落盘。
-- 删除过期样本会复用 SQLite 页，文件不一定立即变小。设备累计/元数据不按 7 天自动删除。
-- 日/月清理使用 `< cutoff`，物理保留可能包括额外边界日/月；90 天/12 个月是查询窗口。
-- 时间有效性用时间戳门槛判断，不能替代 NTP 检查。实时查询用浏览器时区，日/月归档用路由器本地日期。
-
-## 集成到 OpenWrt
-
-### 1. 选择构建环境
-
-| 使用场景 | 路径 |
-| --- | --- |
-| 自己编译固件，希望刷机后直接可用 | 第 2 步：在 OpenWrt 源码中选择三个包 |
-| 已有固件，需要生成匹配的安装包 | 第 3 步：使用对应 SDK，再执行第 4 步 |
-| 已有匹配固件和提交的构建产物 | 直接执行第 4 步，再检查采集配置和验收清单 |
-
-ImageBuilder 可以把已编译且匹配的包装进镜像；本项目 Rust/eBPF 源码编译需要完整源码或 SDK。
-
-重点目标是 **ucode LuCI 的 OpenWrt 25.x 系列**。SDK 工作流默认参数为 `25.12.5`、`x86/64`，只是仓库构建默认值，不是“最新版本”声明或全平台兼容保证。
-
-- 在 Linux 或 WSL2 的 Linux 文件系统内构建；下面命令不是 PowerShell 命令。
-- SDK、源码、feeds 与目标固件版本及 target/subtarget 匹配。
-- ImmortalWrt 使用其对应源码/SDK/feeds；不要混装不同固件的内核模块。
-- `kmod-*` 有内核 ABI 限制，CPU 架构相同不代表模块兼容。
-- OpenWrt 24.x、旧 Lua LuCI、其他架构及厂商固件需要单独适配/验收。
-- `all` 只代表 LuCI 包不含架构二进制，不代表跨 LuCI 版本无条件兼容。
-
-### 2. 在源码中编进固件
-
-从已准备好的 OpenWrt **源码根目录**执行，基础编译依赖按所选分支安装：
+在固件源码根目录执行：
 
 ```sh
 git clone https://github.com/zdabing/luci-zen.git ../luci-zen
@@ -213,18 +60,15 @@ cp -R ../luci-zen/luci-app-zen-traffic package/
 make menuconfig
 ```
 
-以上将三个包分别放在 `package/<包名>/`，与仓库 SDK 工作流的布局一致。若 `../luci-zen` 或目标包目录已经存在，复用并更新现有检出，避免重复克隆或把新目录嵌套进旧目录。使用软链接也可以，但源码目录必须在整个构建期间可访问。
+已有仓库或包目录时更新现有检出，避免重复复制导致目录嵌套。在 `menuconfig` 中选择目标设备和 LuCI 集合（如 `luci`），再选择：
 
-选择目标设备，并选择下列包：
+| 菜单 | 包 |
+| --- | --- |
+| LuCI → Themes | `luci-theme-zen` |
+| LuCI → Applications | `luci-app-zen-traffic` |
+| Network | `zen-traffic`（通常由应用依赖选中） |
 
-| menuconfig 位置 | 包 | 纳入固件 |
-| --- | --- | --- |
-| LuCI → Collections | 分支提供的完整 LuCI 集合，例如 `luci` | `[*]` |
-| LuCI → Themes | `luci-theme-zen` | `[*]` |
-| LuCI → Applications | `luci-app-zen-traffic` | `[*]` |
-| Network | `zen-traffic` | `[*]`，通常由应用依赖选中 |
-
-`[*]` / `=y` 纳入固件，`<M>` / `=m` 只生成安装包。只需主题时不选流量应用和后台。包依赖会选择 TC/BPF 内核模块；自定义内核仍需满足 BPF syscall、TC classifier 和所用 map/helper 条件。
+选 `[*]` 内置固件，选 `<M>` 只生成安装包。仅需主题时只选 `luci-theme-zen`。
 
 ```sh
 make defconfig
@@ -232,22 +76,13 @@ make download -j8
 make -j"$(nproc)" V=s
 ```
 
-固件在 `bin/targets/<target>/<subtarget>/`，包在 `bin/packages/`；包格式由分支决定。GitHub SDK 工作流目前只收集 `.apk`。
+固件输出到 `bin/targets/<target>/<subtarget>/`，安装包输出到 `bin/packages/`。
 
-### 3. 用 SDK 单独编译安装包
+## 使用 SDK 编译安装包
 
-下载与固件匹配的 `openwrt-sdk-*.tar.zst`，后端还需要同一发布目录的 `llvm-bpf-*.tar.zst`。先核对该目录的 `sha256sums`。
-
-下面先将路径替换成下载的实际文件名；`SDK_DIR` 替换成解压后的 SDK 目录：
+下载与目标固件匹配的 SDK，以及同一发布目录的 `llvm-bpf-*.tar.zst`，核对 `sha256sums`。解压 SDK 后，将 llvm-bpf 解压到 **SDK 根目录**，在该目录执行：
 
 ```sh
-SDK_ARCHIVE=/path/to/openwrt-sdk.tar.zst
-LLVM_ARCHIVE=/path/to/llvm-bpf.tar.zst
-SDK_DIR=/path/to/extracted-openwrt-sdk
-tar --zstd -xf "$SDK_ARCHIVE"
-cd "$SDK_DIR"
-tar --zstd -xf "$LLVM_ARCHIVE"
-
 git clone https://github.com/zdabing/luci-zen.git ../luci-zen
 cp -R ../luci-zen/luci-theme-zen package/
 cp -R ../luci-zen/zen-traffic package/
@@ -268,173 +103,29 @@ make package/luci-theme-zen/compile V=s -j"$(nproc)"
 find bin/packages -type f \( -name '*zen*.apk' -o -name '*zen*.ipk' \)
 ```
 
-llvm-bpf 解压到 **SDK 根目录**，参照 [SDK 工作流](.github/workflows/build.yml)。仅编主题不需要 Rust/eBPF 工具链。
+包格式由固件分支决定，编译完成后按上面的安装步骤操作。只编译主题时，仅复制主题目录、安装 `luci-base` feed、设置主题为 `m`，执行主题编译命令；无需 Rust/eBPF 工具链。ImageBuilder 可集成已编译且匹配的包。
 
-只安装主题时，仅复制 `luci-theme-zen/`，feeds 安装 `luci-base`，只设置 `CONFIG_PACKAGE_luci-theme-zen=m` 并运行主题编译命令。首次完整后台构建可能需要编译 Rust 主机工具链，耗时和磁盘占用明显高于主题构建；编译失败时先用同一目标的 `V=s -j1` 获取完整错误。
+## 采集配置与检查
 
-后端使用 OpenWrt `rust-package.mk` 的目标 cargo/linker，`bpf.mk` 编译 eBPF，SQLite 为 bundled 构建。桌面 `cargo build` 产物不能代替 OpenWrt 包。两个 LuCI 包通过 `luci-base/host` 的 `po2lmo` 生成中文 `.lmo`。
-
-官方参考：[使用 SDK](https://openwrt.org/docs/guide-developer/toolchain/using_the_sdk)、[使用构建系统](https://openwrt.org/docs/guide-developer/build-system/use-buildsystem)。
-
-### 4. 安装到现有路由器
-
-先确认版本、内核和包管理器：
-
-```sh
-ubus call system board
-uname -r
-command -v apk
-command -v opkg
-```
-
-将匹配的三个包上传到 `/tmp`，每种包只放一个待安装版本；软件源/离线依赖也须匹配固件。可从构建机使用 `scp <实际包文件> root@<路由器IP>:/tmp/` 上传。先按包管理器运行 `apk update` 或 `opkg update` 更新索引；离线环境则需另外准备所有依赖包。仅有本项目三个包不代表依赖已齐全。
-
-```sh
-# apk 固件；本地构建包未配置项目签名仓库。
-apk add --allow-untrusted /tmp/zen-traffic-*.apk \
-  /tmp/luci-app-zen-traffic-*.apk /tmp/luci-theme-zen-*.apk
-
-# opkg 固件：仅使用该固件 SDK 生成的 .ipk，不能安装 .apk。
-opkg install /tmp/zen-traffic_*.ipk \
-  /tmp/luci-app-zen-traffic_*.ipk /tmp/luci-theme-zen_*.ipk
-```
-
-按实际包管理器选一套命令。安装后在 LuCI“系统 → 系统 → 语言和界面”选择 Zen，也可显式设置：
-
-```sh
-uci set luci.main.mediaurlbase='/luci-static/zen'
-uci commit luci
-/etc/init.d/rpcd restart
-/etc/init.d/zen-traffic enable
-/etc/init.d/zen-traffic start
-```
-
-入口：**状态 → Zen 流量 → 设备 / 历史 / 实时流量历史**。主题首次启动脚本注册主题和静态缓存处理器；已有界面配置时仍需手动选择主题。
-
-只安装主题时，安装命令只传主题包，跳过 `zen-traffic` 服务命令；没有后台时首页设备统计不会启用。安装或升级完成后强制刷新浏览器，再按下面的验收清单检查。
-
-### 5. 首次部署验收
-
-- [ ] `ubus call system board` 与构建记录的固件版本、target/subtarget 一致，依赖安装没有报错。
-- [ ] Zen 登录页与首页能打开；中文、明暗模式、移动端布局正常。
-- [ ] `ubus -v list zen.traffic` 能列出方法，`getStatus` / `getDevices` / `getTotal` 返回正常。
-- [ ] LAN 采集接口确实存在；两台设备分别上传和下载时，MAC 归因、速率方向与日用量增量正确。
-- [ ] 等待至少两次 5 秒采样，实时历史能查询；刷新首页能恢复最近历史。
-- [ ] 正常重启服务后已有设备日/月用量仍可查询，日志没有 BPF 加载、数据库写入或前缀学习错误。
-- [ ] 记录卸载开关、测试拓扑和传输误差；按 [真机测试基线](docs/TESTING.md) 继续验收。
-
-这是首次部署检查，不代表多架构、长期运行和断电恢复等待办已完成。
-
-## 采集与存储配置
-
-配置文件 `/etc/config/zen-traffic`，默认 LAN 桥 `br-lan`，数据库 `/etc/zen-traffic/traffic.db`。
-
-| UCI 项 | 默认值 | 含义 |
-| --- | --- | --- |
-| `traffic.enabled` | `1` | 服务开关 |
-| `traffic.interface`（list） | `br-lan` | TC 挂载的 LAN 采集接口，不是 WAN 选择 |
-| `traffic.interval` | `1000` | BPF map 轮询毫秒，最小 100 |
-| `traffic.offline_timeout` | `600` | 离线判定秒数 |
-| `traffic.checkpoint_secs` | `300` | 设备累计批量写盘周期，不改变 WAN 固定采样/落盘周期 |
-| `traffic.db_path` | `/etc/zen-traffic/traffic.db` | 数据库，父目录须存在且可写 |
-| `traffic.extra_prefix`（list） | 空 | 额外本地网段 CIDR |
+默认采集 LAN 桥 `br-lan`，配置文件为 `/etc/config/zen-traffic`。如果实际 LAN 接口不同，修改后重启服务：
 
 ```sh
 uci -q delete zen-traffic.traffic.interface
 uci add_list zen-traffic.traffic.interface='br-lan'
-# 多桥按真实接口追加，并验证是否重复采集。
-# uci add_list zen-traffic.traffic.interface='br-guest'
-# 特殊本地网段可补充：
-# uci add_list zen-traffic.traffic.extra_prefix='192.168.50.0/24'
 uci commit zen-traffic
 /etc/init.d/zen-traffic restart
 ```
 
-不要把 `pppoe-wan` 替换进 LAN 采集列表做设备 MAC 归因。WAN 总量/实时历史通过默认路由上游识别；页面下拉框与 TC 挂载列表是不同概念。
+这里配置的是 LAN 采集接口；WAN 总量通过默认路由上游识别。多个采集接口不要同时覆盖网桥和其端口，以免重复计数。硬件交换及流量卸载可能绕过采集，首次检查先关闭相关加速。
 
-网桥主接口的 TC 钩子并不覆盖所有纯二层转发；隔离测试中，两个 veth 客户端桥接互传
-8 MiB 时，挂在主接口的统计为零。backend r7 已出包安装，并在隔离软件网桥中验证
-仅挂两个端口能分别计量两台客户端的正反向传输；两个 VLAN 接口的跨子网路由也已验证。
-测试误差低于 0.2%，本地载荷未计入 WAN。必须避免主接口和端口重复采集；这不代表
-外部物理交换机、Wi-Fi 和硬件卸载路径已经验收。
-
-长期使用可以将数据库迁移到已经挂载的持久存储：
-
-1. 检查 `mount` / `df`，确认目标确实已挂载且有空间；目录存在不足以证明挂载成功。
-2. `/etc/init.d/zen-traffic stop`，确认正常停止，备份原数据库。
-3. 创建新目录，将旧 `.db` 复制到新位置；确认目标不存在以免覆盖旧记录。首次启动没有旧数据库则跳过复制。
-4. 例如执行 `uci set zen-traffic.traffic.db_path='/mnt/data/zen-traffic/traffic.db'`，然后 `uci commit zen-traffic`。
-5. `/etc/init.d/zen-traffic start`，检查日志和历史记录。
-
-不要在服务正在写入时只复制主 `.db` 文件。存放 `/tmp` 会重启丢失；外置存储须在服务前挂载；自定义路径需自行配置 sysupgrade 保留/备份策略。
-
-## 检查和排查
+数据库默认保存在 `/etc/zen-traffic/traffic.db`。自定义持久存储可设置 `zen-traffic.traffic.db_path`，目标目录须提前挂载且可写；迁移旧数据前先停止服务并备份，避免存放在重启会清空的 `/tmp`。
 
 ```sh
-ubus -v list zen.traffic
 ubus call zen.traffic getStatus
 ubus call zen.traffic getDevices
-ubus call zen.traffic getTotal
-ubus call zen.traffic getWanUsage
-ubus call zen.traffic getHistory '{"agg":"day","mac":"38:65:04:6a:c0:9b"}'
-ubus call zen.traffic getRealtimeHistory '{}'
-ubus call zen.traffic getInternetHistory '{"agg":"day"}'
-ubus call zen.traffic getNotifications
-ubus call network.interface dump
-ip route show default
 logread -e zen-traffic
 ```
 
-MAC 换成真实设备，省略 `mac` 才是全部设备汇总。`getHistory` 的 `start_ms/end_ms` 是毫秒，`getRealtimeHistory` 的 `start/end` 是 Unix 秒。实时历史默认最近 5 分钟，启动初期要等待采样，不会补造停机期间的数据。
+确认服务返回正常、设备上传/下载方向正确；实时历史启动后需等待采样。
 
-| 现象 | 排查重点 |
-| --- | --- |
-| 找不到 `zen.traffic` | 服务日志、BPF/TC 模块、可写数据库、包是否匹配固件 |
-| WAN 数据为空/零 | 默认路由、实际上游、netlink 日志、重连后的计数基线 |
-| `network.interface dump` 失败 | 日志细分原因、手动调用、是否部署解析修复后的 daemon |
-| 不同设备历史相同 | 用不同 MAC 手动查询；需更新后端，刷新页面不能修旧 daemon |
-| 中文页面仍有英文 | `.lmo` 安装、LuCI 语言选择、强制刷新、相关包一起升级 |
-| 推送后页面没变化 | GitHub 源码推送不等于路由器更新，需匹配构建并安装 |
-
-## 开发检查和发布
-
-不构建目标二进制的检查：
-
-```sh
-node tools/check-po.js luci-theme-zen
-node tools/check-po.js luci-app-zen-traffic
-node tools/test-dashboard-history.cjs
-node tools/test-device-actions.cjs
-node tools/test-device-history.cjs
-node tools/test-history-bars.cjs
-node tools/test-realtime-query.cjs
-node tools/test-notifications.cjs
-node tools/test-monitor-poll.cjs
-node tools/test-traffic-view-lifecycle.cjs
-python3 tools/test-sqlite-retention.py
-python3 tools/test-realtime-history.py
-git diff --check
-```
-
-覆盖翻译、部分前端行为和 SQLite SQL，不代替 Rust 编译、FFI 检查和真机验收。Rust 用例位于 `zen-ubus-sys`，执行需构建和满足链接环境。
-
-- 普通 push / PR 触发 [CI](.github/workflows/ci.yml)，含 Rust 检查和 eBPF 编译。
-- 只推源码不要编译：提交加 `[skip ci]`，不打 tag、不发布 Release、不手动运行构建。
-- `v*` tag、发布 Release 或手动运行 **SDK Build** 触发正式出包，参数须与固件匹配。
-- 工作流默认 `x86/64`，其他目标不视为已验证；包下载以成功构建的 Artifacts/Release 为准。
-
-## 目录和文档
-
-- [ARCHITECTURE.md](docs/ARCHITECTURE.md)：设计背景与采集架构；部分旧描述待同步，以当前代码及 README 状态为准。
-- [DEVELOPMENT.md](docs/DEVELOPMENT.md)：本地开发和 SDK 构建。
-- [TESTING.md](docs/TESTING.md)：真机验收基线。
-- [TRAFFIC_PAGES_AND_NOTIFICATIONS.md](docs/TRAFFIC_PAGES_AND_NOTIFICATIONS.md)：三个页面的职责、互联网账本与通知设置/重试规则。
-- `dev-preview/`：脱机设计预览，非真实路由器数据，可能滞后于正式页面。
-- `poc/`：实验验证，不是正式安装包。
-- `tools/`：翻译和历史数据回归检查。
-
-## 许可证
-
-仓库默认许可及 `zen-traffic/` 为 [GPL-2.0](LICENSE)；主题为 [Apache-2.0](luci-theme-zen/LICENSE)。流量应用包声明 Apache-2.0，具体以组件许可证与源码声明为准。
-
-右上角「Zen 设置」已集中外观、布局和版本更新；独立设置页支持查看实际安装版本、手动检查 Zen 三个包和 10Wrt 固件发布，并进入原生升级流程：[版本与更新说明](docs/VERSIONS_AND_UPDATES.md)。
+详细说明：[页面与通知](docs/TRAFFIC_PAGES_AND_NOTIFICATIONS.md) · [版本与更新](docs/VERSIONS_AND_UPDATES.md) · [开发指南](docs/DEVELOPMENT.md) · [测试记录](docs/TESTING.md) · [更新日志](CHANGELOG.md)。

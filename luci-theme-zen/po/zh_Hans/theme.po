@@ -541,14 +541,8 @@ msgstr "版本与更新"
 msgid "Installed versions are read from this router."
 msgstr "显示此路由器实际安装的版本。"
 
-msgid "Router firmware"
-msgstr "路由器固件"
-
-msgid "Kernel"
-msgstr "内核"
-
-msgid "Checks use public GitHub releases for Zen and 10Wrt. Component installation and firmware backup, validation and flashing continue in OpenWrt."
-msgstr "检查 Zen 和 10Wrt 的 GitHub 正式发布。组件安装、固件备份、校验和刷写在 OpenWrt 中完成。"
+msgid "Checks use public GitHub releases for Zen packages. Install updates through OpenWrt package management."
+msgstr "检查 Zen 软件包的 GitHub 正式发布，通过 OpenWrt 软件包管理安装更新。"
 
 msgid "Not installed"
 msgstr "未安装"
@@ -556,35 +550,23 @@ msgstr "未安装"
 msgid "Unable to read"
 msgstr "无法读取"
 
-msgid "10Wrt build identity is unavailable; firmware freshness cannot be determined."
-msgstr "未找到 10Wrt 构建标识，无法判断固件是否为最新。"
-
-msgid "Zen package versions differ. Upgrade the three components together."
-msgstr "Zen 三个包版本不一致，建议一起升级。"
-
 msgid "The running traffic service differs from its installed version. Restart the service after upgrading."
 msgstr "运行中的流量服务与安装版本不同，升级后请重启服务。"
 
 msgid "Manage Zen packages"
 msgstr "管理 Zen 软件包"
 
-msgid "Backup / flash firmware"
-msgstr "备份 / 升级固件"
-
 msgid "Read only"
 msgstr "只读"
 
-msgid "Upgrade pages are unavailable for this account."
-msgstr "当前账号没有可用的升级页面。"
+msgid "Package management is unavailable for this account."
+msgstr "当前账号没有可用的软件包管理页面。"
 
 msgid "Checking releases…"
 msgstr "正在检查发布…"
 
 msgid "Zen components"
 msgstr "Zen 三个组件"
-
-msgid "10Wrt firmware"
-msgstr "10Wrt 固件"
 
 msgid "GitHub rate limit reached. Try again later."
 msgstr "GitHub 请求次数已达上限，请稍后重试。"
@@ -619,14 +601,8 @@ msgstr "已是最新"
 msgid "Installed version is newer"
 msgstr "当前安装版本较新"
 
-msgid "Compatible image available; current build is unknown."
-msgstr "有适配固件可下载，当前构建版本未知。"
-
-msgid "Download the three matching APKs, then use Manage Zen packages to upload and install them. Do not bypass dependency or signature checks."
-msgstr "下载匹配的三个 APK，然后进入「管理 Zen 软件包」上传安装。请保留依赖与签名检查。"
-
-msgid "Choose the correct filesystem image, download it, then use Backup / flash firmware. OpenWrt validates the image before confirmation."
-msgstr "选择与当前文件系统及启动方式一致的镜像，下载后进入「备份 / 升级固件」。OpenWrt 会先校验镜像，再确认刷写。"
+msgid "Download this APK, then use Manage Zen packages to upload and install it."
+msgstr "下载此 APK，然后进入「管理 Zen 软件包」上传安装。"
 
 msgid "View releases"
 msgstr "查看发布"

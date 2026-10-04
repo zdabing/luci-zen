@@ -20,7 +20,7 @@
 | ucode 模板骨架 | `header.ut/footer.ut/sysauth.ut`，`data-theme` 防闪烁内联脚本，`?v=pkgmtime` 缓存失效 | 结构平移重写，代码归属新项目 |
 | 菜单/侧栏 JS | `menu-*.js`：菜单树渲染、桌面折叠、移动抽屉；Zen 首页由独立菜单路由加载，菜单不插入页面内容 | 平移重写 |
 | dashboard 性能范式 | DOM 一次构建、更新只碰 `textContent`/SVG 属性、曲线滑动窗口、`niceMax` 刻度 | 直接作为本项目渲染规范 |
-| 包工程化 | Makefile 安装布局、uci-defaults 注册主题、rpcd ACL、uhttpd `ucode_prefix` 长缓存 handler（含路径穿越防护）、postinst/postrm 缓存清理 | 整体沿用模式 |
+| 包工程化 | Makefile 安装布局、uci-defaults 注册主题、rpcd ACL、postinst/postrm 缓存清理；静态文件使用固件原生服务 | 独立安装包，不新增 uhttpd 缓存 handler |
 | CSS token 化 | `:root`/`[data-theme=dark]` 全量语义变量 | 重构为 Apple-inspired 色板 + motion token |
 | **不借鉴** | 每卡片 `backdrop-filter: blur(10px)`（大面积 blur）、无 `prefers-reduced-motion` | 移除/补齐 |
 
@@ -135,7 +135,6 @@ luci-zen/
 │   ├── ucode/template/themes/zen/{header.ut,footer.ut,sysauth.ut}
 │   ├── root/etc/uci-defaults/30_luci-theme-zen
 │   ├── root/usr/share/rpcd/acl.d/luci-theme-zen.json
-│   ├── root/usr/share/ucode/luci-zen/zen-cache.uc
 │   └── po/zh_Hans/theme.po
 └── docs/{ARCHITECTURE.md, PHASE1-ANALYSIS.md}
 ```

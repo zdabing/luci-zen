@@ -4,7 +4,7 @@
  Copyright 2008-2022 Jo-Philipp Wich <jo@mein.io>
  Licensed to the public under the Apache License 2.0.
 
- luci-theme-zen — cyan glass sidebar theme for ImmortalWrt 25.12 / LuCI ucode.
+ luci-theme-zen — LuCI ucode theme.
 -#}
 
 {%
@@ -15,7 +15,7 @@
 
 	// version tag for theme static assets: changes whenever any package
 	// operation touches the package manager database (incl. theme upgrades),
-	// so long-lived browser caches are invalidated automatically. Check both
+	// so browser caches are invalidated automatically. Check both
 	// apk and opkg databases since either may be absent depending on the
 	// system; use the newest mtime found.
 	const apk_mtime = stat('/lib/apk/db/installed')?.mtime ?? 0;

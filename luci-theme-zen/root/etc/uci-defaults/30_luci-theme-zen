@@ -1,7 +1,6 @@
 #!/bin/sh
 
 changed_luci=0
-changed_uhttpd=0
 
 set_opt() {
 	local key=$1
@@ -23,25 +22,20 @@ if [ $changed_luci = 1 ]; then
 	uci commit luci
 fi
 
-# register ucode cache handler for theme static assets (idempotent)
+# Remove only the cache prefixes registered by older Zen packages.
+# New installs use the firmware's regular static file serving.
 H=/usr/share/ucode/luci-zen/zen-cache.uc
-
-add_prefix() {
-	grep -qF "$1=$2" /etc/config/uhttpd 2>/dev/null || {
-		uci -q add_list uhttpd.main.ucode_prefix="$1=$2"
-		changed_uhttpd=1
-	}
-}
-
-add_prefix /luci-static/zen "$H"
-add_prefix /luci-static/resources/menu-zen.js "$H"
-add_prefix /luci-static/resources/view/zen "$H"
-
-# only restart uhttpd when its own config changed; a luci-only change
-# must not drop existing web connections
-if [ $changed_uhttpd = 1 ]; then
+changed_uhttpd=0
+for P in /luci-static/zen /luci-static/resources/menu-zen.js /luci-static/resources/view/zen; do
+	case " $(uci -q get uhttpd.main.ucode_prefix) " in
+		*" $P=$H "*)
+			uci -q del_list uhttpd.main.ucode_prefix="$P=$H" && changed_uhttpd=1
+			;;
+	esac
+done
+if [ "$changed_uhttpd" = 1 ]; then
 	uci commit uhttpd
-	/etc/init.d/uhttpd restart
+	/etc/init.d/uhttpd reload >/dev/null 2>&1 || true
 fi
 
 exit 0

@@ -41,6 +41,8 @@ Sunny UI 的原始材质文件为 `luci-theme-zen/htdocs/luci-static/zen/appeara
 保持上游版本不变；LuCI 映射放在 `appearance-zen.css`，原生偏好、共享表单及登录页弹窗代码在
 `appearance.js`。出处和许可见主题目录的 `THIRD_PARTY_NOTICES.md`。
 主题不引入 React、npm 运行时或新的后端接口。
+静态文件使用固件原生 Web 服务，安装不注册 `uhttpd.ucode_prefix` 缓存处理器；
+从旧版升级时仅清理旧 Zen 自己注册的前缀。已有主题选择保持不变。
 
 首页使用独立菜单路由 `admin/zen`（`root/usr/share/luci/menu.d/luci-theme-zen.json`），
 由 `view/zen/home.js` 按 LuCI 视图生命周期挂载，`dashboard.js` 仅提供数据和组件，

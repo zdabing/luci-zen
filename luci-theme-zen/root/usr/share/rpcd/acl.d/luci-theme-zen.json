@@ -6,7 +6,7 @@
 			"ubus": {
 				"file": [ "read" ],
 				"system": [ "info", "board" ],
-				"luci": [ "getMountPoints", "getVersion" ],
+				"luci": [ "getMountPoints" ],
 				"luci-rpc": [ "getDHCPLeases", "getNetworkDevices", "getHostHints" ],
 				"network.device": [ "status" ],
 				"zen.traffic": [ "getStatus", "getDevices", "getTotal", "getHistory", "getRealtimeHistory", "getWanUsage" ]
@@ -15,8 +15,7 @@
 				"/proc/stat": [ "read" ],
 				"/usr/libexec/package-manager-call list-installed": [ "exec" ],
 				"/lib/apk/db/installed": [ "read" ],
-				"/usr/lib/opkg/status": [ "read" ],
-				"/usr/share/10wrt/release.json": [ "read" ]
+				"/usr/lib/opkg/status": [ "read" ]
 			}
 		}
 	}

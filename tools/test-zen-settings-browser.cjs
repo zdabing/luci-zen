@@ -39,7 +39,7 @@ const base=process.env.ZEN_PREVIEW_URL||'http://127.0.0.1:8770',shot=process.env
   assert.equal(await page.locator('#zen-updates').count(),0);
   const versionTab=page.getByRole('tab',{name:'版本与更新',exact:true});
   await page.getByRole('tab',{name:'外观与布局',exact:true}).focus();await page.keyboard.press('ArrowRight');
-  await page.waitForFunction(()=>document.querySelector('#zen-updates .zen-version-item strong')?.textContent.includes('OpenWrt'));
+  await page.waitForFunction(()=>document.querySelector('#zen-updates .zen-version-item strong')?.textContent==='0.2.0-r10');
   assert.equal(await versionTab.getAttribute('aria-selected'),'true');
   assert.equal(await versionTab.evaluate(node=>node===document.activeElement),true);
   assert.equal(await appearance.isVisible(),false);
