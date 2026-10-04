@@ -94,6 +94,8 @@ function injectStyles() {
 		'.zen-tf-tabs { display: flex; gap: 8px; }',
 		'.zen-tf-chart-svg { display: block; width: 100%; height: 260px; background: rgba(127,127,127,.04); border-radius: 12px; }',
 		'.zen-tf-controls > select { min-width: 0; max-width: 100%; }',
+		'.zen-analysis-table { width: 100%; table-layout: fixed; } .zen-analysis-table th:first-child { width: 40%; } .zen-analysis-table td, .zen-analysis-table th { overflow-wrap: anywhere; }',
+		'@media(max-width:600px) { .zen-analysis-table td, .zen-analysis-table th { padding: 10px 6px; font-size: 12px; } }',
 		'.zen-tf-bar-ul { fill: var(--ul, #ea580c); }',
 		'.zen-tf-bar-dl { fill: var(--dl, #15803d); }',
 		'.zen-tf-chart-scroll { max-width: 100%; overflow-x: auto; }',
