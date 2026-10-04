@@ -19,4 +19,27 @@ const menu=JSON.parse(fs.readFileSync(path.join(root,'root/usr/share/luci/menu.d
 const visible=Object.entries(menu).filter(([key,value])=>key.startsWith('admin/status/zen-traffic/')&&value.title).sort((a,b)=>a[1].order-b[1].order);
 assert.deepEqual(visible.map(([key])=>key.split('/').at(-1)),['realtime','history','notifications']);
 assert.deepEqual(menu['admin/status/zen-traffic/devices'].action,{type:'alias',path:'admin/status/zen-traffic/realtime'});
-console.log('PASS: shared chart imports do not mount pages; exactly three visible entries; legacy alias retained');
+// Emulate HTML boolean-attribute presence, including disabled="false".
+const E=(tag,attrs={},children=[])=>({tag,attrs,disabled:Object.hasOwn(attrs,'disabled')&&attrs.disabled!=null,
+ children:Array.isArray(children)?children:[children],value:attrs.value||'',textContent:'',
+ appendChild(child){this.children.push(child);return child;}});
+const document={getElementById:()=>null,createElement:tag=>E(tag),head:E('head')};
+const historySource=fs.readFileSync(path.join(root,'htdocs/luci-static/resources/view/zen-traffic/history.js'),'utf8');
+const find=(node,predicate)=>predicate(node)?node:(node.children||[]).map(child=>child&&typeof child==='object'?find(child,predicate):null).find(Boolean);
+for(const available of [true,false]) {
+ const history=new Function('view','rpc','trafficStyle','rateHistory','_','E','document','L','window',historySource)(
+  view,rpc,{inject(){}},{render:()=>E('div'),query(){}},s=>s,E,document,{bind:(f,c)=>f.bind(c)},{location:{search:''}});
+ let refreshes=0;history.refresh=()=>{refreshes++;};
+ const page=history.render([{wan_daily:available},{dev:[]}]);
+ const scope=find(page,node=>node.attrs?.['aria-label']==='Traffic scope');
+ assert.equal(scope.children[0].disabled,!available,'Internet scope must be selectable exactly when supported by the daemon');
+ assert.equal(scope.value,available?'internet':'all');
+ if(available) {
+  scope.attrs.change({target:{value:'all'}});assert.equal(history.scope,'all');
+  assert.equal(history.monthTab.textContent,'Monthly (12 months)');
+  scope.attrs.change({target:{value:'internet'}});assert.equal(history.scope,'internet');
+  assert.equal(history.monthTab.textContent,'Monthly (retained days)');
+  assert.equal(refreshes,3,'Both scope changes must refresh the selected history');
+ }
+}
+console.log('PASS: shared chart imports do not mount pages; three entries; legacy alias; supported and unsupported internet scope');

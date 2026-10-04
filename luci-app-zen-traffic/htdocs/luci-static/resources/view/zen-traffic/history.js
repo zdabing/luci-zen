@@ -157,11 +157,13 @@ return view.extend({
 			this.tabBtn('day', _('Daily (90 days)')),
 			this.monthTab = this.tabBtn('month', this.scope === 'internet' ? _('Monthly (retained days)') : _('Monthly (12 months)'))
 		]);
+		const internetOption = E('option', {value:'internet'}, _('Internet only'));
+		internetOption.disabled = !(status && status.wan_daily);
 		const scope = E('select', {'aria-label': _('Traffic scope'), change: ev => {
 			this.scope = ev.target.value;
 			this.monthTab.textContent = this.scope === 'internet' ? _('Monthly (retained days)') : _('Monthly (12 months)');
 			this.refresh();
-		}}, [E('option',{value:'internet',disabled:!(status && status.wan_daily)},_('Internet only')),E('option',{value:'all'},_('Internet + local (existing history)'))]);
+		}}, [internetOption,E('option',{value:'all'},_('Internet + local (existing history)'))]);
 		scope.value = this.scope;
 		const reset = E('button', {type:'button','class':'cbi-button cbi-button-negative',click:()=>this.resetSelected()}, _('Reset selected device counters'));
 		this.resetButton = reset;
