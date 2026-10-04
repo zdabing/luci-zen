@@ -94,6 +94,15 @@ function injectStyles() {
 		'.zen-tf-tabs { display: flex; gap: 8px; }',
 		'.zen-tf-chart-svg { display: block; width: 100%; height: 260px; background: rgba(127,127,127,.04); border-radius: 12px; }',
 		'.zen-tf-controls > select { min-width: 0; max-width: 100%; }',
+		'#zen-traffic-history .zen-history-controls { display: grid; gap: 16px; }',
+		'#zen-traffic-history .zen-history-field { display: grid; gap: 8px; min-width: 0; margin: 0; font-size: 13px; line-height: 20px; }',
+		'#zen-traffic-history .zen-history-field select { width: 100%; height: 44px; min-height: 44px; margin: 0; }',
+		'#zen-traffic-history .zen-history-actions { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }',
+		'#zen-traffic-history .zen-history-actions > label { flex: 0 1 280px; }',
+		'#zen-traffic-history .zen-history-actions > .zen-tf-tabs { box-sizing: border-box; height: 44px; max-width: 100%; }',
+		'#zen-traffic-history .zen-history-actions > .zen-tf-tabs button { height: 36px; min-height: 36px; padding: 0 14px; }',
+		'#zen-traffic-history .zen-history-actions > button { height: 44px; min-height: 44px; margin: 0; }',
+		'@media(max-width:600px) { #zen-traffic-history .zen-history-actions { display: grid; grid-template-columns: minmax(0,1fr); } #zen-traffic-history .zen-history-actions > label, #zen-traffic-history .zen-history-actions > button { width: 100%; } #zen-traffic-history .zen-history-actions > .zen-tf-tabs { height: 52px; } #zen-traffic-history .zen-history-actions > .zen-tf-tabs button { height: 44px; min-height: 44px; padding: 0 8px; } }',
 		'.zen-analysis-table { width: 100%; table-layout: fixed; } .zen-analysis-table th:first-child { width: 40%; } .zen-analysis-table td, .zen-analysis-table th { overflow-wrap: anywhere; }',
 		'@media(max-width:600px) { .zen-analysis-table td, .zen-analysis-table th { padding: 10px 6px; font-size: 12px; } }',
 		'.zen-tf-bar-ul { fill: var(--ul, #ea580c); }',
@@ -173,9 +182,11 @@ return view.extend({
 			E('h2', {}, _('History analysis')),
 			E('div', { 'class': 'cbi-map-descr' },
 				_('Compare recorded usage by date and device, then inspect past internet rates. Current speeds are in Realtime monitoring.')),
-			E('div', { 'class': 'cbi-section zen-tf-controls' }, [
-				E('label', { 'for': 'zen-tf-history-device' }, _('Device')), sel,
-				tabs, E('label', {}, [_('Traffic scope'), scope]), reset
+			E('div', { 'class': 'cbi-section zen-history-controls' }, [
+				E('label', { 'class': 'zen-history-field', 'for': 'zen-tf-history-device' }, [_('Device'), sel]),
+				E('div', { 'class': 'zen-history-actions' }, [
+					tabs, E('label', { 'class': 'zen-history-field' }, [_('Traffic scope'), scope]), reset
+				])
 			]),
 			E('div', { 'class': 'cbi-section' },
 				[this.statusText = E('p', { 'class': 'zen-tf-status', role: 'status' }),
