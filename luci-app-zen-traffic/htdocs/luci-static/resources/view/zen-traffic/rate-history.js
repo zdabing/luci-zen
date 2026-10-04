@@ -1,5 +1,5 @@
 'use strict';
-'require view';
+'require baseclass';
 'require rpc';
 'require view.zen-traffic.style as trafficStyle';
 
@@ -30,7 +30,9 @@ function styles() {
  document.head.appendChild(style);
 }
 
-return view.extend({
+// Reused by monitoring and analysis. LuCI view.extend() automatically mounts
+// a page during module loading, so shared chart helpers must use baseclass.
+return baseclass.extend({
  injectStyles: styles,
  load() {
   // Let the router choose its current window; the browser clock may be ahead.

@@ -33,7 +33,9 @@ function errorText(message,fallback) {
 const field = (label,input,note) => E('label',{'class':'zen-notify-field'},[
  E('span',{},label), input, note ? E('small',{'class':'zen-app-muted'},note) : ''
 ]);
-const toggle = (label,on) => { const input=E('input',{type:'checkbox',checked:!!on});
+const toggle = (label,on) => { const input=E('input',{type:'checkbox'});
+ // Boolean HTML attributes use presence, so checked="false" still checks it.
+ input.checked=!!on;
  return {input,node:E('label',{'class':'zen-notify-toggle'},[input,E('span',{},label)])}; };
 function styles() {
  if (document.getElementById('zen-notify-css')) return;

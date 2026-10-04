@@ -1,0 +1,22 @@
+// LuCI view modules mount themselves on construction. Shared dependencies
+// must not initialize another page, regardless of which page imports them.
+const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
+const root=path.join(__dirname,'../luci-app-zen-traffic');
+let mounts=[];
+const view={extend:props=>{mounts.push(props);return props;}},baseclass={extend:props=>props};
+const rpc={declare:()=>()=>Promise.resolve({})};
+const helperSource=fs.readFileSync(path.join(root,'htdocs/luci-static/resources/view/zen-traffic/rate-history.js'),'utf8');
+const helper=new Function('view','baseclass','rpc','trafficStyle','_',helperSource)(view,baseclass,rpc,{},s=>s);
+assert.equal(mounts.length,0,'Importing a shared rate component must not mount a LuCI page');
+assert.equal(typeof helper.render,'function');assert.equal(typeof helper.query,'function');
+for(const page of ['realtime','history']) {
+ mounts=[];
+ const source=fs.readFileSync(path.join(root,'htdocs/luci-static/resources/view/zen-traffic/'+page+'.js'),'utf8');
+ new Function('view','rpc','_',source)(view,rpc,s=>s);
+ assert.equal(mounts.length,1,page+' must initialize exactly one page');
+}
+const menu=JSON.parse(fs.readFileSync(path.join(root,'root/usr/share/luci/menu.d/luci-app-zen-traffic.json'),'utf8'));
+const visible=Object.entries(menu).filter(([key,value])=>key.startsWith('admin/status/zen-traffic/')&&value.title).sort((a,b)=>a[1].order-b[1].order);
+assert.deepEqual(visible.map(([key])=>key.split('/').at(-1)),['realtime','history','notifications']);
+assert.deepEqual(menu['admin/status/zen-traffic/devices'].action,{type:'alias',path:'admin/status/zen-traffic/realtime'});
+console.log('PASS: shared chart imports do not mount pages; exactly three visible entries; legacy alias retained');

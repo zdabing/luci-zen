@@ -170,6 +170,7 @@ jobs:
           node tools/test-realtime-query.cjs
           node tools/test-notifications.cjs
           node tools/test-monitor-poll.cjs
+          node tools/test-traffic-view-lifecycle.cjs
 
       - name: SQLite retention and realtime regression
         run: |

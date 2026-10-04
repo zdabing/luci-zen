@@ -14,7 +14,7 @@ const rpc = {declare: spec => (...args) => {
   if(fail || payload.end>serverNow) return spec.reject ? Promise.reject(new Error('ubus code 2')) : Promise.resolve(2);
   return Promise.resolve({interface:'pppoe-wan',interfaces:['pppoe-wan'],start:serverNow-300,end:serverNow,step:5,samples:[{time:serverNow-5,download:1234,upload:456}]});
 }};
-const view = new Function('view','rpc','trafficStyle','_',source)({extend:x=>x},rpc,{},x=>x);
+const view = new Function('baseclass','rpc','trafficStyle','_',source)({extend:x=>x},rpc,{},x=>x);
 view.range={value:'300'};view.iface={value:'pppoe-wan'};
 view.start={value:''};view.end={value:''};view.button={};view.error={};view.requestId=0;
 view.startField={};view.endField={};

@@ -2,7 +2,7 @@
 // explicit test sends, stale polling, validation and backend errors.
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 class Element {
- constructor(tag,attrs={}){this.tag=tag;this.attrs=attrs;this.children=[];this.value=attrs.value||'';this.checked=!!attrs.checked;this.textContent='';this.classList={add(){},remove(){}};this.events={};}
+ constructor(tag,attrs={}){this.tag=tag;this.attrs=attrs;this.children=[];this.value=attrs.value||'';this.checked=Object.hasOwn(attrs,'checked')&&attrs.checked!=null;this.textContent='';this.classList={add(){},remove(){}};this.events={};}
  appendChild(c){this.children.push(c);return c;}
  replaceChildren(...c){this.children=c;}
  addEventListener(k,f){this.events[k]=f;}
@@ -24,8 +24,11 @@ const view=new Function('view','rpc','poll','trafficStyle','_','E','document',so
 (async()=>{
  view.render([{config,recent:[]},{dev:[{mac:'02:00:00:00:00:01',host:'NAS'}]}]);
  assert.equal(view.master.input.checked,false,'Notifications default off');
+ assert.equal(view.daily.input.checked,false,'Daily reports default off');
+ for(const channel of Object.values(view.channels))assert.equal(channel.enabled.input.checked,false,'Disabled channels must render unchecked');
  assert.equal(polls.length,1);
  view.addRule({id:'stable-rule',enabled:true,mac:'02:00:00:00:00:01',metric:'upload',bytes:512*1024**2});
+ assert.equal(view.rows[0].enabled.input.checked,true,'Enabled rules render checked');
  assert.equal(view.collect().rules[0].bytes,512*1024**2,'MiB threshold retains exact bytes');
  view.rows[0].unit.value=String(1024**3);view.rows[0].amount.value='1.5';
  view.channels.feishu.enabled.input.checked=true;view.master.input.checked=true;
