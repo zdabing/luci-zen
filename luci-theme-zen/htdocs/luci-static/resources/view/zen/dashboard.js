@@ -33,7 +33,7 @@ const callSystemInfo = rpc.declare({
 	method: 'info'
 });
 
-const callRealtimeHistory = rpc.declare({ object: 'zen.traffic', method: 'getRealtimeHistory', params: ['iface', 'start', 'end', 'limit'] });
+const callRealtimeHistory = rpc.declare({ object: 'zen.traffic', method: 'getRealtimeHistory', params: ['iface', 'limit'] });
 
 const callSystemBoard = rpc.declare({ object: 'system', method: 'board' });
 
@@ -349,9 +349,9 @@ return baseclass.extend({
 		if (!this.wanDevice || iface !== this.wanDevice || this.historyLoadedFor === iface) return;
 		this.historyLoadedFor = iface;
 		const request = this.historyRequest = (this.historyRequest || 0) + 1;
-		const end = Math.floor(Date.now() / 1000);
 		try {
-			const data = await callRealtimeHistory(iface, end - (HISTORY - 1) * POLL_SECS, end, HISTORY);
+			// Let the router choose its recent window; browser clock skew must not reject it.
+			const data = await callRealtimeHistory(iface, HISTORY);
 			if (request !== this.historyRequest || this.iface !== iface) return;
 			this.history = ((data && data.samples) || []).filter(sample => Number.isFinite(sample.time))
 				.map(sample => ({ t: sample.time * 1000, rx: Number(sample.download) || 0, tx: Number(sample.upload) || 0 })).slice(-HISTORY);
@@ -479,6 +479,17 @@ return baseclass.extend({
 		return stats;
 	},
 
+	selectWanDevice(wan, devs) {
+		// PPPoE virtual counters may omit accelerated packets. The physical WAN
+		// device includes those packets and both IP families without counting twice.
+		for (const method of ['getDevice', 'getL3Device']) {
+			const device = wan && typeof wan[method] === 'function' ? wan[method]() : null;
+			const name = device && device.getName();
+			if (name && devs[name]) return name;
+		}
+		return null;
+	},
+
 	syncIfaceSelect(names) {
 		const sel = this.dash.querySelector('#zen-dash-iface');
 		if (!sel)
@@ -492,7 +503,7 @@ return baseclass.extend({
 		}
 		Array.from(sel.options).forEach(option => {
 			option.textContent = option.value === 'all' ? _('All') :
-				(option.value === this.wanDevice ? 'WAN' + (this.wanProto ? ' · ' + this.wanProto : '') : option.value);
+				(option.value === this.wanDevice ? 'WAN · ' + this.wanDevice : option.value);
 		});
 		sel.value = wanted.indexOf(current) >= 0 ? current : 'all';
 		this.iface = sel.value;
@@ -885,9 +896,7 @@ return baseclass.extend({
 		this.setNetworkRow('wan', wan, false);
 		this.setNetworkRow('lan', lan, false);
 		this.setNetworkRow('wan6', wan6, true);
-		const wanDev = wan && (typeof wan.getL3Device === 'function' ? wan.getL3Device() :
-			(typeof wan.getDevice === 'function' ? wan.getDevice() : null));
-		this.wanDevice = wanDev && wanDev.getName();
+		this.wanDevice = this.selectWanDevice(wan, devs || {});
 		this.wanProto = wan && wan.getProtocol ? String(wan.getProtocol()).toUpperCase().replace('PPPOE', 'PPPoE') : '';
 		if (!this.ifaceChosen && this.wanDevice && this.iface !== this.wanDevice) {
 			this.iface = this.wanDevice;

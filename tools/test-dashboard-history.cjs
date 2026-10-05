@@ -21,8 +21,12 @@ const dashboard = new Function('baseclass', 'rpc', 'fs', 'network', 'poll', 'fmt
   assert.equal(dashboard.history[0].tx, 200);
   assert.ok(dashboard.history[0].t > 1e12, 'Unix seconds must become milliseconds');
   assert.equal(requests[0][0], 'pppoe-wan');
-  assert.equal(requests[0][2]-requests[0][1], 295);
-  assert.equal(requests[0][3], 60);
+  assert.deepEqual(requests[0], ['pppoe-wan', 60], 'Use router-time default window, unaffected by browser clock skew');
+  const wan = {getDevice: () => ({getName: () => 'eth1'}), getL3Device: () => ({getName: () => 'pppoe-wan'})};
+  const counters = {eth1: {statistics: {rx_bytes: 20000000, tx_bytes: 500000}}, 'pppoe-wan': {statistics: {rx_bytes: 2000, tx_bytes: 1000}}};
+  assert.equal(dashboard.selectWanDevice(wan, counters), 'eth1', 'Accelerated WAN traffic must use physical counters');
+  assert.equal(dashboard.pickStats(counters, 'eth1').rx, 20000000, 'Do not add physical and PPPoE counters together');
+  assert.equal(dashboard.selectWanDevice(wan, {'pppoe-wan': counters['pppoe-wan']}), 'pppoe-wan', 'Fall back when physical device is unavailable');
   await dashboard.loadRealtimeHistory();
   assert.equal(requests.length, 1, 'Do not re-query historical data every poll');
   dashboard.iface = 'all'; dashboard.historyLoadedFor = null;
