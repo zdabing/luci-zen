@@ -4,14 +4,22 @@ const path = require('path');
 const assert = require('assert');
 const source = fs.readFileSync(path.join(__dirname, '../luci-theme-zen/htdocs/luci-static/resources/view/zen/dashboard.js'), 'utf8');
 let requests = [], deferred = null;
+class Element {
+  constructor() { this.children=[]; this.attrs={}; this.style={}; this.clientWidth=772; this.clientHeight=240; }
+  appendChild(child) { this.children.push(child); return child; }
+  setAttribute(key,value) { this.attrs[key]=value; }
+  set textContent(value) { this.text=value; this.children=[]; }
+  querySelector(selector) { this.nodes ||= {}; return this.nodes[selector] ||= new Element(); }
+}
+const document={createElementNS:()=>new Element(),createTextNode:text=>({text})};
 const rpc = { declare: spec => (...args) => {
   if (spec.method !== 'getRealtimeHistory') return Promise.resolve({});
   requests.push(args);
   if (deferred) return new Promise(resolve => { deferred.resolve = resolve; });
   return Promise.resolve({samples: [{time: Math.floor(Date.now()/1000)-5, download: 100, upload: 200}]});
 } };
-const dashboard = new Function('baseclass', 'rpc', 'fs', 'network', 'poll', 'fmt', 'devices', source)(
-  {extend: value => value}, rpc, {}, {}, {}, {}, {}
+const dashboard = new Function('baseclass', 'rpc', 'fs', 'network', 'poll', 'fmt', 'devices', 'document', '_', 'E', source)(
+  {extend: value => value}, rpc, {}, {}, {}, {fmtRate:String,fmtBytes:String}, {}, document, x=>x, ()=>new Element()
 );
 (async () => {
   dashboard.wanDevice = dashboard.iface = 'pppoe-wan';
@@ -39,5 +47,22 @@ const dashboard = new Function('baseclass', 'rpc', 'fs', 'network', 'poll', 'fmt
   deferred.resolve({samples:[{time:123,download:999,upload:999}]});
   await pending;
   assert.equal(dashboard.history.length, 0, 'Stale history cannot overwrite a newly selected interface');
+  const end=1800000000000;
+  dashboard.history=[{t:end-600000,rx:1,tx:2},{t:end-300000,rx:1,tx:2},
+    {t:end-290000,rx:1,tx:2},{t:end-5000,rx:1,tx:2},{t:end,rx:1,tx:2}];
+  dashboard.trimRealtimeHistory(end);
+  assert.equal(dashboard.history.length,4,'Reject old points by age, rather than retaining a fixed sample count');
+  dashboard.chartEl=new Element(); dashboard.dash=new Element();
+  dashboard.parts=Object.fromEntries(['grid','yaxis','xaxis','lineRx','lineTx','fillRx','fillTx'].map(key=>[key,new Element()]));
+  dashboard.yLabels=[]; dashboard.syncIfaceSelect=()=>{}; dashboard.setText=()=>{}; dashboard.hideHover=()=>{};
+  dashboard.renderTraffic({});
+  const xs=dashboard.parts.lineRx.attrs.points.split(' ').map(point=>Number(point.split(',')[0]));
+  assert.deepEqual(xs,[86,106,676,686],'Actual 10-second and 5-second gaps share the same timestamp scale');
+  dashboard.tipEl=new Element();
+  dashboard.positionHover(107);
+  assert.equal(Number(dashboard.chartEl.querySelector('g.hover').querySelector('line.cross').attrs.x1),106,
+    'Hover selects the nearest timestamp, using the same mapping as the curve');
+  dashboard.trimRealtimeHistory(end+300001);
+  assert.equal(dashboard.history.length,0,'A paused tab must expire all stale data');
   console.log('PASS: WAN restoration, timestamp conversion, one-time fetch, interface isolation and stale response protection');
 })().catch(error => { console.error(error); process.exit(1); });

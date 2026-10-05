@@ -23,6 +23,7 @@
 const POLL_SECS = 5;
 const MIN_REFRESH_MS = 1000;
 const HISTORY = 60;
+const HISTORY_MS = 300000;
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const RING_R = 46;
 const RING_C = 2 * Math.PI * RING_R;
@@ -113,6 +114,8 @@ return baseclass.extend({
 		this.prevNet = null;
 		this.prevAt = 0;
 		this.history = [];
+		this.historyClockOffset = 0;
+		this.historyEnd = null;
 		this.iface = 'all';
 		this.dash = dash;
 		if (!this.dash)
@@ -236,6 +239,8 @@ return baseclass.extend({
 			this.ifaceChosen = true;
 			this.iface = iface.value || 'all';
 			this.history = [];
+			this.historyClockOffset = 0;
+			this.historyEnd = null;
 			this.prevNet = null;
 			this.prevAt = 0;
 			this.renderTraffic({
@@ -355,7 +360,16 @@ return baseclass.extend({
 			if (request !== this.historyRequest || this.iface !== iface) return;
 			this.history = ((data && data.samples) || []).filter(sample => Number.isFinite(sample.time))
 				.map(sample => ({ t: sample.time * 1000, rx: Number(sample.download) || 0, tx: Number(sample.upload) || 0 })).slice(-HISTORY);
+			this.historyClockOffset = Number.isFinite(data && data.end) ? data.end * 1000 - Date.now() : 0;
+			this.trimRealtimeHistory(Number.isFinite(data && data.end) ? data.end * 1000 : (this.history.at(-1) || {}).t);
 		} catch (e) { /* Older/unavailable daemon: continue collecting the browser's live samples. */ }
+	},
+
+	trimRealtimeHistory(end) {
+		if (!Number.isFinite(end)) return;
+		this.historyEnd = end;
+		this.history = this.history.filter(sample => Number.isFinite(sample.t) && sample.t >= end - HISTORY_MS && sample.t <= end)
+			.sort((a, b) => a.t - b.t);
 	},
 
 	setText(root, selector, text) {
@@ -537,9 +551,10 @@ return baseclass.extend({
 			bands[key] = { top: padT,
 				max: Math.max(64, Math.ceil(peak * 1.05 / unit) * unit) };
 		}
-		// 固定时间窗口：采样点间距恒定，最新点贴右侧；数据不足时曲线只占右侧，
-		// 如实反映“刚开始采集”。
-		const step = innerW / (HISTORY - 1);
+		// History and live polling may have different intervals. Use timestamps,
+		// rather than sample indexes, for the fixed five-minute window.
+		const end = this.historyEnd || (samples.at(-1) || {}).t || Date.now();
+		const start = end - HISTORY_MS;
 
 		// 网格线只在容器尺寸变化时重建 DOM；Y 轴刻度每帧只改文本。
 		const DIV = 4;
@@ -582,7 +597,7 @@ return baseclass.extend({
 				this.yLabels[index * (DIV + 1) + i].textContent = fmt.fmtRate(bands[key].max * (1 - i / DIV));
 
 		const count = samples.length;
-		const xAt = (i) => padL + innerW - (count - 1 - i) * step;
+		const xAt = (i) => padL + innerW * (samples[i].t - start) / HISTORY_MS;
 		const yAt = (v, key) => bands[key].top + innerH * (1 - Math.min(v, bands[key].max) / bands[key].max);
 
 		function series(key) {
@@ -606,7 +621,7 @@ return baseclass.extend({
 		parts.fillRx.setAttribute('d', rx.fill);
 		parts.fillTx.setAttribute('d', tx.fill);
 
-		this.geom = { padL, padT, innerW, innerH, step, bands, count };
+		this.geom = { padL, padT, innerW, innerH, start, end, bands, count };
 
 		// 数据滑动后鼠标仍在图上时，按新坐标重定位十字线/提示框。
 		if (this.hoverClientX != null) {
@@ -635,17 +650,14 @@ return baseclass.extend({
 			return;
 		}
 		const samples = this.history;
-		const { padL, padT, innerW, innerH, step, bands, count } = g;
-
-		let i;
-		if (count === 1)
-			i = 0;
-		else
-			i = Math.round(count - 1 - (padL + innerW - localX) / step);
-		i = Math.max(0, Math.min(count - 1, i));
+		const { padL, padT, innerW, innerH, start, bands, count } = g;
+		const target = start + Math.max(0, Math.min(1, (localX - padL) / innerW)) * HISTORY_MS;
+		let i = 0;
+		for (let j = 1; j < count; j++)
+			if (Math.abs(samples[j].t - target) < Math.abs(samples[i].t - target)) i = j;
 
 		const s = samples[i] || { rx: 0, tx: 0, t: Date.now() };
-		const xi = padL + innerW - (count - 1 - i) * step;
+		const xi = padL + innerW * (s.t - start) / HISTORY_MS;
 		const yRx = bands.rx.top + innerH * (1 - Math.min(s.rx, bands.rx.max) / bands.rx.max);
 		const yTx = bands.tx.top + innerH * (1 - Math.min(s.tx, bands.tx.max) / bands.tx.max);
 
@@ -902,6 +914,8 @@ return baseclass.extend({
 			this.iface = this.wanDevice;
 			this.historyLoadedFor = null;
 			this.history = [];
+			this.historyClockOffset = 0;
+			this.historyEnd = null;
 			this.prevNet = null;
 			this.prevAt = 0;
 		}
@@ -917,10 +931,10 @@ return baseclass.extend({
 		}
 		this.prevNet = { rx: stats.rx, tx: stats.tx };
 		this.prevAt = now;
+		const sampleAt = now + (this.historyClockOffset || 0);
 		if (hadBaseline || !this.history.length)
-			this.history.push({ t: now, rx: rxRate, tx: txRate });
-		if (this.history.length > HISTORY)
-			this.history.shift();
+			this.history.push({ t: sampleAt, rx: rxRate, tx: txRate });
+		this.trimRealtimeHistory(Math.max(sampleAt, this.historyEnd || 0));
 
 		this.renderTraffic({
 			rxRate, txRate,
