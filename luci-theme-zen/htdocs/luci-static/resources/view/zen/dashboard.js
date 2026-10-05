@@ -408,9 +408,7 @@ return baseclass.extend({
 		let status = up ? (key === 'lan' ? _('Running') : _('Connected')) : _('Down');
 		const uptime = net && typeof net.getUptime === 'function' ? Number(net.getUptime()) : 0;
 		if (up && key === 'wan' && uptime > 0) {
-			const days = Math.floor(uptime / 86400);
-			const clock = String(Math.floor(uptime / 3600)).padStart(2, '0') + ':' + String(Math.floor(uptime % 3600 / 60)).padStart(2, '0');
-			status += ' ' + (days ? _('%dd').format(days) : clock);
+			status += ' ' + fmt.fmtUptime(uptime);
 		}
 		this.setText(row, '[data-network-field="status"]', status);
 		row.querySelector('.zen-dash-net-status').setAttribute('data-state', up ? (key === 'lan' ? 'running' : 'connected') : 'down');
@@ -421,11 +419,7 @@ return baseclass.extend({
 		let value = fmt.MISSING;
 		let restart = fmt.MISSING;
 		if (sec != null && sec !== '' && Number.isFinite(Number(sec)) && Number(sec) >= 0) {
-			const minutes = Math.floor(Number(sec) / 60);
-			const days = Math.floor(minutes / 1440);
-			const hours = String(Math.floor(minutes % 1440 / 60)).padStart(2, '0');
-			const mins = String(minutes % 60).padStart(2, '0');
-			value = _('%dd').format(days) + ' ' + hours + ':' + mins;
+			value = fmt.fmtUptime(sec);
 			if (localtime != null && Number.isFinite(Number(localtime)) && Number(localtime) >= Number(sec)) {
 				// procd localtime already includes the router's timezone offset.
 				// UTC formatting preserves that wall clock without applying the browser's offset again.

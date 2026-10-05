@@ -29,7 +29,7 @@ function fmtUptime(sec) {
 	      h = Math.floor((sec % 86400) / 3600),
 	      m = Math.floor((sec % 3600) / 60);
 	if (d > 0)
-		return _('%dd %dh').format(d, h);
+		return _('%dd').format(d) + ' ' + _('%dh %dm').format(h, m);
 	if (h > 0)
 		return _('%dh %dm').format(h, m);
 	return _('%dm').format(m);
