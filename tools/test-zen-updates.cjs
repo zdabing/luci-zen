@@ -38,7 +38,7 @@ assert.equal(model.select([release(themeOnly)],board,'luci-app-zen-traffic').sta
 assert.equal(model.metadata(release({...zen,packages:[zen.packages[0],{...zen.packages[0],filename:'duplicate.apk'}]})),null,'Duplicate package names are invalid');
 assert.equal(model.metadata(release({...zen,packages:[]})),null);
 const acl=JSON.parse(fs.readFileSync(path.join(root,'luci-theme-zen/root/usr/share/rpcd/acl.d/luci-theme-zen.json'),'utf8'))['luci-theme-zen'];
-assert.equal(acl.write,undefined); assert.deepEqual(Object.keys(acl.read.file).filter(k=>acl.read.file[k].includes('exec')),['/usr/libexec/package-manager-call list-installed']);
+assert.deepEqual(acl.write,{ubus:{uci:['set','commit']},uci:['zen']}, 'Only appearance configuration may be written; package upgrades remain outside this ACL'); assert.deepEqual(Object.keys(acl.read.file).filter(k=>acl.read.file[k].includes('exec')),['/usr/libexec/package-manager-call list-installed']);
 assert.equal(acl.read.file['/usr/share/10wrt/release.json'],undefined);
 assert.ok(!acl.read.ubus.luci.includes('getVersion'));
 console.log('PASS: independent Zen package versions; portable all-architecture frontends; target/SDK matching for native backend; validated metadata; no firmware identity or upgrade ACL');

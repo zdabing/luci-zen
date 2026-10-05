@@ -10,8 +10,10 @@
 {%
 	import { getuid, getspnam } from 'luci.core';
 	import { stat } from 'fs';
+	import { cursor } from 'uci';
 
 	const boardinfo = ubus.call('system', 'board') ?? {};
+	const appearance = cursor().get_all('zen', 'appearance') ?? {};
 
 	// version tag for theme static assets: changes whenever any package
 	// operation touches the package manager database (incl. theme upgrades),
@@ -26,7 +28,7 @@
 -%}
 
 <!DOCTYPE html>
-<html lang="{{ dispatcher.lang }}">
+<html lang="{{ dispatcher.lang }}" data-zen-appearance="router" data-zen-authenticated="{{ ctx.authsession ? 'true' : 'false' }}" data-zen-saved="{{ appearance.saved == '1' ? 'true' : 'false' }}" data-zen-mode="{{ entityencode(appearance.mode ?? 'auto', true) }}" data-zen-accent="{{ entityencode(appearance.accent ?? 'macaron', true) }}" data-zen-material="{{ entityencode(appearance.material ?? 'glass', true) }}" data-zen-layout="{{ entityencode(appearance.layout ?? 'sidebar', true) }}">
 	<head>
 		<meta charset="utf-8">
 		<title>{{ striptags(`${boardinfo.hostname ?? '?'}${dispatched?.title ? ` | ${_(dispatched.title)}` : ''}`) }}</title>

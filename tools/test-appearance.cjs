@@ -1,9 +1,13 @@
 // Preference migration and synchronization use the production browser module.
 const fs = require('node:fs'), path = require('node:path'), vm = require('node:vm'), assert = require('node:assert/strict');
 const source = fs.readFileSync(path.join(__dirname, '../luci-theme-zen/htdocs/luci-static/zen/appearance.js'), 'utf8');
-function browser(initial = {}, dark = false, blocked = false) {
+function browser(initial = {}, dark = false, blocked = false, saved = null, authenticated = true) {
  const values = new Map(Object.entries(initial)), styles = new Map(), events = {}, systemEvents = {}, emitted = [];
  const root = { dataset: {}, style: { setProperty: (key, value) => styles.set(key, value) } };
+	if (saved) {
+	 Object.assign(root.dataset, { zenAppearance: 'router', zenAuthenticated: String(authenticated), zenSaved: String(saved.saved !== false) });
+	 for (const key of ['mode', 'accent', 'material', 'layout']) root.dataset['zen' + key[0].toUpperCase() + key.slice(1)] = saved[key];
+	}
  const storage = {
   getItem(key) { if (blocked) throw Error('blocked'); return values.get(key) ?? null; },
   setItem(key, value) { if (blocked) throw Error('blocked'); values.set(key, value); },
@@ -59,3 +63,41 @@ for (const [accent, material] of [['macaron','glass'],['nord','aurora'],['honey'
  assert.match(b.styles.get('--accent-light'), /^#[0-9a-f]{6}$/);
 }
 console.log('PASS: five presets; independent preferences; legacy mode; system, blocked storage and cross-tab sync; readable button ink');
+
+(async () => {
+ let config = { saved: false, mode: 'auto', accent: 'macaron', material: 'glass', layout: 'sidebar' }, writes = [];
+ const save = async values => { writes.push({ ...values }); config = { ...config, ...values, saved: true }; };
+ let first = browser({}, false, false, config);
+ await first.api.connect(save);
+ assert.equal(writes.length, 0, 'A new browser must not overwrite router preferences on page load');
+ first.api.set({ mode: 'dark', accent: 'honey', material: 'paper', layout: 'top' }); await first.api.flush();
+ assert.equal(config.layout, 'top'); assert.equal(first.api.status(), 'Saved on router; applies across browsers');
+ const second = browser({ 'luci-theme-zen-layout': 'sidebar', 'luci-theme-zen-accent': 'blue' }, false, true, config);
+ assert.equal(second.api.get().layout, 'top', 'Another browser with blocked or stale storage must use router settings');
+ assert.equal(second.api.get().accent, 'honey'); assert.equal(second.api.get().mode, 'dark');
+ await second.api.connect(save); assert.equal(writes.length, 1, 'Reading saved router preferences must not write them back');
+ second.api.set({ layout: 'sidebar' }); await second.api.flush();
+ assert.deepEqual(writes[1], { layout: 'sidebar' }, 'Only changed fields are saved once router defaults exist');
+ const reopened = browser({}, false, false, config); assert.equal(reopened.api.get().layout, 'sidebar');
+ let fail = true;
+ await first.api.connect(async values => { if (fail) throw Error('commit rejected'); return save(values); });
+ first.api.set({ material: 'outline' }); await first.api.flush();
+ assert.equal(first.api.status(), 'Could not save to router. Try again.'); assert.equal(config.material, 'paper');
+ fail = false; await first.api.retry(); assert.equal(config.material, 'outline');
+ assert.equal(first.api.status(), 'Saved on router; applies across browsers');
+ let release, secondStarted; const queued = [];
+ const secondRequest = new Promise(resolve => { secondStarted = resolve; });
+ await first.api.connect(values => { queued.push({ ...values }); if (queued.length === 2) secondStarted(); return new Promise(resolve => { release = resolve; }); });
+ first.api.set({ accent: 'blue' }); const draining = first.api.flush(); await Promise.resolve();
+ first.api.set({ accent: 'coast' }); first.api.set({ layout: 'top' });
+ assert.equal(queued.length, 1, 'Router commits must not overlap');
+ release(); await secondRequest;
+ assert.equal(queued.length, 2); assert.deepEqual(queued[1], { accent: 'coast', layout: 'top' }); release(); await draining;
+ const migrated = browser({ 'luci-theme-zen-layout': 'top', 'luci-theme-zen': 'dark' }, false, false, { saved: false });
+ let migration; await migrated.api.connect(async values => { migration = { ...values }; });
+ assert.equal(migration.layout, 'top'); assert.equal(migration.mode, 'dark');
+ const guest = browser({}, false, false, config, false); let guestWrites = 0;
+ await guest.api.connect(async () => { guestWrites++; }); guest.api.set({ layout: 'top' }); await guest.api.flush();
+ assert.equal(guestWrites, 0, 'The login page must not write router configuration');
+ console.log('PASS: router persistence; independent browsers; stale/blocked storage; migration; field patches; serialized writes; retry; guest isolation');
+})().catch(error => { console.error(error); process.exitCode = 1; });

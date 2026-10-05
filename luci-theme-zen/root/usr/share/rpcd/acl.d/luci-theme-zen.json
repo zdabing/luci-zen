@@ -2,6 +2,7 @@
 	"luci-theme-zen": {
 		"description": "Grant dashboard stats for luci-theme-zen",
 		"read": {
+			"uci": [ "zen" ],
 			"cgi-io": [ "exec", "download" ],
 			"ubus": {
 				"file": [ "read" ],
@@ -17,6 +18,10 @@
 				"/lib/apk/db/installed": [ "read" ],
 				"/usr/lib/opkg/status": [ "read" ]
 			}
+		},
+		"write": {
+			"ubus": { "uci": [ "set", "commit" ] },
+			"uci": [ "zen" ]
 		}
 	}
 }

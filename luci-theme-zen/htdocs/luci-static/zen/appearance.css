@@ -162,6 +162,7 @@
 .appearance-dialog, .appearance-dialog * { box-sizing: border-box; }
 .appearance-trigger, .appearance-content header .icon { display: grid; place-items: center; width: 40px; height: 40px; flex: 0 0 40px; padding: 0; border: 1px solid var(--line); border-radius: 12px; color: var(--text); background: var(--surface); cursor: pointer; }
 .appearance-content fieldset button { cursor: pointer; font-family: inherit; }
+.zen-appearance-host [hidden] { display: none !important; }
 .appearance-dialog :is(button,a):focus-visible, .appearance-trigger:focus-visible { outline: 3px solid color-mix(in srgb,var(--accent) 40%,transparent); outline-offset: 3px; }
 
 /* Sculpted glass: directional reflections, clear edges, and separate depth weights. */

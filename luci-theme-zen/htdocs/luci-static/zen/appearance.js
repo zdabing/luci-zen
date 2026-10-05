@@ -2,7 +2,7 @@
  * LuCI adapter for Sunny UI Design System (2022afe).
  * Palette values, preference contract and contrast logic adapted from
  * https://github.com/xudong7587/sunny-ui-design-system
- * No React runtime, RPC calls, or changes to router configuration.
+ * Authenticated preferences are persisted through the native UCI adapter.
  */
 (function () {
 	'use strict';
@@ -33,6 +33,10 @@
 	const system = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
 	const state = { mode: 'auto', accent: 'macaron', material: 'glass', layout: 'sidebar' };
 	let dialog, opener, storageAvailable = true;
+	const router = root.dataset.zenAppearance === 'router';
+	const authenticated = root.dataset.zenAuthenticated === 'true';
+	let routerSaved = root.dataset.zenSaved === 'true';
+	let saveAdapter, savePromise, pending = {}, saveStatus;
 	const forms = [];
 	const choiceButtons = [];
 
@@ -70,6 +74,12 @@
 			'Small card': _('Small card'), 'Your network': _('Your network'),
 			'Preview input': _('Preview input'), 'Primary action': _('Primary action'),
 			'Saved in this browser': _('Saved in this browser'),
+			'Saved on router; applies across browsers': _('Saved on router; applies across browsers'),
+			'Saving to router…': _('Saving to router…'),
+			'Could not save to router. Try again.': _('Could not save to router. Try again.'),
+			'Retry saving': _('Retry saving'),
+			'Choose an option to save it on the router': _('Choose an option to save it on the router'),
+			'Log in to save appearance across browsers': _('Log in to save appearance across browsers'),
 			'Storage unavailable; appearance applies for this session only': _('Storage unavailable; appearance applies for this session only')
 		};
 		return labels[text] || text;
@@ -83,6 +93,13 @@
 	function mode(value) { return value === 'light' || value === 'dark' ? value : 'auto'; }
 	function layout(value) { return value === 'top' ? 'top' : 'sidebar'; }
 	function load() {
+		if (router && routerSaved) {
+			state.mode = mode(root.dataset.zenMode);
+			state.accent = valid(root.dataset.zenAccent, palettes, 'macaron');
+			state.material = valid(root.dataset.zenMaterial, materials, 'glass');
+			state.layout = layout(root.dataset.zenLayout);
+			return;
+		}
 		state.mode = mode(read(keys.mode));
 		state.accent = valid(read(keys.accent), palettes, 'macaron');
 		state.material = valid(read(keys.material), materials, 'glass');
@@ -119,6 +136,45 @@
 		if (Object.prototype.hasOwnProperty.call(next, 'material')) { state.material = valid(next.material, materials, 'glass'); write(keys.material, state.material); }
 		if (Object.prototype.hasOwnProperty.call(next, 'layout')) { state.layout = layout(next.layout); write(keys.layout, state.layout); }
 		apply();
+		if (router && authenticated) {
+			const changes = {};
+			for (const key of Object.keys(keys)) if (Object.prototype.hasOwnProperty.call(next, key)) changes[key] = state[key];
+			if (!Object.keys(changes).length) return;
+			pending = { ...pending, ...(routerSaved ? changes : state) };
+			saveStatus = 'Saving to router…'; sync(); drain();
+		}
+	}
+	function drain() {
+		if (savePromise || !saveAdapter || !Object.keys(pending).length) return savePromise || Promise.resolve();
+		savePromise = Promise.resolve().then(async () => {
+			while (Object.keys(pending).length) {
+				const changes = pending; pending = {};
+				saveStatus = 'Saving to router…'; sync();
+				try {
+					await saveAdapter(changes);
+					routerSaved = true;
+					for (const [key, value] of Object.entries(changes)) root.dataset['zen' + key[0].toUpperCase() + key.slice(1)] = value;
+				} catch (e) {
+					pending = { ...changes, ...pending };
+					saveStatus = 'Could not save to router. Try again.'; sync();
+					return;
+				}
+			}
+			saveStatus = 'Saved on router; applies across browsers'; sync();
+		}).finally(() => { savePromise = null; });
+		return savePromise;
+	}
+	function connect(adapter) {
+		if (!router || !authenticated) return Promise.resolve();
+		saveAdapter = adapter;
+		// Migrate existing browser choices once, before the first router save.
+		if (!routerSaved && Object.values(keys).some(key => read(key) != null)) pending = { ...state, ...pending };
+		return drain();
+	}
+	function failSave() { saveStatus = 'Could not save to router. Try again.'; sync(); }
+	function retry() {
+		if (!saveAdapter && window.L) return window.L.require('view.zen.zen-appearance').catch(failSave);
+		return drain();
 	}
 	function element(tag, className, text) {
 		const node = document.createElement(tag);
@@ -196,7 +252,9 @@
 		preview.append(inner, input, element('span', 'appearance-preview-action', 'Primary action'));
 		content.appendChild(preview);
 		const selectionStatus = element('footer'); selectionStatus.setAttribute('role', 'status'); selectionStatus.setAttribute('aria-live', 'polite');
-		content.appendChild(selectionStatus); forms.push({ content, preview, selectionStatus }); sync();
+		const retryButton = element('button', '', 'Retry saving'); retryButton.type = 'button'; retryButton.hidden = true;
+		retryButton.addEventListener('click', retry);
+		content.append(selectionStatus, retryButton); forms.push({ content, preview, selectionStatus, retryButton }); sync();
 		return content;
 	}
 	function mount() {
@@ -221,7 +279,7 @@
 			const preset = group === 'preset' ? presets.find(item => item.id === value) : null;
 			button.setAttribute('aria-pressed', String(preset ? state.accent === preset.accent && state.material === preset.material : state[group] === value));
 		});
-		forms.forEach(({ content, preview, selectionStatus }) => {
+		forms.forEach(({ content, preview, selectionStatus, retryButton }) => {
 			content.querySelectorAll('[data-swatch]').forEach(node => {
 				const palette = palettes.find(item => item.id === node.dataset.swatch);
 				const main = dark ? palette.dark : palette.light;
@@ -229,12 +287,13 @@
 			});
 			const palette = palettes.find(item => item.id === state.accent), material = materials.find(item => item.id === state.material);
 			preview.firstElementChild.textContent = translate(palette.name) + ' · ' + translate(material.name);
-			selectionStatus.textContent = translate(storageAvailable ? 'Saved in this browser' : 'Storage unavailable; appearance applies for this session only');
+			selectionStatus.textContent = translate(router ? (saveStatus || (authenticated ? (routerSaved ? 'Saved on router; applies across browsers' : 'Choose an option to save it on the router') : 'Log in to save appearance across browsers')) : (storageAvailable ? 'Saved in this browser' : 'Storage unavailable; appearance applies for this session only'));
+			retryButton.hidden = saveStatus !== 'Could not save to router. Try again.';
 		});
 	}
 	function open(trigger) { mount(); if (!dialog.open) { opener = trigger || document.activeElement; dialog.showModal(); } }
 	load(); apply();
-	window.ZenAppearance = Object.freeze({ set, open, render: () => renderContent(false), get: () => ({ ...state, theme: root.dataset.theme }) });
+	window.ZenAppearance = Object.freeze({ set, open, connect, retry, failSave, flush: drain, status: () => saveStatus, render: () => renderContent(false), get: () => ({ ...state, theme: root.dataset.theme }) });
 	document.addEventListener('click', event => {
 		const toggle = event.target.closest && event.target.closest('.zen-mode-toggle');
 		if (toggle) { event.preventDefault(); set({ mode: root.dataset.theme === 'dark' ? 'light' : 'dark' }); return; }

@@ -22,7 +22,7 @@ with tempfile.TemporaryDirectory(prefix='zen-package-assets-') as temp:
         build.mkdir(parents=True)
         (build / (translation + '.zh-cn.lmo')).write_bytes(b'test translation placeholder')
         fixture = root / (package + '.mk')
-        fixture.write_text('INSTALL_DIR := mkdir -p\nINSTALL_DATA := cp\nINSTALL_BIN := cp\n'
+        fixture.write_text('INSTALL_DIR := mkdir -p\nINSTALL_DATA := cp\nINSTALL_BIN := cp\nINSTALL_CONF := cp\n'
             + f'PKG_BUILD_DIR := {build.as_posix()}\ndefine {name}\n{recipe}\nendef\n'
             + f'.PHONY: stage\nstage:\n\t$(call {name},{stage.as_posix()})\n', encoding='utf-8')
         if shutil.which('make'):
@@ -35,7 +35,7 @@ with tempfile.TemporaryDirectory(prefix='zen-package-assets-') as temp:
             if not bash:
                 raise RuntimeError('Install GNU make, or set ZEN_TEST_BASH to Git Bash')
             expanded = recipe
-            substitutions = {'$(INSTALL_DIR)': 'mkdir -p', '$(INSTALL_DATA)': 'cp',
+            substitutions = {'$(INSTALL_DIR)': 'mkdir -p', '$(INSTALL_DATA)': 'cp', '$(INSTALL_CONF)': 'cp',
                              '$(INSTALL_BIN)': 'cp', '$(1)': shlex.quote(stage.as_posix()),
                              '$(PKG_BUILD_DIR)': shlex.quote(build.as_posix())}
             for token, value in substitutions.items():
@@ -54,6 +54,7 @@ with tempfile.TemporaryDirectory(prefix='zen-package-assets-') as temp:
                 f'{package}: missing or changed route file {asset.name}'
         resource_root = stage / 'www/luci-static/resources'
         if package == 'luci-theme-zen':
+            assert (stage / 'etc/config/zen').read_bytes() == (source / 'root/etc/config/zen').read_bytes()
             for asset in ['THIRD_PARTY_NOTICES.md', 'sunny-ui-GPL-3.0.txt']:
                 installed = stage / 'usr/share/licenses/luci-theme-zen' / asset
                 original = source / ('licenses/' + asset if asset.endswith('.txt') else asset)

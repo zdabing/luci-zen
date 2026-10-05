@@ -162,6 +162,8 @@ jobs:
           python3 tools/test-theme-install.py
           node tools/check-po.js luci-app-zen-traffic
           node tools/test-dashboard-history.cjs
+          node tools/test-dashboard-poll.cjs
+          node tools/test-appearance-rpc.cjs
           node tools/test-home-view-lifecycle.cjs
           node tools/test-wan-share.cjs
           node tools/test-device-actions.cjs

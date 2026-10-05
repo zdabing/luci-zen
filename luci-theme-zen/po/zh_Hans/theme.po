@@ -490,6 +490,24 @@ msgstr "主要操作"
 msgid "Saved in this browser"
 msgstr "已保存在此浏览器"
 
+msgid "Saved on router; applies across browsers"
+msgstr "已保存到路由器，不同浏览器均可生效"
+
+msgid "Saving to router…"
+msgstr "正在保存到路由器…"
+
+msgid "Could not save to router. Try again."
+msgstr "未能保存到路由器，请重试。"
+
+msgid "Retry saving"
+msgstr "重新保存"
+
+msgid "Choose an option to save it on the router"
+msgstr "选择外观选项后将保存到路由器"
+
+msgid "Log in to save appearance across browsers"
+msgstr "登录后可保存外观，让不同浏览器均可生效"
+
 msgid "Storage unavailable; appearance applies for this session only"
 msgstr "浏览器存储不可用，设置仅在本次会话生效"
 

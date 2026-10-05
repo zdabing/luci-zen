@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-theme-zen
 PKG_VERSION:=0.2.0
-PKG_RELEASE:=12
+PKG_RELEASE:=13
 
 PKG_MAINTAINER:=luci-zen maintainers
 PKG_LICENSE:=Apache-2.0 GPL-3.0-only
@@ -18,6 +18,10 @@ define Package/luci-theme-zen
   TITLE:=Zen - Apple-inspired LuCI theme
   DEPENDS:=+luci-base
   PKGARCH:=all
+endef
+
+define Package/luci-theme-zen/conffiles
+/etc/config/zen
 endef
 
 define Package/luci-theme-zen/description
@@ -40,7 +44,7 @@ define Build/Compile
 	mkdir -p $(PKG_BUILD_DIR)
 	# Compile templates before packaging; defer the target-only LuCI module.
 	for template in $(CURDIR)/ucode/template/themes/zen/*.ut; do \
-		$(STAGING_DIR_HOSTPKG)/bin/ucode -T -c,dynlink=luci.core -o /dev/null "$$$$template" || exit $$$$?; \
+		$(STAGING_DIR_HOSTPKG)/bin/ucode -T -c,dynlink=luci.core,dynlink=uci -o /dev/null "$$$$template" || exit $$$$?; \
 	done
 	po2lmo $(CURDIR)/po/zh_Hans/theme.po $(PKG_BUILD_DIR)/zen.zh-cn.lmo
 endef
@@ -70,6 +74,8 @@ define Package/luci-theme-zen/install
 	$(INSTALL_DATA) ./ucode/template/themes/zen/sysauth.ut $(1)/usr/share/ucode/luci/template/themes/zen/sysauth.ut
 
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
+	$(INSTALL_DIR) $(1)/etc/config
+	$(INSTALL_CONF) ./root/etc/config/zen $(1)/etc/config/zen
 	$(INSTALL_BIN) ./root/etc/uci-defaults/30_luci-theme-zen $(1)/etc/uci-defaults/30_luci-theme-zen
 
 	$(INSTALL_DIR) $(1)/usr/share/rpcd/acl.d

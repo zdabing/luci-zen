@@ -23,6 +23,9 @@
 			</div>
 		</div>
 		<script>L.require('menu-zen')</script>
+		{% if (ctx.authsession): %}
+		<script>L.require('view.zen.zen-appearance').catch(function() { if (window.ZenAppearance) window.ZenAppearance.failSave(); })</script>
+		{% endif %}
 			{% endif %}
 	</body>
 </html>

@@ -2,7 +2,7 @@
 'require view';
 'require view.zen.zen-updates as updates';
 
-// One settings destination. Appearance preferences remain browser-local;
+// One settings destination. Appearance preferences are saved on the router;
 // router version reads and manual checks live only in the updates tab.
 return view.extend({
 	render() {
