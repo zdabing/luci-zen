@@ -2920,6 +2920,21 @@ header .showSide:focus-visible { outline: 2px solid var(--accent); outline-offse
 .zen-dash-svg .line.tx { stroke-dasharray: 5 5; }
 .zen-dash-ov-dot.down { background: transparent; border: 1.5px solid var(--text-muted); }
 .zen-dash-dev-icon { width: 36px; height: 36px; border-radius: 12px; color: var(--text); }
+.zen-dash-dev-icon[data-device-type="phone"], .zen-dash-dev-icon[data-device-type="tablet"] { color: #7c3aed; background: #ede9fe; }
+.zen-dash-dev-icon[data-device-type="unknown"] { color: #64748b; }
+.zen-dash-dev-icon[data-device-type="desktop"], .zen-dash-dev-icon[data-device-type="laptop"] { color: #2563eb; background: #dbeafe; }
+.zen-dash-dev-icon[data-device-type="nas"] { color: #0f766e; background: #ccfbf1; }
+.zen-dash-dev-icon[data-device-type="iot"] { color: #c2410c; background: #ffedd5; }
+.zen-dash-dev-icon[data-device-type="tv"], .zen-dash-dev-icon[data-device-type="router"] { color: #0369a1; background: #e0f2fe; }
+.zen-device-brand { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 9px; background: var(--device-brand-color); color: #fff; font-size: 15px; font-weight: 800; line-height: 1; letter-spacing: -.5px; }
+.zen-device-brand[style*="#e7b900"] { color: #171717; }
+.zen-dash-dev-model { display: block; margin-top: 3px; font-size: 11px; font-weight: 500; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.zen-dash-dev-model[hidden] { display: none; }
+.zen-dash-identity-edit { margin: 0 0 8px; padding: 6px 10px; font-size: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg-nested); color: var(--text); cursor: pointer; }
+.zen-identity-form { display: grid; gap: 12px; }
+.zen-identity-form label { display: grid; gap: 6px; }
+.zen-identity-form :is(select,input) { width: 100%; min-width: 0; }
+.zen-identity-error { color: var(--ul); }
 .zen-dash-dev-row { border-radius: 12px; }
 .zen-dash-dev-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .zen-dash-dev-row:active { background: var(--bg-nested); }

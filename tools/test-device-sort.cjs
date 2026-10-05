@@ -2,8 +2,9 @@ const fs = require('node:fs'), assert = require('node:assert/strict');
 String.prototype.format = function (...args) { return this.replace(/%d/g, () => String(args.shift())); };
 const source = fs.readFileSync('luci-theme-zen/htdocs/luci-static/resources/view/zen/zen-devices.js', 'utf8');
 const icons = {inferType: () => 'unknown'};
-const view = new Function('baseclass', 'rpc', 'fmt', 'icons', '_', source)(
-  {extend: x => x}, {declare: () => () => {}}, {fmtRate: String, MISSING: '—'}, icons, x => x);
+const view = new Function('baseclass', 'rpc', 'fmt', 'icons', '_', 'identity', source)(
+  {extend: x => x}, {declare: () => () => {}}, {fmtRate: String, MISSING: '—'}, icons, x => x,
+  {identify:()=>({type:'unknown',brand:''})});
 const field = () => ({textContent: ''});
 const row = mac => ({mac, style: {}, classList: {contains: () => false, toggle() {}}, remove() {}});
 view.list = {children: [], insertBefore(node, before) {
@@ -13,8 +14,8 @@ view.list = {children: [], insertBefore(node, before) {
 view.cache = new Map(); view.count = field(); view.showAll = false;
 for (const mac of ['a', 'b', 'c']) {
   const li = row(mac); view.list.children.push(li);
-  view.cache.set(mac, {li, iconType: 'unknown', connIconType: 'zen-i-eth',
-    name: field(), ip: field(), mac: field(), conn: field(), dl: field(), ul: field(), last: field(), ov: {classList: {toggle() {}}}});
+  view.cache.set(mac, {li, iconType: 'unknown:', connIconType: 'zen-i-eth',iconBox:{dataset:{}},
+    name: field(), model:field(), ip: field(), mac: field(), conn: field(), dl: field(), ul: field(), last: field(), ov: {classList: {toggle() {}}}});
 }
 const data = [{mac:'a',conn:'wired',tx_r:10,rx_r:300}, {mac:'b',conn:'wired',tx_r:30,rx_r:100}, {mac:'c',conn:'wired',tx_r:20,rx_r:200}];
 const order = () => view.list.children.map(n => n.mac);

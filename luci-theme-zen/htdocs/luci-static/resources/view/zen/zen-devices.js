@@ -4,6 +4,7 @@
 'require poll';
 'require view.zen.zen-format as fmt';
 'require view.zen.zen-icons as icons';
+'require view.zen.zen-identity as identity';
 
 /*
  * view.zen.zen-devices — 首页“设备流量”模块。
@@ -181,7 +182,8 @@ function buildRow() {
 	iconBox.appendChild(ov);
 
 	const id = E('span', { 'class': 'zen-dash-dev-id' }, [
-		E('span', { 'class': 'zen-dash-dev-name' }, '')
+		E('span', { 'class': 'zen-dash-dev-name' }, ''),
+		E('span', { 'class': 'zen-dash-dev-model' }, '')
 	]);
 	const ip = E('span', { 'class': 'zen-dash-dev-ip' }, '');
 	const mac = E('span', { 'class': 'zen-dash-dev-mac' }, '');
@@ -217,8 +219,10 @@ function buildRow() {
 		dl: dl.lastChild, ul: ul.lastChild, detail,
 		grid: detail.firstChild,
 		name: id.firstChild,
+		model: id.lastChild,
 		d: null
 	};
+	detail.appendChild(E('button', {type:'button','class':'zen-dash-identity-edit',click:()=>identity.edit(ent.d,()=>ent.li.dispatchEvent(new Event('zen-identity-changed')))}, _('Device identity')));
 
 	/* 展开时立即使用缓存数据，不等待下一轮轮询。 */
 	const toggle = (ev) => {
@@ -271,6 +275,7 @@ return baseclass.extend({
 			return dash.querySelector('.zen-dash-devices');
 
 		const state = await this.probe();
+		await identity.load();
 		const section = E('section', { 'class': 'zen-dash-panel zen-dash-devices' }, [
 			E('div', { 'class': 'zen-dash-dev-head' }, [
 				E('h3', {}, _('Device Traffic')),
@@ -377,6 +382,7 @@ return baseclass.extend({
 			let ent = this.cache.get(d.mac);
 			if (!ent) {
 				ent = buildRow();
+				ent.li.addEventListener('zen-identity-changed',()=>this.render(this.devs||[]));
 				this.cache.set(d.mac, ent);
 				this.list.appendChild(ent.li);
 			}
@@ -385,16 +391,23 @@ return baseclass.extend({
 			if (position !== ent.li) this.list.insertBefore(ent.li, position || null);
 
 			ent.d = d;
-			const type = icons.inferType(devName(d), d.conn);
-			if (ent.iconType !== type) {
-				const icon = icons.typeIcon(type, 17);
+			const info = identity.identify(d);
+			const type = info.type;
+			const signature = type + ':' + info.brand;
+			if (ent.iconType !== signature) {
+				const icon = identity.glyph(info, 17);
 				if (ent.glyph)
 					ent.iconBox.replaceChild(icon, ent.glyph);
 				else
 					ent.iconBox.insertBefore(icon, ent.ov);
 				ent.glyph = icon;
-				ent.iconType = type;
+				ent.iconType = signature;
 			}
+			ent.iconBox.dataset.deviceType = type;
+			ent.iconBox.title = info.name || type;
+			setText(ent.model, [info.name,info.model].filter(Boolean).join(' · '));
+			ent.model.hidden = !(info.name || info.model);
+			ent.model.title = info.source === 'mac' ? _('Identified from MAC vendor') : info.source === 'manual' ? _('Manually assigned') : _('Reported device name');
 			ent.ov.classList.toggle('up', !!d.online);
 			ent.ov.classList.toggle('down', !d.online);
 

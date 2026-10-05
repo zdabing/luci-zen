@@ -2,6 +2,11 @@
 
 changed_luci=0
 
+if ! uci -q get zen.device_identity >/dev/null; then
+	uci set zen.device_identity=device_identity
+	uci commit zen
+fi
+
 set_opt() {
 	local key=$1
 	local val=$2

@@ -636,3 +636,57 @@ msgstr "外观与布局"
 
 msgid "Appearance controls are available when using the Zen theme."
 msgstr "使用 Zen 主题时可设置外观与布局。"
+
+msgid "Automatic"
+msgstr "自动识别"
+
+msgid "Phone"
+msgstr "手机"
+
+msgid "Tablet"
+msgstr "平板"
+
+msgid "Desktop"
+msgstr "台式电脑"
+
+msgid "Laptop"
+msgstr "笔记本"
+
+msgid "TV"
+msgstr "电视"
+
+msgid "Smart device"
+msgstr "智能设备"
+
+msgid "Device identity"
+msgstr "设备识别"
+
+msgid "Brand"
+msgstr "品牌"
+
+msgid "Device type"
+msgstr "设备类型"
+
+msgid "Model"
+msgstr "型号"
+
+msgid "Unable to save device identity"
+msgstr "设备识别信息保存失败，请重试"
+
+msgid "Automatic uses device names and MAC vendors. Private MAC addresses cannot identify a brand."
+msgstr "自动识别参考设备名称和 MAC 厂商；私有 MAC 无法判断品牌。"
+
+msgid "Identified from MAC vendor"
+msgstr "根据 MAC 厂商识别"
+
+msgid "Manually assigned"
+msgstr "手动指定"
+
+msgid "Reported device name"
+msgstr "设备名称报告的信息"
+
+msgid "Save"
+msgstr "保存"
+
+msgid "Cancel"
+msgstr "取消"

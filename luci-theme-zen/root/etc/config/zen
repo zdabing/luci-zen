@@ -4,3 +4,5 @@ config appearance 'appearance'
 	option material 'glass'
 	option layout 'sidebar'
 	option saved '0'
+
+config device_identity 'device_identity'

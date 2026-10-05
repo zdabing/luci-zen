@@ -90,13 +90,13 @@ function icon(id, size) {
 /* 设备类型推断：hostname 关键词 → conn 兜底 → unknown（与 ARCHITECTURE.md §7 一致） */
 const HOST_RULES = [
 	[/yeelink|zhimi|tmall[-_ ]?genie|haier|midea|^mico$|watch|plug|bulb|lamp|sensor|cam|thermostat|vacuum|roborock|echo|homepod|switchbot/i, 'iot'],
-	[/iphone|android|realme|samsung|galaxy|iqoo|redmi|xiaomi|pixel|oneplus|oppo|vivo|honor|huawei|harmony|phone/i, 'phone'],
-	[/ipad|tablet|kindle|tab[-_ ]?\d/i, 'tablet'],
-	[/macbook|laptop|thinkpad|notebook|xps|ideapad/i, 'laptop'],
+	[/ipad|tablet|kindle|tab[-_ ]?\d|平板/i, 'tablet'],
+	[/macbook|laptop|thinkpad|notebook|xps|ideapad|笔记本/i, 'laptop'],
 	[/nas|ugreen|\bdxp\d+|synology|qnap|diskstation|truenas|unraid|storage/i, 'nas'],
-	[/\btv\b|atv|apple\s?tv|firetv|mi-?box|projector|tivo|box$/i, 'tv'],
-	[/router|repeater|openwrt|mikrotik|^ap[-_ ]?/i, 'router'],
-	[/desktop|^pc\b|win\d|-pc$|desk/i, 'desktop']
+	[/\btv\b|atv|apple\s?tv|firetv|mi-?box|projector|tivo|box$|电视|投影/i, 'tv'],
+	[/router|repeater|openwrt|mikrotik|^ap[-_ ]?|路由器/i, 'router'],
+	[/iphone|android|realme|samsung|galaxy|iqoo|redmi|xiaomi|pixel|oneplus|oppo|vivo|honor|huawei|harmony|phone|手机|真我|小米|红米|一加/i, 'phone'],
+	[/desktop|^pc\b|win\d|-pc$|desk|电脑/i, 'desktop']
 ];
 
 function inferType(host, conn) {
