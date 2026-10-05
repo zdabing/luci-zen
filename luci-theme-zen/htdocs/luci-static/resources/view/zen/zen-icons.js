@@ -89,13 +89,13 @@ function icon(id, size) {
 
 /* 设备类型推断：hostname 关键词 → conn 兜底 → unknown（与 ARCHITECTURE.md §7 一致） */
 const HOST_RULES = [
-	[/iphone|android|redmi|xiaomi|pixel|oneplus|oppo|vivo|honor|huawei|harmony|phone/i, 'phone'],
+	[/yeelink|zhimi|tmall[-_ ]?genie|haier|midea|^mico$|watch|plug|bulb|lamp|sensor|cam|thermostat|vacuum|roborock|echo|homepod|switchbot/i, 'iot'],
+	[/iphone|android|realme|samsung|galaxy|iqoo|redmi|xiaomi|pixel|oneplus|oppo|vivo|honor|huawei|harmony|phone/i, 'phone'],
 	[/ipad|tablet|kindle|tab[-_ ]?\d/i, 'tablet'],
 	[/macbook|laptop|thinkpad|notebook|xps|ideapad/i, 'laptop'],
-	[/nas|ugreen|synology|qnap|diskstation|truenas|unraid|storage/i, 'nas'],
+	[/nas|ugreen|\bdxp\d+|synology|qnap|diskstation|truenas|unraid|storage/i, 'nas'],
 	[/\btv\b|atv|apple\s?tv|firetv|mi-?box|projector|tivo|box$/i, 'tv'],
 	[/router|repeater|openwrt|mikrotik|^ap[-_ ]?/i, 'router'],
-	[/watch|plug|bulb|lamp|sensor|cam|thermostat|vacuum|roborock|echo|homepod|switchbot/i, 'iot'],
 	[/desktop|^pc\b|win\d|-pc$|desk/i, 'desktop']
 ];
 

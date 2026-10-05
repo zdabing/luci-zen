@@ -188,12 +188,11 @@ function buildRow() {
 
 	const connLabel = E('span', {}, '');
 	const conn = E('span', { 'class': 'zen-dash-dev-conn' }, [connLabel]);
-	const rate = (direction, arrow, label) => E('span', { 'class': 'zen-dash-dev-rate ' + direction, 'aria-label': label }, [
-		E('span', { 'class': 'zen-dash-dev-direction', 'aria-hidden': 'true' }, arrow),
+	const rate = (direction, label) => E('span', { 'class': 'zen-dash-dev-rate ' + direction, 'aria-label': label }, [
 		E('span', { 'class': 'zen-dash-dev-rate-value' }, '')
 	]);
-	const dl = rate('dl', '↓', _('Download'));
-	const ul = rate('ul', '↑', _('Upload'));
+	const dl = rate('dl', _('Download'));
+	const ul = rate('ul', _('Upload'));
 	dl.classList.add('zen-dash-dev-download');
 	ul.classList.add('zen-dash-dev-upload');
 	const last = E('span', { 'class': 'zen-dash-dev-last', 'data-label': _('Last activity') }, '');
@@ -381,6 +380,9 @@ return baseclass.extend({
 				this.cache.set(d.mac, ent);
 				this.list.appendChild(ent.li);
 			}
+			// Cached rows must follow the sorted array, including after polling.
+			const position = this.list.children[idx];
+			if (position !== ent.li) this.list.insertBefore(ent.li, position || null);
 
 			ent.d = d;
 			const type = icons.inferType(devName(d), d.conn);
