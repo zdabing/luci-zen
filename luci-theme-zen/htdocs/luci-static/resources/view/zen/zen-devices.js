@@ -182,7 +182,7 @@ function buildRow() {
 	iconBox.appendChild(ov);
 
 	const id = E('span', { 'class': 'zen-dash-dev-id' }, [
-		E('span', { 'class': 'zen-dash-dev-name' }, ''),
+		E('span', { 'class': 'zen-dash-dev-name-line' }, [E('span', { 'class': 'zen-dash-dev-name' }, '')]),
 		E('span', { 'class': 'zen-dash-dev-model' }, '')
 	]);
 	const ip = E('span', { 'class': 'zen-dash-dev-ip' }, '');
@@ -218,15 +218,15 @@ function buildRow() {
 		li, iconBox, ov, ip, mac, last, conn: connLabel, connBox: conn,
 		dl: dl.lastChild, ul: ul.lastChild, detail,
 		grid: detail.firstChild,
-		name: id.firstChild,
+		name: id.firstChild.firstChild,
 		model: id.lastChild,
 		d: null
 	};
-	detail.appendChild(E('button', {type:'button','class':'zen-dash-identity-edit',click:()=>identity.edit(ent.d,()=>ent.li.dispatchEvent(new Event('zen-identity-changed')))}, _('Device identity')));
+	id.firstChild.appendChild(E('button', {type:'button','class':'zen-dash-identity-edit',click:()=>identity.edit(ent.d,()=>ent.li.dispatchEvent(new Event('zen-identity-changed')))}, _('Device identity')));
 
 	/* 展开时立即使用缓存数据，不等待下一轮轮询。 */
 	const toggle = (ev) => {
-		if (ev.target.closest('.zen-dash-dev-detail'))
+		if (ev.target.closest('.zen-dash-dev-detail, .zen-dash-identity-edit'))
 			return;
 		if (!li.classList.contains('open') && ent.d)
 			updateDetail(ent, ent.d);
