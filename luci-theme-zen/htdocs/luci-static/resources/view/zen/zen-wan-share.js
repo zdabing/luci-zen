@@ -3,11 +3,13 @@
 'require rpc';
 'require poll';
 'require view.zen.zen-format as fmt';
+'require view.zen.zen-share-periods as periods';
 
 const callUsage = rpc.declare({ object: 'zen.traffic', method: 'getWanUsage' });
 const COLORS = ['#3275db', '#b269cd', '#d7802f', '#349b8b', '#d76785', '#899344', '#6a80ca', '#a66f46'];
 const C = 2 * Math.PI * 54;
 const number = value => Math.max(0, Number.isFinite(Number(value)) ? Number(value) : 0);
+const PERIODS = [['day',_('This day')],['week',_('This week')],['month',_('This month')],['all',_('All time')]];
 
 function arcPath(offset, length) {
 	const start = offset / 54, angle = Math.min(length / 54, 2 * Math.PI);
@@ -63,8 +65,16 @@ function chart(direction) {
 	const legend = E('ul', { 'class': 'zen-share-legend' });
 	const note = E('p', { 'class': 'zen-share-note' });
 	const more = E('button', { type: 'button', 'class': 'zen-share-more', hidden: true }, _('Show all'));
+	let period = 'day', snapshot = null;
+	const buttons = PERIODS.map(([key,label])=>E('button',{type:'button','aria-pressed':String(key===period),click:()=>{
+		if(!snapshot) return;
+		period=key;selected=null;
+		buttons.forEach((button,i)=>button.setAttribute('aria-pressed',String(PERIODS[i][0]===period)));
+		update(period==='all' ? snapshot.all : snapshot[period]);
+	}},label));
 	const root = E('article', { 'class': 'zen-share-card ' + direction }, [
-		E('h4', {}, direction === 'upload' ? _('Upload share') : _('Download share')),
+		E('div',{'class':'zen-share-head'},[E('h4', {}, direction === 'upload' ? _('Upload share') : _('Download share')),
+			E('div',{'class':'zen-share-periods',role:'group','aria-label':_('Time range')},buttons)]),
 		E('div', { 'class': 'zen-share-content' }, [E('div', { 'class': 'zen-share-ring' }, [ring,
 			E('div', { 'class': 'zen-share-center' }, [name, value, percentValue]), tooltip]), legend]),
 		E('div', { 'class': 'zen-share-footer' }, [note, more])
@@ -75,7 +85,7 @@ function chart(direction) {
 		const entry = cache.get(key);
 		selected = entry ? key : null;
 		for (const [id, item] of cache) item.arc.style.opacity = !entry || id === key ? '1' : '.25';
-		name.textContent = entry ? entry.label : _('Recorded traffic');
+		name.textContent = entry ? entry.label : PERIODS.find(([key])=>key===period)[1]+' · '+_('Recorded traffic');
 		value.textContent = fmt.fmtBytes(entry ? entry.bytes : breakdown(data, direction, expanded).total);
 		percentValue.hidden = !entry;
 		percentValue.textContent = entry ? entry.percent.toFixed(1) + '%' : '';
@@ -143,7 +153,7 @@ function chart(direction) {
 		if (model.excess > 0) note.textContent += ' · ' + _('Device-side excess: %s; shares use device-side totals.').format(fmt.fmtBytes(model.excess));
 	}
 	more.addEventListener('click', () => { expanded = !expanded; update(data); });
-	return { root, update };
+	return { root, update(next) { snapshot=next;update(period==='all' ? next.all : next[period]); } };
 }
 
 return baseclass.extend({
@@ -158,19 +168,21 @@ return baseclass.extend({
 				E('p', {}, _('Only internet traffic recorded since the date above is included. Earlier combined LAN/WAN history is excluded. Collection pauses while the service is stopped.')),
 				E('p', {}, _('Unassigned is interface traffic not allocated to a device, including possible router traffic, cleared devices and accounting differences.'))])]);
 		dash.appendChild(section);
-		let loaded = false;
+		let loaded = false, busy = false;
 		async function tick() {
-			if (document.hidden || !section.isConnected) return;
+			if (document.hidden || !section.isConnected || busy) return;
+			busy=true;
 			try {
 				const data = await callUsage();
 				if (!data || !Array.isArray(data.dev) || !number(data.since)) throw new Error('usage unavailable');
-				upload.update(data); download.update(data); cards.hidden = false; loaded = true;
+				const snapshot={all:data,...await periods.load(data)};
+				upload.update(snapshot); download.update(snapshot); cards.hidden = false; loaded = true;
 				subtitle.textContent = _('Internet traffic since %s').format(new Date(data.since * 1000).toLocaleString());
 				status.textContent = '';
 			} catch (e) {
 				if (!loaded) subtitle.textContent = _('Internet shares require an updated zen-traffic service and a valid system clock.');
 				else status.textContent = _('Usage temporarily unavailable; showing the last result.');
-			}
+			} finally {busy=false;}
 		}
 		poll.add(tick, 5); await tick();
 	},

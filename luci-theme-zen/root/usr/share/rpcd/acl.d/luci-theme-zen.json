@@ -11,7 +11,7 @@
 				"luci": [ "getMountPoints" ],
 				"luci-rpc": [ "getDHCPLeases", "getNetworkDevices", "getHostHints" ],
 				"network.device": [ "status" ],
-				"zen.traffic": [ "getStatus", "getDevices", "getTotal", "getHistory", "getRealtimeHistory", "getWanUsage" ]
+				"zen.traffic": [ "getStatus", "getDevices", "getTotal", "getHistory", "getRealtimeHistory", "getWanUsage", "getInternetHistory", "getNotifications" ]
 			},
 			"file": {
 				"/proc/stat": [ "read" ],

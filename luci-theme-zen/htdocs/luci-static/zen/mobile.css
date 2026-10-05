@@ -244,5 +244,5 @@
 	.zen-dash-dev-ip, .zen-dash-dev-mac { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 	.zen-dash-dev-rates { grid-column: 3; grid-row: 1 / 4; }
 	.zen-dash-dev-chev { grid-column: 4; grid-row: 1 / 4; }
-	.zen-dash-dev-detail { grid-row: 4; padding-left: 0; }
+	.zen-dash-dev-detail { grid-row: 6; padding-left: 12px; padding-right: 12px; }
 }

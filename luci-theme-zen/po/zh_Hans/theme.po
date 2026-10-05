@@ -690,3 +690,18 @@ msgstr "保存"
 
 msgid "Cancel"
 msgstr "取消"
+
+msgid "This day"
+msgstr "本日"
+
+msgid "This week"
+msgstr "本周"
+
+msgid "This month"
+msgstr "本月"
+
+msgid "All time"
+msgstr "全部"
+
+msgid "Time range"
+msgstr "时间范围"

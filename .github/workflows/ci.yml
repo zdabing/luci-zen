@@ -169,6 +169,7 @@ jobs:
           node tools/test-device-actions.cjs
           node tools/test-device-sort.cjs
           node tools/test-device-identity.cjs
+          node tools/test-share-periods.cjs
           node tools/test-device-history.cjs
           node tools/test-history-bars.cjs
           node tools/test-homepage-history-bars.cjs
