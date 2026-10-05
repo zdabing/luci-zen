@@ -295,7 +295,7 @@ return baseclass.extend({
 		section.setAttribute('data-state', 'ok');
 		this.section = section;
 		this.count = section.querySelector('.zen-dash-dev-count');
-		this.sortKey = null;
+		this.sortKey = 'rx_today';
 		this.sortDescending = true;
 		this.sortButtons = [];
 		const sortColumn = (key, label) => {
@@ -368,11 +368,11 @@ return baseclass.extend({
 		this.devs = devs.slice();
 		devs = this.devs.slice();
 
-		/* Top-N：实时速率优先，其次今日累计 */
+		/* Default to today's download volume; equal totals keep a stable MAC order. */
+		const sortKey = this.sortKey || 'rx_today';
 		devs.sort((a, b) =>
-			(this.sortKey ? ((a[this.sortKey] || 0) - (b[this.sortKey] || 0)) * (this.sortDescending ? -1 : 1) : 0) ||
-			((b.rx_r || 0) + (b.tx_r || 0)) - ((a.rx_r || 0) + (a.tx_r || 0)) ||
-			((b.rx_today || 0) + (b.tx_today || 0)) - ((a.rx_today || 0) + (a.tx_today || 0)));
+			((a[sortKey] || 0) - (b[sortKey] || 0)) * (this.sortDescending ? -1 : 1) ||
+			String(a.mac || '').localeCompare(String(b.mac || '')));
 
 		devs.forEach((d, idx) => {
 			if (idx >= 50)

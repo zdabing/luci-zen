@@ -19,6 +19,14 @@ for (const mac of ['a', 'b', 'c']) {
 }
 const data = [{mac:'a',conn:'wired',tx_r:10,rx_r:300}, {mac:'b',conn:'wired',tx_r:30,rx_r:100}, {mac:'c',conn:'wired',tx_r:20,rx_r:200}];
 const order = () => view.list.children.map(n => n.mac);
+view.sortKey = 'rx_today'; view.sortDescending = true;
+const daily = data.map((d,i)=>({...d,rx_today:[1000,3000,2000][i],tx_today:999999-i}));
+view.render(daily);
+assert.deepEqual(order(), ['b','c','a'], 'Default order uses only today download volume');
+view.render(daily.map(d=>({...d,rx_r:d.mac==='a'?999999:0,tx_r:d.mac==='a'?999999:0})));
+assert.deepEqual(order(), ['b','c','a'], 'Live rate changes must not reorder the daily download list');
+view.render(daily.map(d=>({...d,rx_today:0})));
+assert.deepEqual(order(), ['a','b','c'], 'Equal totals use a stable device identity, including after midnight');
 view.sortKey = 'tx_r'; view.sortDescending = true; view.render(data);
 assert.deepEqual(order(), ['b','c','a'], 'Upload sorting must reorder existing DOM rows');
 view.sortDescending = false; view.render(data);
