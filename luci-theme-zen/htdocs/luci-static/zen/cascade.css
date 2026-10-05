@@ -3126,7 +3126,6 @@ header .showSide:focus-visible { outline: 2px solid var(--accent); outline-offse
 .zen-dash-device-history svg { display: block; width: 100%; height: auto; user-select: none; }
 .zen-dash-device-history text { font-size: 11px; fill: var(--text-muted); }
 .zen-dash-device-history .history-grid { stroke: var(--line-strong); stroke-dasharray: 3 4; }
-.zen-dash-history-readout { margin: 4px 0 0; color: var(--text-secondary); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .zen-dash-history-legend .dl .swatch, .zen-dash-history-legend .ul .swatch { width: 8px; height: 8px; border: 0; background: var(--dl); }
 .zen-dash-history-legend .ul .swatch { background: var(--ul); }
 .zen-dash-disk-dialog { max-width: min(420px, calc(100vw - 32px)); padding: 24px; border: 1px solid var(--line); border-radius: 20px; background: var(--bg-panel); color: var(--text); }

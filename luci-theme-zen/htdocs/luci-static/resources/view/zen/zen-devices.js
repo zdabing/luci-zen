@@ -64,7 +64,6 @@ function drawHistory(ent, res) {
 		chart.appendChild(historySvg('line', { x1: left, x2: right, y1: y(value), y2: y(value), 'class': 'history-grid' }));
 		chart.appendChild(historySvg('text', { x: left - 8, y: y(value) + 4, 'text-anchor': 'end' }, fmt.fmtBytes(value)));
 	}
-	const readout = E('p', { 'class': 'zen-dash-history-readout', role: 'status' });
 	const tip = E('div', { 'class': 'zen-history-tip', role: 'tooltip', hidden: true });
 	const positionTip = ev => {
 		if (!ev) return;
@@ -79,8 +78,7 @@ function drawHistory(ent, res) {
 	};
 	const select = (row, active, ev) => {
 		ent.historyDate = row.date;
-		readout.textContent = row.date + ' · ' + _('Upload') + ' ' + fmt.fmtBytes(row.upload) + ' · ' + _('Download') + ' ' + fmt.fmtBytes(row.download);
-		tip.textContent = readout.textContent;
+		tip.textContent = row.date + ' · ' + _('Upload') + ' ' + fmt.fmtBytes(row.upload) + ' · ' + _('Download') + ' ' + fmt.fmtBytes(row.download);
 		tip.hidden = !active;
 		if (active) positionTip(ev);
 	};
@@ -113,7 +111,6 @@ function drawHistory(ent, res) {
 	chart.addEventListener('pointerleave', () => { tip.hidden = true; });
 	ent.historyChart.appendChild(tip);
 	ent.historyChart.appendChild(chart);
-	ent.historyChart.appendChild(readout);
 }
 
 function refreshHistory(ent, force) {
