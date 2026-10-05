@@ -287,7 +287,7 @@ return baseclass.extend({
 		this.sortDescending = true;
 		this.sortButtons = [];
 		const sortColumn = (key, label) => {
-			const arrow = E('span', { 'aria-hidden': 'true' }, '↕');
+			const arrow = E('span', { 'class': 'zen-sort-arrow', 'aria-hidden': 'true' }, '↕');
 			const button = E('button', { type: 'button', 'class': 'zen-dash-dev-sort', 'aria-pressed': 'false', title: _('Sort descending') }, [label, arrow]);
 			this.sortButtons.push({ key, button, arrow });
 			button.addEventListener('click', () => {
@@ -303,7 +303,7 @@ return baseclass.extend({
 			});
 			return button;
 		};
-		section.appendChild(E('div', { 'class': 'zen-dash-dev-columns', 'aria-hidden': 'true' }, [
+		section.appendChild(E('div', { 'class': 'zen-dash-dev-columns' }, [
 			E('span', {}, ''),
 			E('span', {}, _('Hostname')),
 			E('span', { 'class': 'zen-dash-dev-ip' }, 'IPv4'),

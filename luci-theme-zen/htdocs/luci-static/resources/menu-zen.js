@@ -71,6 +71,7 @@ return baseclass.extend({
 		else
 			this.setDesktopCollapsed(this.readDesktopCollapsed());
 		this._layout = document.documentElement.dataset.layout;
+		this.syncNavigationPlacement();
 		this.syncMenuExpansion();
 
 		window.addEventListener('resize', () => {
@@ -132,6 +133,19 @@ return baseclass.extend({
 		return document.documentElement.dataset.layout === 'top' && window.innerWidth > MOBILE_BP;
 	},
 
+	syncNavigationPlacement() {
+		const menu = document.querySelector('#mainmenu');
+		const header = document.querySelector('body > header .container');
+		if (!menu || !header) return;
+		if (!this._menuHome) this._menuHome = { parent: menu.parentNode, next: menu.nextSibling };
+		if (this.isTopNavigation()) {
+			if (menu.parentNode !== header) header.insertBefore(menu, header.querySelector('#indicators'));
+		} else if (menu.parentNode !== this._menuHome.parent) {
+			const next = this._menuHome.next;
+			this._menuHome.parent.insertBefore(menu, next && next.parentNode === this._menuHome.parent ? next : null);
+		}
+	},
+
 	syncMenuExpansion() {
 		document.querySelectorAll('#mainmenu .slide > .menu').forEach(a => {
 			a.setAttribute('aria-expanded', String(a.parentNode.classList.contains(this.isTopNavigation() ? 'zen-menu-open' : 'active')));
@@ -167,6 +181,8 @@ return baseclass.extend({
 					'class': hasChildren ? 'menu' + (isActive ? ' active' : '') : (isActive ? 'active' : ''),
 					'click': hasChildren ? ui.createHandlerFn(this, 'handleMenuExpand') : '',
 					'data-title': title,
+					'title': l === 1 ? title : null,
+					'aria-label': l === 1 ? title : null,
 					'aria-current': !hasChildren && isActive ? 'page' : null,
 					'aria-expanded': hasChildren ? String(!this.isTopNavigation() && isActive) : null,
 				}, [
@@ -316,6 +332,7 @@ return baseclass.extend({
 
 	handleSidebarResize() {
 		this.closeTopMenus();
+		this.syncNavigationPlacement();
 		if (window.innerWidth > MOBILE_BP) {
 			this.setSidebarOpen(false);
 			this.setDesktopCollapsed(this.readDesktopCollapsed());

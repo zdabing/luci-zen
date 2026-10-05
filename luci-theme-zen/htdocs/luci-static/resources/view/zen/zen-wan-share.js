@@ -66,7 +66,8 @@ function chart(direction) {
 	const root = E('article', { 'class': 'zen-share-card ' + direction }, [
 		E('h4', {}, direction === 'upload' ? _('Upload share') : _('Download share')),
 		E('div', { 'class': 'zen-share-content' }, [E('div', { 'class': 'zen-share-ring' }, [ring,
-			E('div', { 'class': 'zen-share-center' }, [name, value, percentValue]), tooltip]), legend]), note, more
+			E('div', { 'class': 'zen-share-center' }, [name, value, percentValue]), tooltip]), legend]),
+		E('div', { 'class': 'zen-share-footer' }, [note, more])
 	]);
 	let expanded = false, data = null, selected = null;
 	const cache = new Map();

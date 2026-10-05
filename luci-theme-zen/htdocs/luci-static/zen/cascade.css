@@ -2993,8 +2993,10 @@ header .showSide:focus-visible { outline: 2px solid var(--accent); outline-offse
 .zen-dash-dev-detail { padding-left: 48px; }
 .zen-dash-dev-last { color: var(--text-muted); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .zen-dash-dev-row > .zen-dash-dev-rate { display: grid; grid-template-columns: 12px minmax(0, 1fr); gap: 8px; font-size: 13px; min-width: 0; white-space: nowrap; }
-.zen-dash-dev-sort { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; text-align: left; }
-.zen-dash-dev-sort[aria-pressed="true"] { color: var(--text); }
+.zen-dash-dev-sort { display: inline-flex; align-items: center; justify-content: flex-start; gap: 6px; width: fit-content; max-width: 100%; min-height: 36px; margin-left: -8px; padding: 6px 8px; border: 0; border-radius: 8px; background: transparent; box-shadow: none; color: inherit; font: inherit; line-height: 1.3; white-space: nowrap; cursor: pointer; text-align: left; }
+.zen-dash-dev-sort:hover, .zen-dash-dev-sort[aria-pressed="true"] { color: var(--accent-strong); background: var(--accent-soft); }
+.zen-dash-dev-sort .zen-sort-arrow { flex-shrink: 0; opacity: .55; }
+.zen-dash-dev-sort[aria-pressed="true"] .zen-sort-arrow { opacity: 1; }
 .zen-dash-dev-sort:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 4px; }
 .zen-dash-dev-detail-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); }
 @container (max-width: 1120px) {
@@ -3183,7 +3185,7 @@ header .showSide:focus-visible { outline: 2px solid var(--accent); outline-offse
 .zen-share-description { margin: 0 0 20px; }
 .zen-share-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
 .zen-share-grid[hidden], .zen-share-more[hidden] { display: none; }
-.zen-share-card { min-width: 0; padding: 22px; border-radius: 24px; background: var(--bg-nested); }
+.zen-share-card { display: flex; flex-direction: column; min-width: 0; padding: 22px; border-radius: 24px; background: var(--bg-nested); }
 .zen-share-card h4 { margin: 0 0 18px; font-size: 15px; font-weight: 650; }
 .zen-share-card.upload h4 { color: var(--ul); }
 .zen-share-card.download h4 { color: var(--dl); }
@@ -3209,8 +3211,9 @@ header .showSide:focus-visible { outline: 2px solid var(--accent); outline-offse
 .zen-share-name { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .zen-share-amount { grid-column: 2; color: var(--text-secondary); font-size: 11px; font-variant-numeric: tabular-nums; }
 .zen-share-empty, .zen-share-note { color: var(--text-secondary); font-size: 12px; line-height: 1.6; }
-.zen-share-note { margin: 16px 0 0; }
-.zen-share-more { margin-top: 12px; border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; background: transparent; color: var(--text); font: inherit; font-size: 12px; cursor: pointer; }
+.zen-share-footer { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: auto; padding-top: 16px; text-align: center; }
+.zen-share-note { margin: 0; text-align: center; }
+.zen-share-more { margin: 0; min-height: 36px; border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; background: transparent; color: var(--text); font: inherit; font-size: 12px; cursor: pointer; }
 .zen-share-help { margin-top: 18px; }
 .zen-share-help summary { cursor: pointer; }
 .zen-share-help p { margin: 8px 0; }
