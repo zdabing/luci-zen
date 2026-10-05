@@ -37,18 +37,24 @@ for (const count of [1,4,14,20]) {
   }
   if(count<=14) assert.equal(Number(bars[0].attrs.height),0,'Zero usage has zero bar height');
   if(count===4) assert.ok(Math.abs(Number(bars[3].attrs.height)/Number(bars[1].attrs.height)-2)<1e-9,'Both dates share one byte scale');
-  const readout=ent.historyChart.children.at(-1);
-  bars[0].events.click();assert.ok(readout.textContent.startsWith(kept[0].date+' · ↑'));
-  bars.at(-1).events.focus();assert.ok(readout.textContent.startsWith(kept.at(-1).date+' · ↑'));
   const chart=find(ent.historyChart,'svg')[0],tip=ent.historyChart.children[0];
-  chart.events.pointermove({clientX:63,clientY:140}); assert.ok(tip.textContent.startsWith(kept[0].date+' · ↑'));
+  assert.equal(find(ent.historyChart,'p').length,0,'Do not duplicate the tooltip in a permanent readout');
+  bars[0].events.click();assert.ok(tip.textContent.startsWith(kept[0].date+' · Upload'));
+  assert.equal(tip.hidden,false,'Click reveals the date tooltip');
+  bars.at(-1).events.focus();assert.ok(tip.textContent.startsWith(kept.at(-1).date+' · Upload'));
+  chart.events.pointermove({clientX:63,clientY:140}); assert.ok(tip.textContent.startsWith(kept[0].date+' · Upload'));
   const firstLeft=tip.style.left;chart.events.pointermove({clientX:145,clientY:100});assert.notEqual(tip.style.left,firstLeft);
   ent.historyChart.scrollLeft=80;chart.events.pointermove({clientX:63,clientY:140});
   assert.equal(parseFloat(tip.style.left),parseFloat(firstLeft)+80,'Scroll offset keeps the tooltip near the visible pointer');
   assert.equal(tip.hidden,false);chart.events.pointerleave();assert.equal(tip.hidden,true);
   chart.events.pointerdown({clientX:Number(chart.attrs.viewBox.split(' ')[2])-19});
-  assert.ok(tip.textContent.startsWith(kept.at(-1).date+' · ↑'),'Tap selects the last date');
-  if(count>=14) assert.ok(parseFloat(find(ent.historyChart,'svg')[0].style.width)>320,'Long history scrolls instead of squeezing bars');
+  assert.ok(tip.textContent.startsWith(kept.at(-1).date+' · Upload'),'Tap selects the last date');
+  assert.equal(chart.style.width,'100%','Chart follows the container instead of retaining a fixed pixel width');
+  ent.historyChart.clientWidth=900;draw(ent,{days});
+  assert.equal(Number(find(ent.historyChart,'svg')[0].attrs.viewBox.split(' ')[2]),884);
+  ent.historyChart.clientWidth=300;draw(ent,{days});
+  assert.equal(Number(find(ent.historyChart,'svg')[0].attrs.viewBox.split(' ')[2]),284);
+  assert.ok(ent.historyChart.children[0].textContent.startsWith(kept.at(-1).date),'Resize preserves the selected day');
 }
 const empty={historyChart:new Element('div')};draw(empty,{days:[]});
 assert.equal(find(empty.historyChart,'rect').length,0);assert.match(empty.historyChart.textContent,/No history/);
