@@ -28,6 +28,8 @@
 	--connected-bg: #dcfce7;
 	--connected-text: #166534;
 	--ul: #ea580c;
+	--total-ul: #7c3aed;
+	--total-dl: #2563eb;
 	--gauge: #2563eb;
 	--gauge-warn: #d97706;
 	--gauge-danger: #dc2626;
@@ -94,6 +96,8 @@
 	--connected-bg: #143524;
 	--connected-text: #86efac;
 	--ul: #fb923c;
+	--total-ul: #c4b5fd;
+	--total-dl: #93c5fd;
 	--gauge: #60a5fa;
 	--gauge-warn: #fbbf24;
 	--gauge-danger: #f87171;
@@ -3172,8 +3176,8 @@ header .showSide:focus-visible { outline: 2px solid var(--accent); outline-offse
  .zen-dash-trend .zen-dash-chart { height: 200px; min-height: 200px; }
 }
 
-.zen-dash-traffic-stats .zen-dash-stat.total-tx .k, .zen-dash-traffic-stats .zen-dash-stat.total-tx .v { color: var(--ul); }
-.zen-dash-traffic-stats .zen-dash-stat.total-rx .k, .zen-dash-traffic-stats .zen-dash-stat.total-rx .v { color: var(--dl); }
+.zen-dash-traffic-stats .zen-dash-stat.total-tx .k, .zen-dash-traffic-stats .zen-dash-stat.total-tx .v { color: var(--total-ul); }
+.zen-dash-traffic-stats .zen-dash-stat.total-rx .k, .zen-dash-traffic-stats .zen-dash-stat.total-rx .v { color: var(--total-dl); }
 
 .zen-dash-device-history svg { height: 180px; }
 .zen-dash-device-history .history-bar.dl { fill: var(--dl); stroke: none; }
