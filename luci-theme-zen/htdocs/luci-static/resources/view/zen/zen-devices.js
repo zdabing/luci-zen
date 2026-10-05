@@ -42,6 +42,8 @@ function historySvg(tag, attrs, text) {
 }
 
 function drawHistory(ent, res) {
+	ent.historyData = res;
+	ent.historyWidth = ent.historyChart.clientWidth;
 	const rows = ((res && res.days) || []).slice(-14);
 	ent.historyChart.textContent = '';
 	if (!rows.length) {
@@ -49,10 +51,10 @@ function drawHistory(ent, res) {
 		return;
 	}
 	const max = fmt.niceMax(Math.max(...rows.map(r => Math.max(r.download || 0, r.upload || 0))));
-	const width = Math.max(280, ent.historyChart.clientWidth - 16, 80 + rows.length * 24);
+	const width = Math.max(280, ent.historyChart.clientWidth - 16);
 	const left = 62, right = width - 18, bottom = 136;
 	const chart = historySvg('svg', { viewBox: '0 0 ' + width + ' 180', role: 'img', 'aria-label': _('Daily traffic') });
-	chart.style.width = width + 'px';
+	chart.style.width = '100%';
 	const slot = (right - left) / rows.length;
 	const barWidth = Math.min(36, slot * .3), gap = Math.min(8, slot * .1);
 	const x = i => left + (i + .5) * slot;
@@ -76,7 +78,8 @@ function drawHistory(ent, res) {
 		tip.style.top = ((ent.historyChart.scrollTop || 0) + Math.max(8, Math.min(ty, ch - th - 8))) + 'px';
 	};
 	const select = (row, active, ev) => {
-		readout.textContent = row.date + ' · ↑ ' + fmt.fmtBytes(row.upload) + ' · ↓ ' + fmt.fmtBytes(row.download);
+		ent.historyDate = row.date;
+		readout.textContent = row.date + ' · ' + _('Upload') + ' ' + fmt.fmtBytes(row.upload) + ' · ' + _('Download') + ' ' + fmt.fmtBytes(row.download);
 		tip.textContent = readout.textContent;
 		tip.hidden = !active;
 		if (active) positionTip(ev);
@@ -99,7 +102,7 @@ function drawHistory(ent, res) {
 		chart.appendChild(historySvg('text', { x: x(i), y: 168, 'text-anchor': rows.length === 1 ? 'middle' :
 			i === 0 ? 'start' : i === rows.length - 1 ? 'end' : 'middle' }, width < 480 ? rows[i].date.slice(5) : rows[i].date));
 	}
-	select(rows[rows.length - 1]);
+	select(rows.find(row => row.date === ent.historyDate) || rows[rows.length - 1]);
 	const inspect = ev => {
 		const bounds = chart.getBoundingClientRect();
 		const px = (ev.clientX - bounds.left) * width / Math.max(1, bounds.width);
@@ -125,6 +128,14 @@ function refreshHistory(ent, force) {
 			E('span', { 'class': 'dl' }, [E('span', { 'class': 'swatch' }), _('Download')])
 		]));
 		ent.detail.appendChild(ent.historyChart);
+		if (typeof ResizeObserver !== 'undefined') {
+			ent.historyResize = new ResizeObserver(() => {
+				if (ent.historyData && ent.historyChart.clientWidth > 0 &&
+					ent.historyChart.clientWidth !== ent.historyWidth)
+					drawHistory(ent, ent.historyData);
+			});
+			ent.historyResize.observe(ent.historyChart);
+		}
 	}
 	ent.historyLoading = true;
 	return callHistory('day', ent.d.mac).then(res => {
@@ -415,6 +426,7 @@ return baseclass.extend({
 		/* 消失的设备（含休眠）移除 */
 		for (const [mac, ent] of this.cache) {
 			if (!keep.has(mac)) {
+				if (ent.historyResize) ent.historyResize.disconnect();
 				ent.li.remove();
 				this.cache.delete(mac);
 			}
