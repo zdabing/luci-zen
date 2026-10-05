@@ -21,6 +21,7 @@
 
 // poll.add() 以秒为单位；5s 与官方 status 页一致，60 个样本覆盖 ~5 分钟。
 const POLL_SECS = 5;
+const MIN_REFRESH_MS = 1000;
 const HISTORY = 60;
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const RING_R = 46;
@@ -108,6 +109,7 @@ return baseclass.extend({
 		if (this.dash === dash) return;
 		if (this._poll) poll.remove(this._poll);
 		this.prevCpu = null;
+		this.refreshAt = null;
 		this.prevNet = null;
 		this.prevAt = 0;
 		this.history = [];
@@ -820,7 +822,17 @@ return baseclass.extend({
 	},
 
 	tick() {
-		return this.refresh().catch((e) => console.error('zen-dashboard', e));
+		// LuCI starts polling immediately; share the manual first refresh with it.
+		if (this.refreshPromise) return this.refreshPromise;
+		// The first refresh may finish before poll.start(); avoid a tiny CPU sample.
+		const now = Date.now();
+		const elapsed = this.refreshAt == null ? MIN_REFRESH_MS : now - this.refreshAt;
+		if (elapsed >= 0 && elapsed < MIN_REFRESH_MS) return Promise.resolve();
+		this.refreshAt = now;
+		this.refreshPromise = this.refresh()
+			.catch((e) => console.error('zen-dashboard', e))
+			.finally(() => { this.refreshPromise = null; });
+		return this.refreshPromise;
 	},
 
 	async refresh() {
