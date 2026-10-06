@@ -158,11 +158,6 @@ unsafe extern "C" fn handle_get_status(
 ) -> c_int {
     let mut b = reply(ctx, req);
     ubus::blobmsg_add_string(&mut b, cs(b"backend\0"), c"ebpf".as_ptr().cast());
-    ubus::blobmsg_add_string(
-        &mut b,
-        cs(b"offload\0"),
-        offload_cstr().as_ptr().cast(),
-    );
     ubus::blobmsg_add_u64(&mut b, cs(b"since\0"), now_epoch());
     blobmsg_add_bool(&mut b, cs(b"device_wan_rates\0"), true);
     blobmsg_add_bool(&mut b, cs(b"wan_daily\0"), true);
@@ -173,30 +168,17 @@ unsafe extern "C" fn handle_get_status(
         concat!(env!("CARGO_PKG_VERSION"), "\0").as_ptr() as *const c_char,
     );
     with_daemon(|d| {
+        ubus::blobmsg_add_string(&mut b, cs(b"offload\0"), d.offload.mode().as_ptr());
+        blobmsg_add_bool(&mut b, cs(b"hardware_offload_requested\0"), d.offload.hardware_requested);
+        blobmsg_add_bool(&mut b, cs(b"hardware_offload_active\0"), d.offload.hardware_active);
+        let interfaces = d.ifaces_meta.iter().map(|a| a.name.as_str()).collect::<Vec<_>>().join(",");
+        ubus::blobmsg_add_string(&mut b, cs(b"capture_interfaces\0"), cstr_of(&interfaces).as_ptr());
         ubus::blobmsg_add_u32(&mut b, cs(b"interval_ms\0"), d.cfg.interval_ms as u32);
         ubus::blobmsg_add_u32(&mut b, cs(b"devices\0"), d.devs.len() as u32);
     });
     blobmsg_add_bool(&mut b, cs(b"synced\0"), crate::state::time_synced(now_epoch()));
     send(ctx, req, &mut b);
     ubus::UBUS_STATUS_OK
-}
-
-/// 软分载探测（尽力而为）：/proc/net/nf_flowtable 存在 → "sw"，否则 "off"。
-/// 硬件分载不可软件探测（UI 明示口径，ARCHITECTURE §10）。
-fn offload_status() -> &'static str {
-    if std::path::Path::new("/proc/net/nf_flowtable").exists() {
-        "sw"
-    } else {
-        "off"
-    }
-}
-
-fn offload_cstr() -> &'static std::ffi::CStr {
-    if offload_status() == "sw" {
-        c"sw"
-    } else {
-        c"off"
-    }
 }
 
 /// getDevices → { t, dev: [ {mac, ip4, ip6, host, conn, band, online, last,

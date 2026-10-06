@@ -47,6 +47,11 @@
 
 - 主题 release 升为 12：修正 header.ut 的 ucode `else` 语法，避免主题加载失败后
   回退 Bootstrap、Zen 首页缺少样式；打包前使用 SDK 的 host ucode 编译检查所有主题模板。
+- 后台 release 12：补充 nftables 1.1.6 文本回退检测，修复 JSON 省略卸载标志时的硬件请求状态。
+
+- 后台 release 升为 11：LAN 网桥自动展开到实际端口并去重，网络变化时更新挂载；
+  PPPoE 总量与实时历史使用底层 WAN 接口，支持软件流量卸载下的统计。
+  加速状态读取实际 nftables 流表，区分硬件请求与观察到的硬件卸载。
 
 - 主题支持独立生成正式 Release：使用 SDK 只编译主题 APK，附带校验和及更新元数据；
   更新解析接受单包发布，不再要求每个 Release 都包含三个 APK。

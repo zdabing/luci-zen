@@ -19,12 +19,24 @@ struct DumpScratch {
 
 struct IfEntry {
     name: String,
+    l3_device: String,
+    device: String,
+    proto: String,
     v4: Vec<(Ipv4Addr, u8)>,
     v6: Vec<(Ipv6Addr, u8)>,
     upstream: bool,
 }
 
 static SCRATCH: Mutex<DumpScratch> = Mutex::new(DumpScratch { ifaces: Vec::new(), valid: false });
+
+/// netifd knows the lower device even when PPP links have no IFLA_LINK.
+/// Keep VLAN devices intact: using their parent would count other VLANs too.
+pub unsafe fn pppoe_devices(ctx: *mut ubus::ubus_context) -> Result<Vec<(String, String)>, String> {
+    if ctx.is_null() { return Ok(Vec::new()); }
+    Ok(network_dump(ctx)?.into_iter()
+        .filter(|e| e.proto == "pppoe" && !e.l3_device.is_empty() && !e.device.is_empty())
+        .map(|e| (e.l3_device, e.device)).collect())
+}
 
 /// 刷新 local_prefixes：返回写入条数
 pub unsafe fn refresh(d: &mut Daemon) -> Result<usize, String> {
@@ -138,7 +150,7 @@ unsafe fn network_dump(ctx: *mut ubus::ubus_context) -> Result<Vec<IfEntry>, Str
         std::mem::take(&mut scratch.ifaces)
     };
     for e in ifaces.iter_mut() {
-        if upstream_names.iter().any(|n| *n == e.name) {
+        if upstream_names.iter().any(|n| *n == e.name || *n == e.l3_device) {
             e.upstream = true;
         }
     }
@@ -163,6 +175,9 @@ unsafe extern "C" fn dump_cb(
         for itf in ubus::attrs_from_slice(a.data) {
             let mut entry = IfEntry {
                 name: String::new(),
+                l3_device: String::new(),
+                device: String::new(),
+                proto: String::new(),
                 v4: Vec::new(),
                 v6: Vec::new(),
                 upstream: false,
@@ -172,6 +187,9 @@ unsafe extern "C" fn dump_cb(
                     Some("interface") => {
                         entry.name = f.as_str().unwrap_or("").to_string();
                     }
+                    Some("l3_device") => entry.l3_device = f.as_str().unwrap_or("").to_string(),
+                    Some("device") => entry.device = f.as_str().unwrap_or("").to_string(),
+                    Some("proto") => entry.proto = f.as_str().unwrap_or("").to_string(),
                     Some("ipv4-address") => {
                         for item in ubus::attrs_from_slice(f.data) {
                             let (mut addr, mut mask) = (None, 255u8);
