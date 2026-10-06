@@ -705,3 +705,12 @@ msgstr "全部"
 
 msgid "Time range"
 msgstr "时间范围"
+
+msgid "Release information is incomplete."
+msgstr "发布信息不完整，暂时无法判断更新。"
+
+msgid "No compatible build has been published."
+msgstr "尚未发布适配此固件的版本。"
+
+msgid "Package details"
+msgstr "软件包详情"

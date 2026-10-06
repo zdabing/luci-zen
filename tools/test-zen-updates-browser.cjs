@@ -15,7 +15,9 @@ const release=m=>({tag_name:m.tag,body:'<!-- zen-update-metadata\n'+JSON.stringi
   if(mode==='timeout') return;
   if(mode==='rate') return route.fulfill({status:403,contentType:'application/json',body:'{}'});
   const partial={...zen,tag:'theme-v0.3.0-r2',packages:[{...zen.packages[0],version:'0.3.0-r2',filename:'luci-theme-zen-0.3.0-r2.apk'}]};
-  const rows=mode==='legacy'?[{tag_name:'legacy',body:'Old release',published_at:'2026-10-05'}]:mode==='mismatch'?[release({...zen,target:'wrong/target'})]:mode==='partial'?[release(partial)]:mode==='independent'?[release(partial),release(zen)]:[release(zen)];
+  const deployed={...zen,tag:'build-r10',packages:zen.packages.map(f=>({...f,version:'0.2.0-r10',filename:f.name+'-0.2.0-r10.apk'}))};
+  const publishedTheme={...zen,tag:'theme-v0.2.0-r22',packages:[{...zen.packages[0],version:'0.2.0-r22',filename:'luci-theme-zen-0.2.0-r22.apk'}]};
+  const rows=mode==='snapshot'?[release(publishedTheme),release(deployed),{tag_name:'legacy',published_at:'2026-10-01'}]:mode==='legacy'?[{tag_name:'legacy',body:'Old release',published_at:'2026-10-05'}]:mode==='mismatch'?[release({...zen,target:'wrong/target'})]:mode==='partial'?[release(partial)]:mode==='independent'?[release(partial),release(zen)]:[release(zen)];
   return route.fulfill({contentType:'application/json',body:JSON.stringify(rows)});
  });
  const clickCheck=async()=>{await page.getByRole('button',{name:'检查更新',exact:true}).click();await page.waitForFunction(()=>!document.querySelector('#zen-updates .cbi-button-action').disabled);};
@@ -49,6 +51,8 @@ const release=m=>({tag_name:m.tag,body:'<!-- zen-update-metadata\n'+JSON.stringi
   mode='independent';await clickCheck();
   assert.equal(await panel.locator('.zen-update-file').count(),3,'Theme release does not hide previous traffic package releases');
   mode='matched';await clickCheck();
+  assert.equal(await panel.locator('.zen-version-item').count(),3,'Exactly one row per component after checking');
+  assert.equal(await panel.locator('h3').count(),0,'Component names are not repeated in separate cards');
   for(const width of [1440,1024,769,390,320])for(const layout of ['sidebar','top'])for(const appearance of [{accent:'macaron',material:'glass'},{accent:'nord',material:'aurora'},{accent:'honey',material:'paper'},{accent:'blue',material:'outline'},{accent:'coast',material:'duotone'}])for(const theme of ['light','dark']){
    await page.setViewportSize({width,height:1000});await page.evaluate(v=>ZenAppearance.set(v),{...appearance,mode:theme,layout});
    await page.waitForTimeout(30);
@@ -69,6 +73,44 @@ const release=m=>({tag_name:m.tag,body:'<!-- zen-update-metadata\n'+JSON.stringi
    await previewModules['view.zen.zen-updates'].reload();
   });
   await clickCheck();assert.equal(await panel.getByText(/已是最新/).count(),3,'Installed package versions match release');
+  assert.equal(await panel.locator('a[href*="/releases/download/"]').count(),0,'Equal versions never offer reinstall downloads');
+  await page.evaluate(async()=>{
+   const updates=previewModules['view.zen.zen-updates'];
+   previewModules.fs.exec_direct=async()=>JSON.stringify(['luci-theme-zen','luci-app-zen-traffic','zen-traffic'].map(name=>({name,version:'0.4.0-r1'})));
+   await updates.reload();
+  });
+  await clickCheck();assert.equal(await panel.getByText(/当前安装版本较新/).count(),3);
+  assert.equal(await panel.locator('a[href*="/releases/download/"]').count(),0,'Newer installed versions never offer downgrades');
+  assert.ok(!(await panel.innerText()).includes('→'),'No downgrade arrow');
+  mode='matched';
+  await page.evaluate(async()=>{
+   const updates=previewModules['view.zen.zen-updates'];
+   previewModules.fs.exec_direct=async()=>JSON.stringify(['luci-theme-zen','luci-app-zen-traffic','zen-traffic'].map(name=>({name,version:'0.2.0-r10'})));
+   await updates.reload();updates.board={release:{distribution:'ImmortalWrt',target:'rockchip/armv8',version:'25.12-SNAPSHOT'}};
+  });
+  await clickCheck();
+  assert.ok((await panel.innerText()).includes('尚未发布适配此固件的版本'));
+  assert.equal(await panel.locator('a[href*="/releases/download/"][href*="/zen-traffic-"]').count(),0);
+  mode='snapshot';
+  await page.evaluate(async()=>{
+   const updates=previewModules['view.zen.zen-updates'];
+   previewModules.fs.exec_direct=async()=>JSON.stringify(['luci-theme-zen','luci-app-zen-traffic','zen-traffic'].map(name=>({name,version:name==='luci-theme-zen'?'0.2.0-r25':'0.2.0-r10'})));
+   await updates.reload();updates.board={release:{distribution:'ImmortalWrt',target:'rockchip/armv8',version:'25.12-SNAPSHOT'}};
+  });
+  await clickCheck();
+  assert.equal(await panel.getByText('当前安装版本较新',{exact:true}).count(),1);
+  assert.equal(await panel.getByText('已是最新',{exact:true}).count(),1);
+  assert.equal(await panel.getByText('尚未发布适配此固件的版本。',{exact:true}).count(),1);
+  assert.equal(await panel.locator('a[href*="/releases/download/"]').count(),0);
+  assert.equal(await panel.locator('.zen-update-file').count(),0,'No package details when no update exists');
+  if(shot)for(const width of [1440,390]){
+   await page.setViewportSize({width,height:1000});
+   await page.evaluate(()=>{ZenAppearance.set({accent:'macaron',material:'glass',mode:'light',layout:'sidebar'});previewModules['menu-zen'].setSidebarOpen(false);});
+   await page.waitForTimeout(350);
+   await page.screenshot({path:path.join(shot,'updates-current-'+width+'.png'),fullPage:true});
+  }
+  mode='matched';
+
   await page.evaluate(async()=>{
    const updates=previewModules['view.zen.zen-updates'];let releaseOld;
    previewModules.fs.exec_direct=()=>new Promise(resolve=>{releaseOld=resolve;});

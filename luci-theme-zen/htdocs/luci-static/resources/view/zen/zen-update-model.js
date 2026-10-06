@@ -77,7 +77,10 @@ function select(releases, board, name) {
 	// A newer legacy/malformed release must not make an older structured release
 	// appear to be the latest. Fail closed when its compatibility is unknown.
 	const unknown = stable.find(r => !metadata(r));
-	if (unknown && (!match || stable.indexOf(unknown) < stable.indexOf(match.release))) return { state: 'metadata' };
+	// Even when no native build matches, an older legacy release must not
+	// obscure a newer validated build's known target/SDK incompatibility.
+	const reference = match || candidates.find(c => c.meta.packages.some(file => file.name === name));
+	if (unknown && (!reference || stable.indexOf(unknown) < stable.indexOf(reference.release))) return { state: 'metadata' };
 	if (match) return { ...match, state: 'matched' };
 	return { state: !stable.length ? 'empty' : !candidates.length ? 'metadata' : 'incompatible' };
 }

@@ -70,7 +70,7 @@
 :root[data-material] .zen-login-card .cbi-section { background: transparent; border: 0; padding: 0; border-radius: 0; box-shadow: none; backdrop-filter: none; }
 
 /* Small surfaces retain a distinct, lighter material weight. No blur on every row. */
-:root[data-material] :is(.zen-dash-card, .zen-dash-stat, .zen-dash-dev-detail, .zen-share-card, .zen-tf-sum-item, .zen-tf-detail, .zen-rt-summary > div, .zen-notify-rule, .zen-appearance-sample, .zen-version-item) {
+:root[data-material] :is(.zen-dash-card, .zen-dash-stat, .zen-dash-dev-detail, .zen-share-card, .zen-tf-sum-item, .zen-tf-detail, .zen-rt-summary > div, .zen-notify-rule, .zen-appearance-sample) {
 	background: var(--material-inner);
 	border: 1px solid var(--material-edge);
 	border-radius: max(8px, calc(var(--material-radius) - 3px));

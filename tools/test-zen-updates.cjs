@@ -42,3 +42,8 @@ assert.deepEqual(acl.write,{ubus:{uci:['set','commit']},uci:['zen']}, 'Only appe
 assert.equal(acl.read.file['/usr/share/10wrt/release.json'],undefined);
 assert.ok(!acl.read.ubus.luci.includes('getVersion'));
 console.log('PASS: independent Zen package versions; portable all-architecture frontends; target/SDK matching for native backend; validated metadata; no firmware identity or upgrade ACL');
+
+const snapshot = {release:{distribution:'ImmortalWrt',target:'rockchip/armv8',version:'25.12-SNAPSHOT'}};
+const legacy = {tag_name:'v0.1.0',published_at:'2026-10-01'};
+assert.equal(model.select([release(zen),legacy],snapshot,'zen-traffic').state,'incompatible','An old legacy release cannot hide the SDK mismatch in a newer validated build');
+assert.equal(model.select([release(zen),legacy],snapshot,'luci-app-zen-traffic').state,'matched');
