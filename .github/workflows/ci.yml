@@ -182,6 +182,9 @@ jobs:
           node tools/test-appearance.cjs
           node tools/test-zen-updates.cjs
           python3 tools/test-release-metadata.py
+          python3 tools/test-apk-repository.py
+          python3 tools/test-traffic-install.py
+          python3 tools/test-repository-install.py
 
       - name: SQLite retention and realtime regression
         run: |

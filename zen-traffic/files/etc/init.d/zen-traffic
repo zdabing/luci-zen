@@ -38,6 +38,12 @@ start_service() {
 	config_get_bool enabled traffic enabled 1
 	[ "$enabled" = "1" ] || return 0
 
+	# Check runtime prerequisites before procd enters its respawn loop.
+	if ! /usr/libexec/zen-traffic-check; then
+		logger -t zen-traffic 'Runtime prerequisites missing; run /usr/libexec/zen-traffic-check'
+		return 1
+	fi
+
 	IFACES=""
 	PREFIXES=""
 	config_list_foreach traffic interface append_iface
@@ -49,7 +55,10 @@ start_service() {
 	config_get checkpoint traffic checkpoint_secs "300"
 	config_get db_path traffic db_path "/etc/zen-traffic/traffic.db"
 
-	ensure_bpffs
+	ensure_bpffs || {
+		logger -t zen-traffic 'Cannot mount /sys/fs/bpf; check kernel BPF support'
+		return 1
+	}
 
 	procd_open_instance
 	procd_set_param command "$PROG" \

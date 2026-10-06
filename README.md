@@ -7,8 +7,11 @@
 | `luci-theme-zen` | Zen 主题、登录页和首页仪表盘，可单独安装 |
 | `zen-traffic` | 流量采集与存储后台 |
 | `luci-app-zen-traffic` | 流量页面，依赖 `zen-traffic`，也可在其他主题下使用 |
+| `zen-full` | 通过已配置的 Zen 软件源安装主题和流量整套依赖 |
 
 ## 安装与使用
+
+签名 APK 软件源、整套安装入口和自编译固件的兼容范围，见 [APK 安装与发布](docs/APK-DISTRIBUTION.md)。对应软件源需要维护者先完成签名发布。
 
 从 [Releases](https://github.com/zdabing/luci-zen/releases) 或 [构建产物](https://github.com/zdabing/luci-zen/actions/workflows/build.yml) 下载包，上传到路由器 `/tmp`。主题和流量页面包为 `all` 架构；后台包须匹配固件版本与 target/subtarget。每种包只放一个版本，按实际包管理器选择一组命令：
 

@@ -1,0 +1,31 @@
+#!/bin/sh
+# Read-only diagnostics. Dependency installation belongs to the APK transaction.
+failed=0
+for package in kmod-sched-bpf kmod-sched-core; do
+  if apk info -e "$package" >/dev/null 2>&1; then
+    echo "OK: $package installed"
+  else
+    echo "ERROR: $package missing; install it from the repository matching this firmware"
+    failed=1
+  fi
+done
+if grep -qw bpf /proc/filesystems; then
+  echo 'OK: BPF filesystem supported'
+else
+  echo 'ERROR: BPF filesystem unavailable in this kernel'
+  failed=1
+fi
+if [ ! -s /usr/share/zen-traffic/zen_traffic.bpf.o ]; then
+  echo 'ERROR: Zen BPF object missing'
+  failed=1
+fi
+if ! /usr/bin/zen-trafficd --help >/dev/null 2>&1; then
+  echo 'ERROR: daemon cannot run; check CPU architecture and shared-library ABI'
+  failed=1
+fi
+if ubus call zen.traffic getStatus >/dev/null 2>&1; then
+  echo 'OK: traffic service responds; use getStatus and a transfer test to verify capture'
+else
+  echo 'INFO: service is not responding; inspect logread -e zen-traffic'
+fi
+exit "$failed"

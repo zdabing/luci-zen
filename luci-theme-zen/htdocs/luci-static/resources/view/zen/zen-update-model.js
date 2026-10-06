@@ -60,6 +60,16 @@ function metadata(release) {
 			packageNames.add(file.name);
 		}
 		if (packageNames.has('zen-traffic') && !m.sdk_version) return null;
+		if (m.compatible_systems !== undefined) {
+			if (!Array.isArray(m.compatible_systems) || !m.compatible_systems.length || m.compatible_systems.length > 32) return null;
+			const seen = new Set();
+			for (const system of m.compatible_systems) {
+				if (!system || !['OpenWrt', 'ImmortalWrt'].includes(system.distribution) || typeof system.version !== 'string' || !/^[A-Za-z0-9.+_-]{1,80}$/.test(system.version) || system.target !== m.target) return null;
+				const key = system.distribution + '@' + system.version;
+				if (seen.has(key)) return null;
+				seen.add(key);
+			}
+		}
 		return m;
 	} catch (e) { return null; }
 }
@@ -73,7 +83,9 @@ function select(releases, board, name) {
 	// The two LuCI packages contain no target binaries (PKGARCH=all).
 	// Only the native daemon needs a matching target and SDK version.
 	const match = candidates.find(c => c.meta.packages.some(file => file.name === name) &&
-		(name !== 'zen-traffic' || (c.meta.target === target && c.meta.sdk_version === board.release?.version)));
+		(name !== 'zen-traffic' || (c.meta.compatible_systems ? c.meta.compatible_systems.some(system =>
+			system.target === target && system.version === board.release?.version && system.distribution === board.release?.distribution)
+			: (c.meta.target === target && c.meta.sdk_version === board.release?.version))));
 	// A newer legacy/malformed release must not make an older structured release
 	// appear to be the latest. Fail closed when its compatibility is unknown.
 	const unknown = stable.find(r => !metadata(r));

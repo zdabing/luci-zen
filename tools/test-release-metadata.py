@@ -20,6 +20,12 @@ class MetadataTests(unittest.TestCase):
             (assets / 'luci-theme-zen-0.2.0-r11.apk').write_bytes(b'fixture package')
             data = module.generate(root, assets, 'x86/64', '25.12.5', 'theme-v0.2.0-r11', ('luci-theme-zen',))
             self.assertEqual([row['name'] for row in data['packages']], ['luci-theme-zen'])
+            tested = module.generate(root, assets, 'x86/64', '25.12.5', 'theme-v0.2.0-r11',
+                                     ('luci-theme-zen',), ['OpenWrt@25.12.5', 'ImmortalWrt@25.12-SNAPSHOT'])
+            self.assertEqual(tested['compatible_systems'][1]['distribution'], 'ImmortalWrt')
+            for systems in ([], ['Other@25.12.5'], ['OpenWrt@'], ['OpenWrt@25.12.5'] * 2):
+                with self.assertRaises(ValueError):
+                    module.generate(root, assets, 'x86/64', '25.12.5', 'theme-v0.2.0-r11', ('luci-theme-zen',), systems)
             for invalid in ((), ('luci-theme-zen', 'luci-theme-zen'), ('unrelated',)):
                 with self.assertRaises(ValueError):
                     module.generate(root, assets, 'x86/64', '25.12.5', 'theme-v0.2.0-r11', invalid)

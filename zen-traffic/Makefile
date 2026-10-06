@@ -18,7 +18,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=zen-traffic
 PKG_VERSION:=0.2.0
-PKG_RELEASE:=12
+PKG_RELEASE:=13
 PKG_MAINTAINER:=luci-zen maintainers
 PKG_LICENSE:=GPL-2.0
 
@@ -80,6 +80,8 @@ export UBUS_LIB_DIR:=$(STAGING_DIR)/usr/lib
 define Package/zen-traffic/install
 	$(INSTALL_DIR) $(1)/usr/bin
 	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/bin/zen-trafficd $(1)/usr/bin/
+	$(INSTALL_DIR) $(1)/usr/libexec
+	$(INSTALL_BIN) ./files/usr/libexec/zen-traffic-check $(1)/usr/libexec/zen-traffic-check
 
 	$(INSTALL_DIR) $(1)/usr/share/zen-traffic
 	$(INSTALL_DATA) $(BPF_OBJ) $(1)/usr/share/zen-traffic/zen_traffic.bpf.o
@@ -102,6 +104,8 @@ define Package/zen-traffic/postinst
 #!/bin/sh
 [ -n "$${IPKG_INSTROOT}" ] || {
 	/etc/init.d/zen-traffic enable 2>/dev/null || true
+	/etc/init.d/zen-traffic restart || \
+		logger -t zen-traffic 'Installed; service could not start. Run /usr/libexec/zen-traffic-check'
 }
 exit 0
 endef

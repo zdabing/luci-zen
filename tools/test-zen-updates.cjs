@@ -47,3 +47,15 @@ const snapshot = {release:{distribution:'ImmortalWrt',target:'rockchip/armv8',ve
 const legacy = {tag_name:'v0.1.0',published_at:'2026-10-01'};
 assert.equal(model.select([release(zen),legacy],snapshot,'zen-traffic').state,'incompatible','An old legacy release cannot hide the SDK mismatch in a newer validated build');
 assert.equal(model.select([release(zen),legacy],snapshot,'luci-app-zen-traffic').state,'matched');
+
+const supported = {...zen, compatible_systems:[
+ {distribution:'OpenWrt',version:'25.12.5',target:zen.target},
+ {distribution:'ImmortalWrt',version:'25.12-SNAPSHOT',target:zen.target}
+]};
+assert.equal(model.select([release(supported)],snapshot,'zen-traffic').state,'matched');
+assert.equal(model.select([release(supported)],{release:{...snapshot.release,distribution:'Other'}},'zen-traffic').state,'incompatible');
+assert.equal(model.select([release(supported)],{release:{...snapshot.release,target:'x86/64'}},'zen-traffic').state,'incompatible');
+assert.equal(model.select([release(supported)],{release:{...snapshot.release,version:'25.12.6'}},'zen-traffic').state,'incompatible');
+for (const systems of [[],[{}],[supported.compatible_systems[0],supported.compatible_systems[0]],[{...supported.compatible_systems[0],target:'x86/64'}]]) {
+ assert.equal(model.metadata(release({...zen,compatible_systems:systems})),null);
+}

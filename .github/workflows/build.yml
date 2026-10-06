@@ -1,17 +1,15 @@
-# OpenWrt 25 SDK 正式编译：tag（v*）/ release / 手动触发。
-# 上传 .apk artifacts；两个构建都成功后统一发布到 GitHub Releases。
+# OpenWrt 25 SDK 正式编译：tag（v*）或手动触发。
+# 单个 SDK 构建四个包，统一发布到 GitHub Releases；主题独立发布见 theme-apk.yml。
 #
 # 只打 .apk 包（OpenWrt 25 默认 apk 包管理器）。必须走 SDK 交叉编译（rust-package.mk 导出 target cargo/linker、
 # bpf.mk 走 llvm-bpf 工具链），不允许用普通 Linux binary 代替。
 #
-# 当前仅 x86_64（x86/64）一个目标；跑通后按需增加 matrix。
+# 每次选择一个 SDK 目标；不同版本/目标使用独立软件源。
 name: SDK Build
 
 on:
   push:
     tags: ['v*']
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       sdk_version:
@@ -20,6 +18,10 @@ on:
       sdk_target:
         description: 'SDK target/subtarget (download path segment)'
         default: 'x86/64'
+      publish_repository:
+        description: 'Publish signed SDK-specific APK feed (requires ZEN_APK_SIGNING_KEY secret)'
+        type: boolean
+        default: false
       publish_release:
         description: 'Publish packages after building (disable for router acceptance)'
         type: boolean
@@ -33,72 +35,8 @@ defaults:
     shell: bash
 
 jobs:
-  luci-theme-zen:
-    name: "SDK build luci-theme-zen (arch: all)"
-    runs-on: ubuntu-24.04
-    timeout-minutes: 90
-    env:
-      SDK_VERSION: ${{ inputs.sdk_version || '25.12.5' }}
-      SDK_TARGET: ${{ inputs.sdk_target || 'x86/64' }}
-      SDK_BASE: https://downloads.openwrt.org/releases
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Install build prerequisites
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            build-essential clang flex bison g++ gawk gcc-multilib g++-multilib \
-            gettext git libncurses-dev libssl-dev python3 rsync unzip \
-            zlib1g-dev file zstd curl ca-certificates
-
-      - name: Download & verify SDK
-        run: |
-          BASE="$SDK_BASE/$SDK_VERSION/targets/$SDK_TARGET"
-          curl -sfL --retry 3 "$BASE/sha256sums" -o sha256sums
-          SDK_FILE=$(grep -oE 'openwrt-sdk-[^ ]+\.tar\.zst' sha256sums | head -n1)
-          [ -n "$SDK_FILE" ] || { echo "SDK tarball not found in sha256sums"; exit 1; }
-          grep "$SDK_FILE" sha256sums > wanted.sha
-          curl -sfL --retry 3 "$BASE/$SDK_FILE" -O
-          sha256sum -c wanted.sha
-          tar --zstd -xf "$SDK_FILE"
-          SDK_DIR=$(find . -maxdepth 1 -type d -name 'openwrt-sdk-*' | head -n1)
-          [ -n "$SDK_DIR" ] || { echo "SDK directory not found"; exit 1; }
-          echo "SDK_DIR=$SDK_DIR" >> "$GITHUB_ENV"
-
-      - name: Prepare feeds
-        working-directory: ${{ env.SDK_DIR }}
-        run: |
-          ./scripts/feeds update -a
-          ./scripts/feeds install luci-base
-
-      - name: Install package & configure
-        working-directory: ${{ env.SDK_DIR }}
-        run: |
-          cp -r "$GITHUB_WORKSPACE/luci-theme-zen" package/
-          echo 'CONFIG_PACKAGE_luci-theme-zen=m' >> .config
-          make defconfig
-
-      - name: Build
-        working-directory: ${{ env.SDK_DIR }}
-        run: make package/luci-theme-zen/compile V=s -j"$(nproc)"
-
-      - name: Collect artifacts
-        working-directory: ${{ env.SDK_DIR }}
-        run: |
-          mkdir -p "$GITHUB_WORKSPACE/out"
-          find bin/packages -type f -name 'luci-theme-zen-*.apk' \
-            -exec cp {} "$GITHUB_WORKSPACE/out/" \;
-          test "$(find "$GITHUB_WORKSPACE/out" -maxdepth 1 -type f -name '*.apk' | wc -l)" -eq 1
-          ls -la "$GITHUB_WORKSPACE/out"
-
-      - uses: actions/upload-artifact@v7
-        with:
-          name: luci-theme-zen-apk
-          path: out/
-
   zen-traffic:
-    name: "SDK build zen-traffic + luci-app-zen-traffic"
+    name: "SDK build Zen suite"
     runs-on: ubuntu-24.04
     timeout-minutes: 240
     env:
@@ -170,8 +108,12 @@ jobs:
         run: |
           cp -r "$GITHUB_WORKSPACE/zen-traffic" package/
           cp -r "$GITHUB_WORKSPACE/luci-app-zen-traffic" package/
+          cp -r "$GITHUB_WORKSPACE/zen-full" package/
+          cp -r "$GITHUB_WORKSPACE/luci-theme-zen" package/
           echo 'CONFIG_PACKAGE_zen-traffic=m' >> .config
           echo 'CONFIG_PACKAGE_luci-app-zen-traffic=m' >> .config
+          echo 'CONFIG_PACKAGE_zen-full=m' >> .config
+          echo 'CONFIG_PACKAGE_luci-theme-zen=m' >> .config
           make defconfig
 
       - name: Restore Rust host toolchain cache
@@ -228,25 +170,50 @@ jobs:
 
       - name: Build
         working-directory: ${{ env.SDK_DIR }}
-        run: make package/zen-traffic/compile package/luci-app-zen-traffic/compile V=s -j"$(nproc)"
+        run: make package/zen-traffic/compile package/luci-app-zen-traffic/compile package/zen-full/compile package/luci-theme-zen/compile V=s -j"$(nproc)"
 
       - name: Collect artifacts
         working-directory: ${{ env.SDK_DIR }}
         run: |
           mkdir -p "$GITHUB_WORKSPACE/out"
-          find bin/packages -type f \( -name 'zen-traffic-*.apk' -o -name 'luci-app-zen-traffic-*.apk' \) \
+          find bin/packages -type f \( -name 'zen-traffic-*.apk' -o -name 'luci-app-zen-traffic-*.apk' -o -name 'zen-full-*.apk' -o -name 'luci-theme-zen-*.apk' \) \
             -exec cp {} "$GITHUB_WORKSPACE/out/" \;
-          test "$(find "$GITHUB_WORKSPACE/out" -maxdepth 1 -type f -name '*.apk' | wc -l)" -eq 2
+          test "$(find "$GITHUB_WORKSPACE/out" -maxdepth 1 -type f -name '*.apk' | wc -l)" -eq 4
           ls -la "$GITHUB_WORKSPACE/out"
 
       - uses: actions/upload-artifact@v7
         with:
-          name: zen-traffic-apk
+          name: zen-suite-apk
           path: out/
+
+      - name: Build signed repository
+        if: inputs.publish_repository
+        env:
+          ZEN_APK_SIGNING_KEY: ${{ secrets.ZEN_APK_SIGNING_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$ZEN_APK_SIGNING_KEY" || { echo 'Configure ZEN_APK_SIGNING_KEY before publishing'; exit 1; }
+          key=$(mktemp)
+          trap 'rm -f "$key"' EXIT
+          chmod 600 "$key"
+          printf '%s\n' "$ZEN_APK_SIGNING_KEY" > "$key"
+          mkdir repository
+          cp out/*.apk repository/
+          build_tag="feed-build-${SDK_VERSION}-${SDK_TARGET//\//-}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          export APK_PACKAGE_BASE="https://github.com/${GITHUB_REPOSITORY}/releases/download/${build_tag}"
+          printf '%s\n' "$build_tag" > repository/build-tag.txt
+          bash tools/build-apk-repository.sh "$SDK_DIR/staging_dir/host/bin/apk" "$key" repository
+
+      - uses: actions/upload-artifact@v7
+        if: inputs.publish_repository
+        with:
+          name: zen-signed-repository
+          path: repository/
+          if-no-files-found: error
 
   publish:
     name: Publish APKs to Releases
-    needs: [luci-theme-zen, zen-traffic]
+    needs: [zen-traffic]
     if: (github.event_name == 'workflow_dispatch' && inputs.publish_release) || startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-24.04
     steps:
@@ -254,17 +221,12 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: luci-theme-zen-apk
-          path: release-assets/theme
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: zen-traffic-apk
-          path: release-assets/traffic
+          name: zen-suite-apk
+          path: release-assets
 
       - name: Verify release assets
         run: |
-          test "$(find release-assets -type f -name '*.apk' | wc -l)" -eq 3
+          test "$(find release-assets -type f -name '*.apk' | wc -l)" -eq 4
           find release-assets -type f -name '*.apk' -print
 
       - name: Prepare release notes
@@ -300,3 +262,62 @@ jobs:
             release-assets/**/*.apk
             release-assets/zen-update.json
           fail_on_unmatched_files: true
+
+  repository:
+    name: Publish signed APK feed
+    needs: [zen-traffic]
+    if: github.event_name == 'workflow_dispatch' && inputs.publish_repository
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: zen-feed-${{ inputs.sdk_version }}-${{ inputs.sdk_target }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v4
+        with:
+          name: zen-signed-repository
+          path: repository
+      - name: Publish packages before replacing the index
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SDK_VERSION: ${{ inputs.sdk_version }}
+          SDK_TARGET: ${{ inputs.sdk_target }}
+        run: |
+          set -euo pipefail
+          [[ "$SDK_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "$SDK_TARGET" =~ ^[a-z0-9_-]+/[a-z0-9_-]+$ ]]
+          tag="feed-openwrt-${SDK_VERSION}-${SDK_TARGET//\//-}"
+          printf 'Zen APK feed for OpenWrt %s, target %s. Kernel modules come from the matching firmware feed.\n' "$SDK_VERSION" "$SDK_TARGET" > feed-notes.md
+          python3 tools/make-release-metadata.py --assets repository --target "$SDK_TARGET" --sdk-version "$SDK_VERSION" --tag "$tag" --notes feed-notes.md
+          previous=$(mktemp -d)
+          trap 'rm -rf "$previous"' EXIT
+          channel_exists=false
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            channel_exists=true
+            gh release view "$tag" --json assets --jq '.assets[].name' --repo "$GITHUB_REPOSITORY" > "$previous/assets"
+            if grep -qx zen-update.json "$previous/assets"; then
+              gh release download "$tag" --pattern zen-update.json --dir "$previous" --repo "$GITHUB_REPOSITORY"
+              python3 tools/check-feed-update.py repository/zen-update.json "$previous/zen-update.json"
+            elif grep -qx packages.adb "$previous/assets"; then
+              echo 'Active feed has no version record; refusing unsafe replacement'; exit 1
+            fi
+            if grep -qx zen-repository.pem "$previous/assets"; then
+              gh release download "$tag" --pattern zen-repository.pem --dir "$previous" --repo "$GITHUB_REPOSITORY"
+              cmp repository/zen-repository.pem "$previous/zen-repository.pem" || { echo 'Repository key changed; explicit key rotation required'; exit 1; }
+            elif grep -qx packages.adb "$previous/assets"; then
+              echo 'Active feed has no public key; refusing unsafe replacement'; exit 1
+            fi
+          fi
+          build_tag=$(cat repository/build-tag.txt)
+          # The index points to immutable build assets. Cached indexes remain usable.
+          gh release create "$build_tag" repository/*.apk repository/SHA256SUMS \
+            --target "$GITHUB_SHA" --title "$build_tag" --notes-file feed-notes.md \
+            --prerelease --latest=false --repo "$GITHUB_REPOSITORY"
+          if [ "$channel_exists" = false ]; then
+            gh release create "$tag" --target "$GITHUB_SHA" --title "$tag" --notes-file feed-notes.md --prerelease --latest=false --repo "$GITHUB_REPOSITORY"
+          fi
+          gh release upload "$tag" repository/zen-repository.pem tools/install-zen.sh --clobber --repo "$GITHUB_REPOSITORY"
+          gh release upload "$tag" repository/packages.adb repository/zen-update.json --clobber --repo "$GITHUB_REPOSITORY"
+          printf 'Public key SHA256: %s\n' "$(sha256sum repository/zen-repository.pem | cut -d ' ' -f1)" >> feed-notes.md
+          gh release edit "$tag" --notes-file feed-notes.md --repo "$GITHUB_REPOSITORY"
+          printf 'APK feed: https://github.com/%s/releases/download/%s/packages.adb\n' "$GITHUB_REPOSITORY" "$tag" >> "$GITHUB_STEP_SUMMARY"
