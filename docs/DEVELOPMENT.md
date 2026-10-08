@@ -100,7 +100,7 @@ node tools/check-po.js luci-app-zen-traffic
 CI（`.github/workflows/build.yml`）按以下流程执行，本地手动操作一致。
 完整的三包集成、固件内置、SDK 编译、安装与配置步骤以 [README](../README.md) 为准。
 SDK 从 <https://downloads.openwrt.org/releases/> 下载对应目标架构的
-`openwrt-sdk-*.tar.zst`（CI 默认 25.12.5，x86/64）；若编译含 eBPF 的包，还需同目录的
+`openwrt-sdk-*.tar.zst`（CI 默认 25.12.5，同时构建 x86/64 和 rockchip/armv8）；若编译含 eBPF 的包，还需同目录的
 `llvm-bpf-*.tar.zst` 解压进 SDK 根目录。
 
 ### luci-theme-zen（arch: all）
@@ -132,5 +132,5 @@ make package/zen-traffic/compile V=s -j$(nproc)
 ## CI / 发布
 
 - `ci.yml`：push / PR → `cargo check` + eBPF 对象编译 + `.po` 校验。
-- `build.yml`：推送 `v*` 标签后，OpenWrt 25.12.5 SDK 同时为 `x86/64` 和 `rockchip/armv8` 编译四个包（luci-theme-zen、zen-traffic、luci-app-zen-traffic、zen-full），构建成功后发布正式 Release。附件带 target 后缀，包含双目标更新元数据和 SHA256SUMS。手动触发选择单个目标，开启 `publish_release` 时生成预发布；签名软件源单独通过 `publish_repository` 发布。
+- `build.yml`：推送 `v*` 标签后，OpenWrt 25.12.5 SDK 同时为 `x86/64` 和 `rockchip/armv8` 编译四个包（luci-theme-zen、zen-traffic、luci-app-zen-traffic、zen-full），构建成功后发布正式 Release。附件带 target 后缀，包含双目标更新元数据和 SHA256SUMS。手动触发的 `sdk_target` 默认 `both`，也编译这两个目标；需要单独验收时可显式填写一个 target/subtarget。开启 `publish_release` 时生成预发布；签名软件源单独通过 `publish_repository` 按各 target 发布。
   当前仅 x86_64（`x86/64`）目标，扩展其它架构时在 build.yml 增加 matrix。

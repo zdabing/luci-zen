@@ -4,7 +4,7 @@
 # 只打 .apk 包（OpenWrt 25 默认 apk 包管理器）。必须走 SDK 交叉编译（rust-package.mk 导出 target cargo/linker、
 # bpf.mk 走 llvm-bpf 工具链），不允许用普通 Linux binary 代替。
 #
-# 标签发布同时构建 x86/64 和 rockchip/armv8；手动构建选择单个目标。
+# 标签发布和手动构建默认同时构建 x86/64 和 rockchip/armv8。
 # 不同版本/目标使用独立签名软件源。
 name: SDK Build
 
@@ -17,8 +17,8 @@ on:
         description: 'OpenWrt release version'
         default: '25.12.5'
       sdk_target:
-        description: 'SDK target/subtarget (download path segment)'
-        default: 'x86/64'
+        description: 'SDK targets: both = x86/64 + rockchip/armv8; or one target/subtarget'
+        default: 'both'
       publish_repository:
         description: 'Publish signed SDK-specific APK feed (requires ZEN_APK_SIGNING_KEY secret)'
         type: boolean
@@ -43,7 +43,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        sdk_target: ${{ github.event_name == 'workflow_dispatch' && fromJSON(format('["{0}"]', inputs.sdk_target || 'x86/64')) || fromJSON('["x86/64","rockchip/armv8"]') }}
+        sdk_target: ${{ inputs.sdk_target && inputs.sdk_target != 'both' && fromJSON(format('["{0}"]', inputs.sdk_target)) || fromJSON('["x86/64","rockchip/armv8"]') }}
     env:
       SDK_VERSION: ${{ inputs.sdk_version || '25.12.5' }}
       SDK_TARGET: ${{ matrix.sdk_target }}
@@ -227,7 +227,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         if: inputs.publish_repository
         with:
-          name: zen-signed-repository
+          name: zen-signed-repository-${{ strategy.job-index }}
           path: repository/
           if-no-files-found: error
 
@@ -247,14 +247,14 @@ jobs:
       - name: Verify release assets
         run: |
           count=$(find release-assets -mindepth 2 -maxdepth 2 -name zen-update.json | wc -l)
-          test "$count" -eq "${{ github.event_name == 'workflow_dispatch' && 1 || 2 }}"
+          test "$count" -eq "${{ inputs.sdk_target && inputs.sdk_target != 'both' && 1 || 2 }}"
           test "$(find release-assets -type f -name '*.apk' | wc -l)" -eq "$((count * 4))"
           find release-assets -type f -name '*.apk' -print
 
       - name: Prepare release notes
         env:
           RELEASE_SDK: ${{ inputs.sdk_version || '25.12.5' }}
-          RELEASE_TARGET: ${{ github.event_name == 'workflow_dispatch' && inputs.sdk_target || 'x86/64, rockchip/armv8' }}
+          RELEASE_TARGET: ${{ inputs.sdk_target && inputs.sdk_target != 'both' && inputs.sdk_target || 'x86/64, rockchip/armv8' }}
           RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && format('build-{0}-{1}', github.run_id, github.run_attempt) || github.ref_name }}
         run: |
           python3 - <<'PY'
@@ -279,7 +279,7 @@ jobs:
           tag_name: ${{ github.event_name == 'workflow_dispatch' && format('build-{0}-{1}', github.run_id, github.run_attempt) || github.ref_name }}
           target_commitish: ${{ github.sha }}
           prerelease: ${{ github.event_name == 'workflow_dispatch' }}
-          name: "${{ github.event_name == 'workflow_dispatch' && format('SDK build #{0} ({1})', github.run_number, inputs.sdk_target || 'x86/64') || github.ref_name }}"
+          name: "${{ github.event_name == 'workflow_dispatch' && format('SDK build #{0} ({1})', github.run_number, inputs.sdk_target || 'both') || github.ref_name }}"
           body_path: release-notes.md
           files: |
             release-assets/**/*.apk
@@ -288,24 +288,28 @@ jobs:
           fail_on_unmatched_files: true
 
   repository:
-    name: Publish signed APK feed
+    name: "Publish signed APK feed (${{ matrix.sdk_target }})"
     needs: [zen-traffic]
     if: github.event_name == 'workflow_dispatch' && inputs.publish_repository
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        sdk_target: ${{ inputs.sdk_target && inputs.sdk_target != 'both' && fromJSON(format('["{0}"]', inputs.sdk_target)) || fromJSON('["x86/64","rockchip/armv8"]') }}
     concurrency:
-      group: zen-feed-${{ inputs.sdk_version }}-${{ inputs.sdk_target }}
+      group: zen-feed-${{ inputs.sdk_version }}-${{ matrix.sdk_target }}
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v4
         with:
-          name: zen-signed-repository
+          name: zen-signed-repository-${{ strategy.job-index }}
           path: repository
       - name: Publish packages before replacing the index
         env:
           GH_TOKEN: ${{ github.token }}
           SDK_VERSION: ${{ inputs.sdk_version }}
-          SDK_TARGET: ${{ inputs.sdk_target }}
+          SDK_TARGET: ${{ matrix.sdk_target }}
         run: |
           set -euo pipefail
           [[ "$SDK_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]

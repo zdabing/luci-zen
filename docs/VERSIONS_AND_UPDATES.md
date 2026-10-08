@@ -19,7 +19,7 @@
 - 旧发布的 `compatible_systems` 保留为测试记录，不再作为发行版和完整版本号白名单，也不能覆盖 SDK 的大版本。已有有效元数据无需重新发布即可按新规则匹配。更新候选不保证所有自编译固件的 ABI 或内核能力；安装仍检查实际依赖，内核模块仍需来自当前固件的软件源。
 - 发布信息：工作流运行 `tools/make-release-metadata.py`，核对所选包的 Makefile 版本、修订号和实际 APK，计算 SHA256，产出 `zen-update.json` 并写入发布正文的 `<!-- zen-update-metadata ... -->` 标记。所选包缺失、重复或为空会终止发布；各包可以独立修订和发布。
 
-推送 `v*` 标签会使用 OpenWrt 25.12.5 SDK 同时构建 `x86/64` 和 `rockchip/armv8`，两种构建都成功后才创建正式 Release。每个附件名称带 target 后缀；原有 schema 1 顶层记录保留第一个目标，额外目标放入 `builds`，更新页逐个目标筛选后台。旧页面仍能读取顶层主题包，升级主题后可识别其他目标。发布前重新核对所有 APK 的版本、大小和 SHA256，并附带 `SHA256SUMS`。手动整套构建仍选择单个目标，发布为预发布。
+推送 `v*` 标签会使用 OpenWrt 25.12.5 SDK 同时构建 `x86/64` 和 `rockchip/armv8`，两种构建都成功后才创建正式 Release。每个附件名称带 target 后缀；原有 schema 1 顶层记录保留第一个目标，额外目标放入 `builds`，更新页逐个目标筛选后台。旧页面仍能读取顶层主题包，升级主题后可识别其他目标。发布前重新核对所有 APK 的版本、大小和 SHA256，并附带 `SHA256SUMS`。手动整套构建的 `sdk_target` 默认 `both`，同样编译这两个目标；也可显式选择单个 target/subtarget，发布仍为预发布。
 
 `Theme APK release` 工作流使用 SDK 只编译主题。手动启用 `publish_release` 后发布正式 `theme-v<版本>-r<修订号>` Release，包含主题 APK、更新元数据、SHA256SUMS 和源码记录；关闭时仅保留构建产物。单独主题发布不隐藏其他包此前的发布。
 

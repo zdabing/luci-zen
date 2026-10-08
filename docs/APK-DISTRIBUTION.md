@@ -46,7 +46,7 @@ apk add --upgrade luci-theme-zen luci-app-zen-traffic zen-traffic zen-full
    ```
 
 2. 将 PEM 内容配置为仓库 Actions Secret：`ZEN_APK_SIGNING_KEY`。
-3. 手动运行 `SDK Build`，选择支持的 SDK 版本和目标，启用 `publish_repository`。
+3. 手动运行 `SDK Build`，选择支持的 SDK 版本，目标默认 `both`（x86/64 和 rockchip/armv8），启用 `publish_repository`；每个目标独立生成并发布签名软件源。需要单个目标时可显式填写其 target/subtarget。
    普通 APK 构建不需要该 Secret。
 4. 构建使用同一个 SDK 编译四个包，并使用 SDK 自带 APK 工具签署包和 `packages.adb`。
    发布前验证签名；签名失败、包缺失时不发布软件源。
