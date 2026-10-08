@@ -1,0 +1,134 @@
+name: Publish existing Zen APKs
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Existing v* tag to publish'
+        required: true
+        default: 'v0.2.1'
+      build_run_id:
+        description: 'SDK Build run with successful x86/64 and rockchip/armv8 artifacts'
+        required: true
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: zen-release-${{ inputs.release_tag }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Verify existing APKs and publish release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Verify source run and tag
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          BUILD_RUN_ID: ${{ inputs.build_run_id }}
+        run: |
+          python3 - <<'PY'
+          import json, os, re, urllib.request
+          repo = os.environ['GITHUB_REPOSITORY']
+          tag = os.environ['RELEASE_TAG']
+          run_id = os.environ['BUILD_RUN_ID']
+          if not re.fullmatch(r'v[0-9]+\.[0-9]+\.[0-9]+(?:[-.][A-Za-z0-9]+)*', tag) or not run_id.isdigit():
+              raise SystemExit('Expected a version tag and numeric build run ID')
+          def get(path):
+              request = urllib.request.Request('https://api.github.com/repos/' + repo + path,
+                  headers={'Authorization': 'Bearer ' + os.environ['GH_TOKEN'],
+                           'Accept': 'application/vnd.github+json'})
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  return json.load(response)
+          run = get('/actions/runs/' + run_id)
+          if (run['path'] != '.github/workflows/build.yml' or run['event'] != 'push'
+                  or run['head_branch'] != tag or run['status'] != 'completed'):
+              raise SystemExit('The selected run must be a completed SDK tag build')
+          target = get('/git/ref/tags/' + tag)['object']
+          for _ in range(8):
+              if target['type'] == 'commit':
+                  break
+              if target['type'] != 'tag':
+                  raise SystemExit('Invalid tag object')
+              target = get('/git/tags/' + target['sha'])['object']
+          if target['type'] != 'commit' or target['sha'] != run['head_sha']:
+              raise SystemExit('Tag and source build must refer to the same commit')
+          jobs = get('/actions/runs/' + run_id + '/jobs?per_page=100')['jobs']
+          for name in ('SDK build Zen suite (x86/64)', 'SDK build Zen suite (rockchip/armv8)'):
+              if not any(job['name'] == name and job['conclusion'] == 'success' for job in jobs):
+                  raise SystemExit('Missing successful target build: ' + name)
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write('sha=' + run['head_sha'] + '\n')
+          print('Verified source commit:', run['head_sha'])
+          PY
+
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.source.outputs.sha }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: zen-suite-apk-*
+          path: release-assets
+          run-id: ${{ inputs.build_run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Verify APKs and prepare release metadata
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          BUILD_SHA: ${{ steps.source.outputs.sha }}
+          BUILD_RUN_ID: ${{ inputs.build_run_id }}
+        run: |
+          python3 - <<'PY'
+          import importlib.util, json, os
+          from pathlib import Path
+          root = Path.cwd()
+          assets = root / 'release-assets'
+          spec = importlib.util.spec_from_file_location('metadata', root / 'tools/make-release-metadata.py')
+          module = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+          metadata = module.merge_builds(root, assets, os.environ['RELEASE_TAG'])
+          builds = [metadata, *metadata.get('builds', [])]
+          if {build['target'] for build in builds} != {'x86/64', 'rockchip/armv8'}:
+              raise SystemExit('Both supported targets are required')
+          files = sorted(assets.glob('*/*.apk'), key=lambda file: file.name)
+          if len(files) != 8 or len({file.name for file in files}) != 8:
+              raise SystemExit('Expected eight distinct APKs')
+          body = json.dumps(metadata, ensure_ascii=False, separators=(',', ':'))
+          (assets / 'zen-update.json').write_text(body + '\n', encoding='utf-8')
+          import hashlib
+          (assets / 'SHA256SUMS').write_text(''.join(
+              hashlib.sha256(file.read_bytes()).hexdigest() + '  ' + file.name + '\n'
+              for file in files), encoding='utf-8')
+          sdk = ', '.join(sorted({build['sdk_version'] for build in builds}))
+          notes = (root / 'CHANGELOG.md').read_text(encoding='utf-8')
+          notes += '\n\n## 构建信息\n\n- OpenWrt SDK: ' + sdk
+          notes += '\n- Target: x86/64, rockchip/armv8\n- Commit: `' + os.environ['BUILD_SHA'] + '`'
+          notes += '\n- Source build: ' + os.environ['BUILD_RUN_ID']
+          notes += '\n\nKernel modules for zen-traffic must match the firmware build.\n'
+          notes += '\n<!-- zen-update-metadata\n' + body + '\n-->\n'
+          (root / 'release-notes.md').write_text(notes, encoding='utf-8')
+          print('Verified eight APKs and both target metadata')
+          PY
+
+      - name: Publish existing tag release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ inputs.release_tag }}
+          # The verified tag fixes the source commit; this value is unused for
+          # existing tags and avoids an unnecessary workflow-write permission check.
+          target_commitish: ${{ github.event.repository.default_branch }}
+          name: ${{ inputs.release_tag }}
+          prerelease: false
+          overwrite_files: false
+          body_path: release-notes.md
+          files: |
+            release-assets/**/*.apk
+            release-assets/zen-update.json
+            release-assets/SHA256SUMS
+          fail_on_unmatched_files: true

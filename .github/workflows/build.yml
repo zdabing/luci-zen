@@ -277,7 +277,9 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.event_name == 'workflow_dispatch' && format('build-{0}-{1}', github.run_id, github.run_attempt) || github.ref_name }}
-          target_commitish: ${{ github.sha }}
+          # Existing v* tags already pin the build commit. Resolving an older
+          # workflow SHA here can require Workflows:write, unavailable to GITHUB_TOKEN.
+          target_commitish: ${{ github.event_name == 'workflow_dispatch' && github.sha || github.event.repository.default_branch }}
           prerelease: ${{ github.event_name == 'workflow_dispatch' }}
           name: "${{ github.event_name == 'workflow_dispatch' && format('SDK build #{0} ({1})', github.run_number, inputs.sdk_target || 'both') || github.ref_name }}"
           body_path: release-notes.md
