@@ -90,17 +90,17 @@ const shot=process.env.ZEN_SCREENSHOT_DIR;
    assert.equal(await parent.getAttribute('aria-expanded'),'true');
    const submenu=menu.locator('.slide-menu').first(),subBounds=await submenu.boundingBox();
    assert.ok(subBounds.x>=0&&subBounds.x+subBounds.width<=width,'Dropdown stays inside viewport');
-   assert.equal(await submenu.getByRole('link',{name:'历史分析',exact:true}).getAttribute('href'),'?page=history');
+   assert.equal(await submenu.getByRole('link',{name:'Zen 流量',exact:true}).getAttribute('href'),'?page=history','Traffic menu opens its first child, History analysis');
    await page.keyboard.press('Tab');assert.equal(await submenu.evaluate(node=>node.contains(document.activeElement)),true);
    await page.keyboard.press('Escape');assert.equal(await parent.getAttribute('aria-expanded'),'false');
    assert.equal(await parent.evaluate(node=>node===document.activeElement),true);
-   await parent.click();await page.locator('#view h2').first().click();
+   await parent.click();await page.mouse.click(width-12,888);
    assert.equal(await parent.getAttribute('aria-expanded'),'false','Outside click closes dropdown');
   }
   if(shot){await page.setViewportSize({width:1440,height:1000});await page.screenshot({path:path.join(shot,'top-navigation-light.png'),fullPage:true});}
   await page.setViewportSize({width:390,height:844});await page.waitForTimeout(350);
   await page.locator('.showSide').click();assert.equal(await page.locator('body').evaluate(node=>node.classList.contains('sidebar-open')),true);
-  assert.equal(await page.locator('#mainmenu').getByRole('link',{name:'历史分析',exact:true}).isVisible(),true);
+  assert.equal(await page.locator('#mainmenu').getByRole('link',{name:'Zen 流量',exact:true}).isVisible(),true);
   await page.keyboard.press('Escape');assert.equal(await page.locator('body').evaluate(node=>node.classList.contains('sidebar-open')),false);
   if(shot)await page.screenshot({path:path.join(shot,'top-navigation-mobile.png'),fullPage:true});
   // A collapsed left sidebar must not hide the top layout or overwrite its preference.
