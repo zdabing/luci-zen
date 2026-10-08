@@ -1,8 +1,8 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-zen-traffic
-PKG_VERSION:=0.2.0
-PKG_RELEASE:=10
+PKG_VERSION:=0.2.1
+PKG_RELEASE:=1
 
 PKG_MAINTAINER:=luci-zen maintainers
 PKG_LICENSE:=Apache-2.0
@@ -22,9 +22,9 @@ define Package/luci-app-zen-traffic
 endef
 
 define Package/luci-app-zen-traffic/description
-  LuCI device-traffic page for the zen-traffic daemon: realtime per-device
-  rates, daily/monthly usage, per-device history (getHistory), hostname
-  override and per-device reset. Requires the zen-traffic backend package.
+  LuCI traffic history and notifications for the zen-traffic daemon:
+  daily/monthly usage, device time history and per-device reset.
+  Live device monitoring is provided by Zen home. Requires zen-traffic.
 endef
 
 define Build/Prepare
@@ -45,15 +45,13 @@ define Package/luci-app-zen-traffic/install
 	$(INSTALL_DIR) $(1)/www/luci-static/resources/view/zen-traffic
 	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/zen-traffic/style.js \
 		$(1)/www/luci-static/resources/view/zen-traffic/style.js
-	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/zen-traffic/devices.js \
-		$(1)/www/luci-static/resources/view/zen-traffic/devices.js
 	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/zen-traffic/history.js \
 		$(1)/www/luci-static/resources/view/zen-traffic/history.js
 
-	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/zen-traffic/realtime.js \
-		$(1)/www/luci-static/resources/view/zen-traffic/realtime.js
 	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/zen-traffic/rate-history.js \
 		$(1)/www/luci-static/resources/view/zen-traffic/rate-history.js
+	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/zen-traffic/device-timeline.js \
+		$(1)/www/luci-static/resources/view/zen-traffic/device-timeline.js
 	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/zen-traffic/notifications.js \
 		$(1)/www/luci-static/resources/view/zen-traffic/notifications.js
 

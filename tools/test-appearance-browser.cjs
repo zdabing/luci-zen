@@ -14,7 +14,7 @@ const shot=process.env.ZEN_SCREENSHOT_DIR;
  const openAppearance=async()=>{const trigger=page.locator('.zen-appearance-trigger');if(await trigger.getAttribute('href'))await page.evaluate(()=>ZenAppearance.open(document.querySelector('.zen-appearance-trigger')));else await trigger.click();};
  let checked=0;
  try {
-  for(const view of ['dashboard','realtime','history','notifications','login']){
+  for(const view of ['dashboard','history','notifications','settings','login']){
    await page.goto(base+'/dev-preview/runtime.html?page='+view,{waitUntil:'networkidle'});
    await page.waitForFunction(()=>document.body.dataset.previewReady||document.body.dataset.previewError);
    assert.equal(await page.locator('body').getAttribute('data-preview-error'),null,view+' must render the production module');

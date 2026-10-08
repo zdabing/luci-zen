@@ -9,16 +9,20 @@ const helperSource=fs.readFileSync(path.join(root,'htdocs/luci-static/resources/
 const helper=new Function('view','baseclass','rpc','trafficStyle','_',helperSource)(view,baseclass,rpc,{},s=>s);
 assert.equal(mounts.length,0,'Importing a shared rate component must not mount a LuCI page');
 assert.equal(typeof helper.render,'function');assert.equal(typeof helper.query,'function');
-for(const page of ['realtime','history']) {
+for(const page of ['history']) {
  mounts=[];
  const source=fs.readFileSync(path.join(root,'htdocs/luci-static/resources/view/zen-traffic/'+page+'.js'),'utf8');
  new Function('view','rpc','_',source)(view,rpc,s=>s);
  assert.equal(mounts.length,1,page+' must initialize exactly one page');
 }
-const menu=JSON.parse(fs.readFileSync(path.join(root,'root/usr/share/luci/menu.d/luci-app-zen-traffic.json'),'utf8'));
+const menu={...JSON.parse(fs.readFileSync(path.join(root,'root/usr/share/luci/menu.d/luci-app-zen-traffic.json'),'utf8')),
+ ...JSON.parse(fs.readFileSync(path.join(__dirname,'../luci-theme-zen/root/usr/share/luci/menu.d/luci-theme-zen.json'),'utf8'))};
 const visible=Object.entries(menu).filter(([key,value])=>key.startsWith('admin/status/zen-traffic/')&&value.title).sort((a,b)=>a[1].order-b[1].order);
-assert.deepEqual(visible.map(([key])=>key.split('/').at(-1)),['realtime','history','notifications']);
-assert.deepEqual(menu['admin/status/zen-traffic/devices'].action,{type:'alias',path:'admin/status/zen-traffic/realtime'});
+assert.deepEqual(visible.map(([key])=>key.split('/').at(-1)),['history','notifications','settings']);
+for(const name of ['devices','realtime']) {
+ assert.deepEqual(menu['admin/status/zen-traffic/'+name].action,{type:'alias',path:'admin/zen'});
+ assert.equal(menu['admin/status/zen-traffic/'+name].title,undefined);
+}
 // Emulate HTML boolean-attribute presence, including disabled="false".
 const E=(tag,attrs={},children=[])=>({tag,attrs,disabled:Object.hasOwn(attrs,'disabled')&&attrs.disabled!=null,
  children:Array.isArray(children)?children:[children],value:attrs.value||'',textContent:'',
@@ -27,8 +31,8 @@ const document={getElementById:()=>null,createElement:tag=>E(tag),head:E('head')
 const historySource=fs.readFileSync(path.join(root,'htdocs/luci-static/resources/view/zen-traffic/history.js'),'utf8');
 const find=(node,predicate)=>predicate(node)?node:(node.children||[]).map(child=>child&&typeof child==='object'?find(child,predicate):null).find(Boolean);
 for(const available of [true,false]) {
- const history=new Function('view','rpc','trafficStyle','rateHistory','_','E','document','L','window',historySource)(
-  view,rpc,{inject(){}},{render:()=>E('div'),query(){}},s=>s,E,document,{bind:(f,c)=>f.bind(c)},{location:{search:''}});
+ const history=new Function('view','rpc','trafficStyle','rateHistory','deviceTimeline','_','E','document','L','window',historySource)(
+  view,rpc,{inject(){}},{render:()=>E('div'),query(){}},{render:()=>E('section'),select(){}},s=>s,E,document,{bind:(f,c)=>f.bind(c)},{location:{search:''}});
  let refreshes=0;history.refresh=()=>{refreshes++;};
  const page=history.render([{wan_daily:available},{dev:[]}]);
  const scope=find(page,node=>node.attrs?.['aria-label']==='Traffic scope');

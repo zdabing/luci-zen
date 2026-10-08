@@ -52,7 +52,7 @@ Zen 菜单中显示为「OpenWrt 概览」，不再在它前面插入仪表盘�
 实现对应 [LuCI 25.12 菜单入口](https://github.com/openwrt/luci/blob/openwrt-25.12/modules/luci-base/root/usr/share/luci/menu.d/luci-base.json)
 和 [标准视图生命周期](https://github.com/openwrt/luci/blob/openwrt-25.12/modules/luci-base/htdocs/luci-static/resources/luci.js)。
 
-管理页右上角「Zen 设置」进入独立 `admin/system/zen` 页面，系统菜单也提供同一入口。外观/布局标签复用 `ZenAppearance.render()`，版本/更新标签按需挂载 `zen-updates.js`；首页不加载该模块。登录页仍提供外观弹窗，右上角深浅色快捷切换保持独立。默认马卡龙＋iOS 玻璃，明暗默认跟随系统；
+管理页右上角「Zen 设置」进入独立 `admin/status/zen-traffic/settings` 页面，菜单入口位于「状态 → Zen 流量 → Zen 设置」。旧 `admin/system/zen` 仅保留无标题别名，不显示在系统菜单。外观/布局标签复用 `ZenAppearance.render()`，版本/更新标签按需挂载 `zen-updates.js`；首页不加载该模块。登录页仍提供外观弹窗，右上角深浅色快捷切换保持独立。默认马卡龙＋iOS 玻璃，明暗默认跟随系统；
 保留既有 `luci-theme-zen` 明暗存储键，新增 `luci-theme-zen-accent` 和
 `luci-theme-zen-material` 和 `luci-theme-zen-layout`。四个选择互相独立，五个预设只同时调整配色与材质。
 布局默认 `sidebar`（左侧导航），另可选择 `top`（顶部导航）。顶部布局在桌面
@@ -132,6 +132,5 @@ make package/zen-traffic/compile V=s -j$(nproc)
 ## CI / 发布
 
 - `ci.yml`：push / PR → `cargo check` + eBPF 对象编译 + `.po` 校验。
-- `build.yml`：tag（`v*`）/ release / 手动触发 → OpenWrt 25 SDK 编译三个包（luci-theme-zen、
-  zen-traffic、luci-app-zen-traffic），只打 `.apk` 上传 artifacts（release 事件附加到 Release）。
+- `build.yml`：推送 `v*` 标签后，OpenWrt 25.12.5 SDK 同时为 `x86/64` 和 `rockchip/armv8` 编译四个包（luci-theme-zen、zen-traffic、luci-app-zen-traffic、zen-full），构建成功后发布正式 Release。附件带 target 后缀，包含双目标更新元数据和 SHA256SUMS。手动触发选择单个目标，开启 `publish_release` 时生成预发布；签名软件源单独通过 `publish_repository` 发布。
   当前仅 x86_64（`x86/64`）目标，扩展其它架构时在 build.yml 增加 matrix。

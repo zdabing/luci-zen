@@ -34,6 +34,7 @@ pub struct Daemon {
 
     pub realtime: crate::realtime::RealtimeHistory,
     pub wan: crate::wan::WanUsage,
+    pub timeline: crate::timeline::DeviceTimeline,
     pub notifications: crate::notifications::Notifications,
     pub wifi: crate::wifi::WifiCache,
     pub local_prefixes: Vec<(i32, Vec<u8>, u32)>,
@@ -136,6 +137,7 @@ impl Daemon {
         let bpf = zen_bpf::load(std::path::Path::new(&cfg.bpf_path))?;
         zen_bpf::describe(&bpf);
 
+        let timeline = crate::timeline::DeviceTimeline::load(&db)?;
         let mut d = Daemon {
             cfg,
             bpf,
@@ -146,6 +148,7 @@ impl Daemon {
             wifi: crate::wifi::WifiCache::default(),
             realtime: crate::realtime::RealtimeHistory::default(),
             wan,
+            timeline,
             notifications,
             local_prefixes: Vec::new(),
             last_tick_mono: 0,
@@ -253,6 +256,10 @@ impl Daemon {
                     // Exclude it from the new ledger even for restored devices.
                     if !wan_started && self.last_tick_mono != 0 {
                         self.wan.device_delta(row.mac, wan_rx, wan_tx);
+                        // A delayed/paused collector cannot locate an entire delta in time.
+                        if dt <= 10_000 {
+                            self.timeline.record(now, crate::persistence::mac_str(&row.mac.b), wan_rx, wan_tx);
+                        }
                     }
 
                     s.wan_rx_r = wan_rx * 1000 / dt;
@@ -299,6 +306,9 @@ impl Daemon {
         totals::refresh(self, &links);
         self.realtime.sample(&self.upstream, &links, now_mono, now);
         self.realtime.flush(&self.db, now_mono, now, false);
+        if let Err(e) = self.timeline.flush(&self.db, now, false) {
+            eprintln!("[zen-trafficd] 分时记录落盘失败（保留缓存）: {e}");
+        }
         unsafe { self.wifi.tick(self.ubus_ctx, now_mono); }
 
         // ---- 5) 属性合并（5s 低频）----
@@ -334,6 +344,9 @@ impl Daemon {
         match accounting::checkpoint(self) {
             Ok(()) => println!("[zen-trafficd] 退出 checkpoint 完成"),
             Err(e) => eprintln!("[zen-trafficd] 退出 checkpoint 失败: {e}"),
+        }
+        if let Err(e) = self.timeline.flush(&self.db, crate::state::now_epoch(), true) {
+            eprintln!("[zen-trafficd] timeline shutdown checkpoint: {e}");
         }
     }
 }

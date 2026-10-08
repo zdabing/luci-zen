@@ -62,7 +62,9 @@ SDK 生成索引时的 `--allow-untrusted` 仅用于构建阶段，输出随后�
 
 原生后台按目标架构和用户态 ABI 构建，不按路由器型号逐个构建。
 内核模块仍由与固件匹配的软件源提供；ABI 不匹配时由 APK 拒绝安装。
-保留每个后台的 SDK 来源，额外通过发布元数据 `compatible_systems` 列出实际验证过的系统：
+更新页保留每个后台的 SDK 来源，按 target 和 OpenWrt 大版本筛选候选；OpenWrt / ImmortalWrt 的同大版本共享候选，小版本、补丁号和带数字版本的 Snapshot 不单独限制。`24` 与 `25` 分开，无法识别大版本的固件不猜测匹配。
+
+发布元数据 `compatible_systems` 可额外记录实际测试过的系统，供追溯使用，不再作为更新白名单：
 
 ```sh
 python3 tools/make-release-metadata.py --assets out --target rockchip/armv8 \
@@ -71,10 +73,9 @@ python3 tools/make-release-metadata.py --assets out --target rockchip/armv8 \
   --compatible-system ImmortalWrt@25.12-SNAPSHOT
 ```
 
-后一个系统只能在该 APK 完成加载、接口挂载、下载计数和加速路径验收后添加。
-不要仅凭 CPU 架构相同或版本前缀相同声明兼容。
-普通 CLI 生成元数据默认只声明构建用的 OpenWrt SDK 版本，不推断其他系统。
-同名 Snapshot 不同构建之间还必须单独验证共享库 ABI 和内核能力；此列表不能替代 APK 依赖检查。
+记录测试系统前，应完成该 APK 的加载、接口挂载、下载计数和加速路径验收。
+普通 CLI 默认仅写入构建用的 `sdk_version`；只有显式传入 `--compatible-system` 才附带测试记录。旧发布中已有的精确列表也不会限制同大版本的更新匹配。
+更新筛选与安装校验分开：同大版本候选仍需通过 APK 依赖检查，内核模块始终使用当前固件的匹配软件源；自编译或 Snapshot 的共享库 ABI、内核能力仍需实际验证。此规则不改变签名软件源安装脚本按具体 SDK 版本选择源的行为。
 
 后台诊断命令：
 

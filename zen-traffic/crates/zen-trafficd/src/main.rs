@@ -13,6 +13,7 @@
 #![allow(unsafe_op_in_unsafe_fn)]
 
 mod accounting;
+mod timeline;
 mod daemon;
 mod device;
 mod netif;

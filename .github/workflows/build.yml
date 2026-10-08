@@ -4,7 +4,8 @@
 # 只打 .apk 包（OpenWrt 25 默认 apk 包管理器）。必须走 SDK 交叉编译（rust-package.mk 导出 target cargo/linker、
 # bpf.mk 走 llvm-bpf 工具链），不允许用普通 Linux binary 代替。
 #
-# 每次选择一个 SDK 目标；不同版本/目标使用独立软件源。
+# 标签发布同时构建 x86/64 和 rockchip/armv8；手动构建选择单个目标。
+# 不同版本/目标使用独立签名软件源。
 name: SDK Build
 
 on:
@@ -36,13 +37,18 @@ defaults:
 
 jobs:
   zen-traffic:
-    name: "SDK build Zen suite"
+    name: "SDK build Zen suite (${{ matrix.sdk_target }})"
     runs-on: ubuntu-24.04
     timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        sdk_target: ${{ github.event_name == 'workflow_dispatch' && fromJSON(format('["{0}"]', inputs.sdk_target || 'x86/64')) || fromJSON('["x86/64","rockchip/armv8"]') }}
     env:
       SDK_VERSION: ${{ inputs.sdk_version || '25.12.5' }}
-      SDK_TARGET: ${{ inputs.sdk_target || 'x86/64' }}
+      SDK_TARGET: ${{ matrix.sdk_target }}
       SDK_BASE: https://downloads.openwrt.org/releases
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && format('build-{0}-{1}', github.run_id, github.run_attempt) || github.ref_name }}
     steps:
       - uses: actions/checkout@v7
 
@@ -181,9 +187,19 @@ jobs:
           test "$(find "$GITHUB_WORKSPACE/out" -maxdepth 1 -type f -name '*.apk' | wc -l)" -eq 4
           ls -la "$GITHUB_WORKSPACE/out"
 
+      - name: Prepare target-specific release assets
+        run: |
+          suffix="${SDK_TARGET//\//-}"
+          for file in out/*.apk; do
+            mv "$file" "${file%.apk}-${suffix}.apk"
+          done
+          python3 tools/make-release-metadata.py --assets out --target "$SDK_TARGET" \
+            --sdk-version "$SDK_VERSION" --tag "$RELEASE_TAG" --notes build-metadata-notes.md \
+            --filename-suffix "$suffix"
+
       - uses: actions/upload-artifact@v7
         with:
-          name: zen-suite-apk
+          name: zen-suite-apk-${{ strategy.job-index }}
           path: out/
 
       - name: Build signed repository
@@ -198,7 +214,11 @@ jobs:
           chmod 600 "$key"
           printf '%s\n' "$ZEN_APK_SIGNING_KEY" > "$key"
           mkdir repository
-          cp out/*.apk repository/
+          suffix="${SDK_TARGET//\//-}"
+          for file in out/*.apk; do
+            filename=$(basename "$file")
+            cp "$file" "repository/${filename%-${suffix}.apk}.apk"
+          done
           build_tag="feed-build-${SDK_VERSION}-${SDK_TARGET//\//-}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           export APK_PACKAGE_BASE="https://github.com/${GITHUB_REPOSITORY}/releases/download/${build_tag}"
           printf '%s\n' "$build_tag" > repository/build-tag.txt
@@ -221,18 +241,20 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: zen-suite-apk
+          pattern: zen-suite-apk-*
           path: release-assets
 
       - name: Verify release assets
         run: |
-          test "$(find release-assets -type f -name '*.apk' | wc -l)" -eq 4
+          count=$(find release-assets -mindepth 2 -maxdepth 2 -name zen-update.json | wc -l)
+          test "$count" -eq "${{ github.event_name == 'workflow_dispatch' && 1 || 2 }}"
+          test "$(find release-assets -type f -name '*.apk' | wc -l)" -eq "$((count * 4))"
           find release-assets -type f -name '*.apk' -print
 
       - name: Prepare release notes
         env:
           RELEASE_SDK: ${{ inputs.sdk_version || '25.12.5' }}
-          RELEASE_TARGET: ${{ inputs.sdk_target || 'x86/64' }}
+          RELEASE_TARGET: ${{ github.event_name == 'workflow_dispatch' && inputs.sdk_target || 'x86/64, rockchip/armv8' }}
           RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && format('build-{0}-{1}', github.run_id, github.run_attempt) || github.ref_name }}
         run: |
           python3 - <<'PY'
@@ -248,7 +270,8 @@ jobs:
           )
           Path('release-notes.md').write_text(notes + metadata, encoding='utf-8')
           PY
-          python3 tools/make-release-metadata.py --assets release-assets --target "$RELEASE_TARGET" --sdk-version "$RELEASE_SDK" --tag "$RELEASE_TAG" --notes release-notes.md
+          python3 tools/make-release-metadata.py --assets release-assets --merge-builds --tag "$RELEASE_TAG" --notes release-notes.md
+          (cd release-assets && find . -type f -name '*.apk' -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
 
       - name: Publish release
         uses: softprops/action-gh-release@v3
@@ -261,6 +284,7 @@ jobs:
           files: |
             release-assets/**/*.apk
             release-assets/zen-update.json
+            release-assets/SHA256SUMS
           fail_on_unmatched_files: true
 
   repository:

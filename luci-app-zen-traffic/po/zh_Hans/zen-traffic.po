@@ -268,8 +268,8 @@ msgstr "清空所选设备的计数"
 msgid "History analysis"
 msgstr "历史分析"
 
-msgid "Compare recorded usage by date and device, then inspect past internet rates. Current speeds are in Realtime monitoring."
-msgstr "按日期和设备分析历史用量，也可查询过去的互联网速率。当前速度请看“实时监控”。"
+msgid "Compare recorded usage by date and device, then inspect past internet rates. Current speeds are on Zen home."
+msgstr "按日期和设备分析历史用量，也可查询过去的互联网速率。当前速度请看 Zen 首页。"
 
 msgid "Device usage ranking"
 msgstr "设备用量排名"
@@ -552,3 +552,45 @@ msgstr "机器人拒收了消息（代码 %s）。"
 
 msgid "Unable to deliver message."
 msgstr "消息发送失败。"
+
+msgid "Back to hours"
+msgstr "返回每小时用量"
+
+msgid "Device internet usage by time"
+msgstr "设备分时用量"
+
+msgid "Date"
+msgstr "日期"
+
+msgid "Router local time · 5-minute detail for 7 days, hourly usage for 90 days."
+msgstr "按路由器本地时间统计：5 分钟明细保留 7 天，每小时用量保留 90 天。"
+
+msgid "Update the traffic service to enable device time history."
+msgstr "升级流量服务后，即可查看设备分时用量。"
+
+msgid "Choose a device above to see when it used traffic."
+msgstr "在上方选择设备，查看流量用在了哪些时段。"
+
+msgid "Choose a valid date."
+msgstr "请选择有效日期。"
+
+msgid "Unable to load device time history. Please try again."
+msgstr "设备分时记录加载失败，请重试。"
+
+msgid "Select an hour to see its 5-minute detail."
+msgstr "点击时段，查看该小时的 5 分钟明细。"
+
+msgid "Recorded 5-minute usage."
+msgstr "以下为已记录的 5 分钟用量。"
+
+msgid "Time detail is no longer available for this period. Daily totals are kept separately."
+msgstr "此时段的分时明细已过期，每日汇总仍单独保留。"
+
+msgid "No device time records for this period. Older totals cannot be reconstructed."
+msgstr "此时段没有设备分时记录，旧的累计用量无法还原到具体时段。"
+
+msgid "This period is only partially recorded."
+msgstr "此时段仅有部分记录。"
+
+msgid "Time period"
+msgstr "时段"

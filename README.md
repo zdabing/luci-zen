@@ -13,7 +13,7 @@
 
 签名 APK 软件源、整套安装入口和自编译固件的兼容范围，见 [APK 安装与发布](docs/APK-DISTRIBUTION.md)。对应软件源需要维护者先完成签名发布。
 
-从 [Releases](https://github.com/zdabing/luci-zen/releases) 或 [构建产物](https://github.com/zdabing/luci-zen/actions/workflows/build.yml) 下载包，上传到路由器 `/tmp`。主题和流量页面包为 `all` 架构；后台包须匹配固件版本与 target/subtarget。每种包只放一个版本，按实际包管理器选择一组命令：
+从 [Releases](https://github.com/zdabing/luci-zen/releases) 或 [构建产物](https://github.com/zdabing/luci-zen/actions/workflows/build.yml) 下载包，上传到路由器 `/tmp`。主题和流量页面包为 `all` 架构；后台包须匹配固件大版本与 target/subtarget。`v*` 标签发布提供 OpenWrt 25 的 `x86/64` 和 `rockchip/armv8` 两组附件，按文件名的目标后缀选择一组。每种包只放一个版本，按实际包管理器选择一组命令：
 
 ```sh
 # apk 固件

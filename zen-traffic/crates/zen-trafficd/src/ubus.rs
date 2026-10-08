@@ -40,12 +40,13 @@ const fn cs(s: &'static [u8]) -> *const c_char {
 // ubus 方法表
 // ---------------------------------------------------------------------------
 
-static METHODS: [ubus::ubus_method; 13] = [
+static METHODS: [ubus::ubus_method; 14] = [
     m(b"getStatus\0", handle_get_status),
     m(b"getDevices\0", handle_get_devices),
     m(b"getTotal\0", handle_get_total),
     m(b"getWanUsage\0", handle_get_wan_usage),
     m(b"getInternetHistory\0", handle_get_internet_history),
+    m(b"getDeviceTimeline\0", handle_get_device_timeline),
     m(b"getNotifications\0", handle_get_notifications),
     m(b"setNotifications\0", handle_set_notifications),
     m(b"testNotification\0", handle_test_notification),
@@ -118,6 +119,38 @@ unsafe extern "C" fn handle_get_internet_history(ctx: *mut ubus::ubus_context, _
     }
 }
 
+unsafe extern "C" fn handle_get_device_timeline(ctx: *mut ubus::ubus_context, _obj: *mut ubus::ubus_object,
+    req: *mut ubus::ubus_request_data, _method: *const c_char, msg: *mut ubus::blob_attr) -> c_int {
+    let (mut mac, mut date, mut hour) = (String::new(), String::new(), None);
+    for a in ubus::parse_msg(msg) {
+        match a.name {
+            Some("mac") => match a.as_str() {
+                Some(s) if parse_mac(s).is_some() => mac = s.to_ascii_lowercase(),
+                _ => return ubus::UBUS_STATUS_INVALID_ARGUMENT,
+            },
+            Some("date") => match a.as_str() {
+                Some(s) if crate::timeline::day_bounds(s).is_ok() => date = s.to_owned(),
+                _ => return ubus::UBUS_STATUS_INVALID_ARGUMENT,
+            },
+            Some("hour") => match a.as_str() {
+                Some("") => hour = None,
+                Some(s) => match s.parse::<u64>() {
+                    Ok(time) if time <= i64::MAX as u64 => hour = Some(time),
+                    _ => return ubus::UBUS_STATUS_INVALID_ARGUMENT,
+                },
+                _ => return ubus::UBUS_STATUS_INVALID_ARGUMENT,
+            },
+            _ => {}
+        }
+    }
+    if mac.is_empty() || date.is_empty() { return ubus::UBUS_STATUS_INVALID_ARGUMENT; }
+    match with_daemon(|d| d.timeline.query(&d.db, &mac, &date, hour, now_epoch())) {
+        Some(Ok(value)) => send_json(ctx, req, value),
+        Some(Err(_)) => ubus::UBUS_STATUS_INVALID_ARGUMENT,
+        None => ubus::UBUS_STATUS_NOT_SUPPORTED,
+    }
+}
+
 unsafe extern "C" fn handle_get_notifications(ctx: *mut ubus::ubus_context, _obj: *mut ubus::ubus_object,
     req: *mut ubus::ubus_request_data, _method: *const c_char, _msg: *mut ubus::blob_attr) -> c_int {
     match with_daemon(|d| d.notifications.public(&d.wan)) {
@@ -161,6 +194,8 @@ unsafe extern "C" fn handle_get_status(
     ubus::blobmsg_add_u64(&mut b, cs(b"since\0"), now_epoch());
     blobmsg_add_bool(&mut b, cs(b"device_wan_rates\0"), true);
     blobmsg_add_bool(&mut b, cs(b"wan_daily\0"), true);
+    blobmsg_add_bool(&mut b, cs(b"device_timeline\0"), true);
+    add_str(&mut b, b"timeline_today\0", &local_date(now_epoch()));
     blobmsg_add_bool(&mut b, cs(b"notifications\0"), true);
     ubus::blobmsg_add_string(
         &mut b,
@@ -538,6 +573,7 @@ unsafe extern "C" fn handle_reset_device(
     match with_daemon(|d| -> Result<(), String> {
         d.db.reset_device(&mac_l)?;
         d.pending_periods.remove_device(&mac_l);
+        d.timeline.remove_device(&mac_l);
         d.wan.remove_device(m);
         if let Some(s) = d.devs.get_mut(&m) {
             s.rx_today = 0;

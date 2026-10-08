@@ -11,7 +11,8 @@
 					"getRealtimeHistory",
 					"getWanUsage",
 					"getInternetHistory",
-					"getNotifications"
+					"getNotifications",
+					"getDeviceTimeline"
 				]
 			}
 		},

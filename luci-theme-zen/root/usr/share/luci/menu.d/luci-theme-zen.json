@@ -10,10 +10,14 @@
 			"acl": [ "luci-theme-zen" ]
 		}
 	},
-	"admin/system/zen": {
+	"admin/status/zen-traffic/settings": {
 		"title": "Zen settings",
-		"order": 90,
+		"order": 4,
 		"action": { "type": "view", "path": "zen/settings" },
+		"depends": { "acl": [ "luci-theme-zen" ] }
+	},
+	"admin/system/zen": {
+		"action": { "type": "alias", "path": "admin/status/zen-traffic/settings" },
 		"depends": { "acl": [ "luci-theme-zen" ] }
 	}
 }

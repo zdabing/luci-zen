@@ -3,6 +3,7 @@
 'require rpc';
 'require ui';
 'require view.zen-traffic.rate-history as rateHistory';
+'require view.zen-traffic.device-timeline as deviceTimeline';
 'require view.zen-traffic.style as trafficStyle';
 
 /*
@@ -114,7 +115,13 @@ function injectStyles() {
 		'.zen-tf-ax { font-size: 11px; fill: currentColor; opacity: .65; }',
 		'.zen-tf-legend { display: flex; gap: 16px; padding-top: 6px; font-size: 13px; }',
 		'.zen-tf-legend .zen-tf-dl { color: var(--dl, currentColor); }',
-		'.zen-tf-legend .zen-tf-ul { color: var(--ul, currentColor); }'
+		'.zen-tf-legend .zen-tf-ul { color: var(--ul, currentColor); }',
+		'.zen-device-timeline [hidden] { display:none!important; }',
+		'.zen-timeline-controls { display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap; } .zen-timeline-controls input { min-height:44px; max-width:100%; }',
+		'.zen-device-timeline .zen-timeline-table { display:table; width:100%; table-layout:fixed; font-variant-numeric:tabular-nums; } .zen-timeline-table thead { display:table-header-group; } .zen-timeline-table tbody { display:table-row-group; } .zen-timeline-table th:first-child { width:44%; } .zen-timeline-table td { overflow-wrap:anywhere; vertical-align:middle; }',
+		'.zen-timeline-hour { display:block; width:100%; text-align:left; background:none; border:0; padding:6px 0; color:var(--primary,#168b7f); cursor:pointer; font:inherit; min-height:36px; } .zen-timeline-hour:focus-visible { outline:2px solid currentColor; outline-offset:2px; }',
+		'.zen-timeline-bar { display:block; height:3px; margin-top:4px; border-radius:2px; background:var(--dl,#15803d); opacity:.45; }',
+		'@media(max-width:600px) { .zen-timeline-table td,.zen-timeline-table th { padding:10px 6px; font-size:12px; } .zen-timeline-hour { min-height:44px; } }'
 	].join('\n');
 	document.head.appendChild(style);
 }
@@ -177,11 +184,12 @@ return view.extend({
 		const reset = E('button', {type:'button','class':'cbi-button cbi-button-negative',click:()=>this.resetSelected()}, _('Reset selected device counters'));
 		this.resetButton = reset;
 		this.rateView = Object.create(rateHistory);
+		this.timelineView = Object.create(deviceTimeline);
 
 		const root = E('div', { 'class': 'cbi-map zen-traffic-page', 'id': 'zen-traffic-history' }, [
 			E('h2', {}, _('History analysis')),
 			E('div', { 'class': 'cbi-map-descr' },
-				_('Compare recorded usage by date and device, then inspect past internet rates. Current speeds are in Realtime monitoring.')),
+				_('Compare recorded usage by date and device, then inspect past internet rates. Current speeds are on Zen home.')),
 			E('div', { 'class': 'cbi-section zen-history-controls' }, [
 				E('label', { 'class': 'zen-history-field', 'for': 'zen-tf-history-device' }, [_('Device'), sel]),
 				E('div', { 'class': 'zen-history-actions' }, [
@@ -193,6 +201,7 @@ return view.extend({
 				this.scopeNote = E('p', {'class':'zen-app-muted'}),
 				this.usageSummary = E('div', {'class':'zen-rt-summary'}),
 				(this.chart = E('div', { 'class': 'zen-tf-chart' }, []))]),
+			this.timelineView.render(status),
 			E('section',{'class':'cbi-section'},[E('h3',{},_('Device usage ranking')),this.ranking = E('div')]),
 			this.rateView.render({data:{samples:[],interfaces:[],step:5}})
 		]);
@@ -237,6 +246,7 @@ return view.extend({
 			return;
 
 		const request = this.request = (this.request || 0) + 1;
+		this.timelineView?.select(this.mac);
 		this.statusText.textContent = _('Loading history…');
 		this.resetButton.disabled = !this.mac;
 		this.scopeNote.textContent = this.scope === 'internet' ?

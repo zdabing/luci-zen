@@ -15,7 +15,7 @@
 		"order": 99,
 		"action": {
 			"type": "alias",
-			"path": "admin/status/zen-traffic/realtime"
+			"path": "admin/zen"
 		}
 	},
 	"admin/status/zen-traffic/history": {
@@ -27,11 +27,10 @@
 		}
 	},
 	"admin/status/zen-traffic/realtime": {
-		"title": "Realtime monitoring",
-		"order": 1,
+		"order": 99,
 		"action": {
-			"type": "view",
-			"path": "zen-traffic/realtime"
+			"type": "alias",
+			"path": "admin/zen"
 		}
 	},
 	"admin/status/zen-traffic/notifications": {
