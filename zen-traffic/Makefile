@@ -17,8 +17,8 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=zen-traffic
-PKG_VERSION:=0.2.1
-PKG_RELEASE:=2
+PKG_VERSION:=0.2.2
+PKG_RELEASE:=1
 PKG_MAINTAINER:=luci-zen maintainers
 PKG_LICENSE:=GPL-2.0
 
