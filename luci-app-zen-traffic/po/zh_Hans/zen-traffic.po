@@ -553,17 +553,14 @@ msgstr "机器人拒收了消息（代码 %s）。"
 msgid "Unable to deliver message."
 msgstr "消息发送失败。"
 
-msgid "Back to hours"
-msgstr "返回每小时用量"
-
-msgid "Device internet usage by time"
-msgstr "设备分时用量"
+msgid "Hourly device internet usage"
+msgstr "设备每小时用量"
 
 msgid "Date"
 msgstr "日期"
 
-msgid "Router local time · 5-minute detail for 7 days, hourly usage for 90 days."
-msgstr "按路由器本地时间统计：5 分钟明细保留 7 天，每小时用量保留 90 天。"
+msgid "Router local time · hourly usage retained for 30 days."
+msgstr "按路由器本地时间统计，每小时用量保留 30 天。"
 
 msgid "Update the traffic service to enable device time history."
 msgstr "升级流量服务后，即可查看设备分时用量。"
@@ -577,11 +574,29 @@ msgstr "请选择有效日期。"
 msgid "Unable to load device time history. Please try again."
 msgstr "设备分时记录加载失败，请重试。"
 
-msgid "Select an hour to see its 5-minute detail."
-msgstr "点击时段，查看该小时的 5 分钟明细。"
+msgid "Hover or select an hour to see its usage. Empty hours have no recorded traffic."
+msgstr "悬浮或选择小时，查看该时段用量；空时段表示没有已记录的流量。"
 
-msgid "Recorded 5-minute usage."
-msgstr "以下为已记录的 5 分钟用量。"
+msgid "Recorded total"
+msgstr "已记录总量"
+
+msgid "Not started"
+msgstr "尚未开始"
+
+msgid "Not recorded"
+msgstr "未记录"
+
+msgid "Collecting"
+msgstr "统计中"
+
+msgid "Partially recorded"
+msgstr "部分记录"
+
+msgid "No time records"
+msgstr "无分时记录"
+
+msgid "Swipe horizontally to view all hours."
+msgstr "左右滑动查看全天小时。"
 
 msgid "Time detail is no longer available for this period. Daily totals are kept separately."
 msgstr "此时段的分时明细已过期，每日汇总仍单独保留。"

@@ -11,6 +11,14 @@ const C = 2 * Math.PI * 54;
 const number = value => Math.max(0, Number.isFinite(Number(value)) ? Number(value) : 0);
 const PERIODS = [['day',_('This day')],['week',_('This week')],['month',_('This month')],['all',_('All time')]];
 
+function deviceHistoryUrl(mac) {
+	if (!/^(?:[0-9a-f]{2}:){5}[0-9a-f]{2}$/i.test(mac || '')) return null;
+	const url = new URL(L.url('admin', 'status', 'zen-traffic', 'history'), window.location.href);
+	url.searchParams.set('mac', mac.toLowerCase());
+	url.hash = 'device-hourly';
+	return url.pathname + url.search + url.hash;
+}
+
 function arcPath(offset, length) {
 	const start = offset / 54, angle = Math.min(length / 54, 2 * Math.PI);
 	const point = a => [72 + 54 * Math.cos(a), 72 + 54 * Math.sin(a)];
@@ -118,7 +126,8 @@ function chart(direction) {
 				const label = E('span', { 'class': 'zen-share-name' });
 				const amount = E('span', { 'class': 'zen-share-amount' });
 				const swatch = E('span', { 'class': 'zen-share-swatch', 'aria-hidden': 'true' });
-				const button = E('button', { type: 'button' }, [swatch, label, amount]);
+				const href = deviceHistoryUrl(slice.key);
+				const button = E(href ? 'a' : 'button', href ? { href, 'class': 'zen-share-device-link' } : { type: 'button' }, [swatch, label, amount]);
 				const row = E('li', {}, button);
 				button.addEventListener('mouseenter', () => select(slice.key));
 				button.addEventListener('focus', () => select(slice.key));
@@ -137,7 +146,7 @@ function chart(direction) {
 			entry.amount.textContent = fmt.fmtBytes(slice.bytes) + ' · ' + percent.toFixed(1) + '%';
 			entry.title.textContent = slice.label + ': ' + entry.amount.textContent;
 			entry.arc.setAttribute('aria-label', entry.title.textContent);
-			entry.button.title = entry.title.textContent;
+			entry.button.title = entry.title.textContent + (entry.button.tagName === 'A' ? ' · ' + _('View hourly usage') : '');
 			const index = model.slices.indexOf(slice);
 			if (arcs.children[index] !== entry.arc) arcs.insertBefore(entry.arc, arcs.children[index] || null);
 			if (legend.children[index] !== entry.row) legend.insertBefore(entry.row, legend.children[index] || null);
@@ -186,5 +195,6 @@ return baseclass.extend({
 		}
 		poll.add(tick, 5); await tick();
 	},
-	breakdown
+	breakdown,
+	deviceHistoryUrl
 });

@@ -1,8 +1,11 @@
 const fs = require('fs');
 const assert = require('node:assert/strict');
 const source = fs.readFileSync(require('path').join(__dirname, '../luci-theme-zen/htdocs/luci-static/resources/view/zen/zen-wan-share.js'), 'utf8');
-const moduleView = new Function('baseclass', 'rpc', 'poll', 'fmt', '_', source)(
- { extend: x => x }, { declare: () => () => {} }, {}, {}, x => x);
+const moduleView = new Function('baseclass', 'rpc', 'poll', 'fmt', '_', 'L', 'window', source)(
+ { extend: x => x }, { declare: () => () => {} }, {}, {}, x => x,
+ {url:(...parts)=>'/cgi-bin/luci/'+parts.join('/')},{location:{href:'http://router.local/cgi-bin/luci/admin/zen'}});
+assert.equal(moduleView.deviceHistoryUrl('AA:BB:CC:DD:EE:01'),'/cgi-bin/luci/admin/status/zen-traffic/history?mac=aa%3Abb%3Acc%3Add%3Aee%3A01#device-hourly');
+for(const key of ['other','unassigned','not-a-device','']) assert.equal(moduleView.deviceHistoryUrl(key),null,'Aggregate rows are not device links');
 const model = (dev, observed, all = false, direction = 'download') => moduleView.breakdown({dev, ['interface_' + direction]: observed}, direction, all);
 const device = (mac, download, upload = 0) => ({mac, download, upload});
 assert.deepEqual(model([], 0).slices, []);

@@ -121,7 +121,7 @@ unsafe extern "C" fn handle_get_internet_history(ctx: *mut ubus::ubus_context, _
 
 unsafe extern "C" fn handle_get_device_timeline(ctx: *mut ubus::ubus_context, _obj: *mut ubus::ubus_object,
     req: *mut ubus::ubus_request_data, _method: *const c_char, msg: *mut ubus::blob_attr) -> c_int {
-    let (mut mac, mut date, mut hour) = (String::new(), String::new(), None);
+    let (mut mac, mut date) = (String::new(), String::new());
     for a in ubus::parse_msg(msg) {
         match a.name {
             Some("mac") => match a.as_str() {
@@ -132,19 +132,13 @@ unsafe extern "C" fn handle_get_device_timeline(ctx: *mut ubus::ubus_context, _o
                 Some(s) if crate::timeline::day_bounds(s).is_ok() => date = s.to_owned(),
                 _ => return ubus::UBUS_STATUS_INVALID_ARGUMENT,
             },
-            Some("hour") => match a.as_str() {
-                Some("") => hour = None,
-                Some(s) => match s.parse::<u64>() {
-                    Ok(time) if time <= i64::MAX as u64 => hour = Some(time),
-                    _ => return ubus::UBUS_STATUS_INVALID_ARGUMENT,
-                },
-                _ => return ubus::UBUS_STATUS_INVALID_ARGUMENT,
-            },
+            // Accept the former daily-query signature, but no longer serve detail queries.
+            Some("hour") if a.as_str() != Some("") => return ubus::UBUS_STATUS_INVALID_ARGUMENT,
             _ => {}
         }
     }
     if mac.is_empty() || date.is_empty() { return ubus::UBUS_STATUS_INVALID_ARGUMENT; }
-    match with_daemon(|d| d.timeline.query(&d.db, &mac, &date, hour, now_epoch())) {
+    match with_daemon(|d| d.timeline.query(&d.db, &mac, &date, now_epoch())) {
         Some(Ok(value)) => send_json(ctx, req, value),
         Some(Err(_)) => ubus::UBUS_STATUS_INVALID_ARGUMENT,
         None => ubus::UBUS_STATUS_NOT_SUPPORTED,

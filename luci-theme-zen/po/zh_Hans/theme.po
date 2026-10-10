@@ -352,6 +352,9 @@ msgstr "上传占比"
 msgid "Download share"
 msgstr "下载占比"
 
+msgid "View hourly usage"
+msgstr "查看每小时用量"
+
 msgid "Recorded traffic"
 msgstr "已统计流量"
 

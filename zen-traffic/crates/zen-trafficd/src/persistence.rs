@@ -263,12 +263,6 @@ impl Db {
                  PRIMARY KEY (interface, timestamp)
              );
              CREATE INDEX IF NOT EXISTS realtime_usage_timestamp ON realtime_usage(timestamp);
-             CREATE TABLE IF NOT EXISTS device_usage_5m (
-                 mac TEXT NOT NULL, time INTEGER NOT NULL,
-                 download INTEGER NOT NULL, upload INTEGER NOT NULL,
-                 PRIMARY KEY(mac,time)
-             ) WITHOUT ROWID;
-             CREATE INDEX IF NOT EXISTS device_usage_5m_time ON device_usage_5m(time);
              CREATE TABLE IF NOT EXISTS device_usage_hour (
                  mac TEXT NOT NULL, time INTEGER NOT NULL,
                  download INTEGER NOT NULL, upload INTEGER NOT NULL,
@@ -301,6 +295,13 @@ impl Db {
              );",
         )
         .map_err(|e| format!("建表失败: {e}"))?;
+        // Hourly totals are already independent; retire only the obsolete detail table.
+        conn.execute_batch(
+            "BEGIN;
+             DROP TABLE IF EXISTS device_usage_5m;
+             DELETE FROM app_settings WHERE name='timeline_fine_floor';
+             COMMIT;",
+        ).map_err(|e| format!("清理旧分时明细失败: {e}"))?;
         Ok(Db { conn })
     }
 
@@ -486,51 +487,45 @@ impl Db {
     }
 
     /// Add pending deltas and clear expired/over-quota rows in one transaction.
-    pub fn save_device_timeline(&self, timeline: &crate::timeline::DeviceTimeline, now: u64) -> Result<(u64,u64), String> {
+    pub fn save_device_timeline(&self, timeline: &crate::timeline::DeviceTimeline, now: u64) -> Result<u64, String> {
         let tx = self.conn.unchecked_transaction().map_err(|e| e.to_string())?;
-        let mut floors = Vec::new();
-        for (table, rows, retention, floor, step, setting) in [
-            ("device_usage_5m", &timeline.fine, crate::timeline::DETAIL_SECS, timeline.fine_floor, 300, "timeline_fine_floor"),
-            ("device_usage_hour", &timeline.hours, crate::timeline::HOURLY_SECS, timeline.hour_floor, 3600, "timeline_hour_floor"),
-        ] {
-            let cutoff = now.saturating_sub(retention).max(floor);
-            let sql = format!("INSERT INTO {table}(mac,time,download,upload) VALUES(?1,?2,?3,?4)
-                ON CONFLICT(mac,time) DO UPDATE SET
-                download=MIN(9223372036854775807,download+excluded.download),
-                upload=MIN(9223372036854775807,upload+excluded.upload)");
-            {
-                let mut insert = tx.prepare_cached(&sql).map_err(|e| e.to_string())?;
-                for ((time, mac), bytes) in rows {
-                    if time.saturating_add(step) <= cutoff || *time < floor { continue; }
-                    insert.execute(params![mac, *time as i64, bytes.download.min(i64::MAX as u64) as i64,
-                        bytes.upload.min(i64::MAX as u64) as i64]).map_err(|e| e.to_string())?;
-                }
+        let table = "device_usage_hour";
+        let (floor, step) = (timeline.hour_floor, 3600);
+        let cutoff = now.saturating_sub(crate::timeline::HOURLY_SECS).max(floor);
+        let sql = format!("INSERT INTO {table}(mac,time,download,upload) VALUES(?1,?2,?3,?4)
+            ON CONFLICT(mac,time) DO UPDATE SET
+            download=MIN(9223372036854775807,download+excluded.download),
+            upload=MIN(9223372036854775807,upload+excluded.upload)");
+        {
+            let mut insert = tx.prepare_cached(&sql).map_err(|e| e.to_string())?;
+            for ((time, mac), bytes) in &timeline.hours {
+                if time.saturating_add(step) <= cutoff || *time < floor { continue; }
+                insert.execute(params![mac, *time as i64, bytes.download.min(i64::MAX as u64) as i64,
+                    bytes.upload.min(i64::MAX as u64) as i64]).map_err(|e| e.to_string())?;
             }
-            tx.execute(&format!("DELETE FROM {table} WHERE time <= ?1 OR time < ?2"),
-                params![cutoff.saturating_sub(step) as i64, floor as i64]).map_err(|e| e.to_string())?;
-            let overflow: Option<i64> = tx.query_row(&format!(
-                "SELECT MAX(time) FROM (SELECT time FROM {table} ORDER BY time,mac
-                 LIMIT MAX(0,(SELECT COUNT(*) FROM {table})-?1))"),
-                params![crate::timeline::ROW_LIMIT as i64], |r| r.get(0)).map_err(|e| e.to_string())?;
-            let kept_from = overflow.map(|time| (time.max(0) as u64).saturating_add(step)).unwrap_or(floor).max(floor);
-            if overflow.is_some() {
-                // Drop the complete boundary bucket: never present a partial quota-cut bucket as complete.
-                tx.execute(&format!("DELETE FROM {table} WHERE time < ?1"), params![kept_from as i64]).map_err(|e| e.to_string())?;
-            }
-            tx.execute("INSERT INTO app_settings VALUES(?1,?2) ON CONFLICT(name) DO UPDATE SET value=excluded.value",
-                params![setting, kept_from.to_string()]).map_err(|e| e.to_string())?;
-            floors.push(kept_from);
         }
+        tx.execute(&format!("DELETE FROM {table} WHERE time <= ?1 OR time < ?2"),
+            params![cutoff.saturating_sub(step) as i64, floor as i64]).map_err(|e| e.to_string())?;
+        let overflow: Option<i64> = tx.query_row(&format!(
+            "SELECT MAX(time) FROM (SELECT time FROM {table} ORDER BY time,mac
+             LIMIT MAX(0,(SELECT COUNT(*) FROM {table})-?1))"),
+            params![crate::timeline::ROW_LIMIT as i64], |r| r.get(0)).map_err(|e| e.to_string())?;
+        let kept_from = overflow.map(|time| (time.max(0) as u64).saturating_add(step)).unwrap_or(floor).max(floor);
+        if overflow.is_some() {
+            // Drop the complete boundary bucket: never present a partial quota-cut bucket as complete.
+            tx.execute(&format!("DELETE FROM {table} WHERE time < ?1"), params![kept_from as i64]).map_err(|e| e.to_string())?;
+        }
+        tx.execute("INSERT INTO app_settings VALUES(?1,?2) ON CONFLICT(name) DO UPDATE SET value=excluded.value",
+            params!["timeline_hour_floor", kept_from.to_string()]).map_err(|e| e.to_string())?;
         tx.execute("INSERT INTO app_settings VALUES('timeline_since',?1) ON CONFLICT(name) DO UPDATE SET value=excluded.value",
             params![timeline.since.to_string()]).map_err(|e| e.to_string())?;
         tx.commit().map_err(|e| e.to_string())?;
-        Ok((floors[0], floors[1]))
+        Ok(kept_from)
     }
 
-    pub fn device_timeline(&self, mac: &str, start: u64, end: u64, step: u64) -> Result<Vec<(u64,crate::wan::Bytes)>, String> {
-        let table = match step { 300 => "device_usage_5m", 3600 => "device_usage_hour", _ => return Err("Invalid step".into()) };
-        let mut query = self.conn.prepare(&format!("SELECT time,download,upload FROM {table}
-            WHERE mac=?1 AND time>=?2 AND time<?3 ORDER BY time LIMIT 400")).map_err(|e| e.to_string())?;
+    pub fn device_timeline(&self, mac: &str, start: u64, end: u64) -> Result<Vec<(u64,crate::wan::Bytes)>, String> {
+        let mut query = self.conn.prepare("SELECT time,download,upload FROM device_usage_hour
+            WHERE mac=?1 AND time>=?2 AND time<?3 ORDER BY time LIMIT 25").map_err(|e| e.to_string())?;
         let rows = query.query_map(params![mac,start as i64,end as i64], |r| Ok((nonnegative(r,0)?, crate::wan::Bytes {
             download:nonnegative(r,1)?, upload:nonnegative(r,2)?,
         }))).map_err(|e| e.to_string())?;
@@ -662,7 +657,6 @@ impl Db {
             .map_err(|e| e.to_string())?;
         tx.execute("DELETE FROM wan_devices WHERE mac=?1", params![mac]).map_err(|e| e.to_string())?;
         tx.execute("DELETE FROM wan_daily WHERE mac=?1", params![mac]).map_err(|e| e.to_string())?;
-        tx.execute("DELETE FROM device_usage_5m WHERE mac=?1", params![mac]).map_err(|e| e.to_string())?;
         tx.execute("DELETE FROM device_usage_hour WHERE mac=?1", params![mac]).map_err(|e| e.to_string())?;
         tx.commit().map_err(|e| e.to_string())
     }

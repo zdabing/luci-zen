@@ -50,10 +50,15 @@
    getMountPoints:[{mount:'/',size:8*1024**3,free:6*1024**3}],getNetworkDevices:{}
   };
   if (spec.method === 'getDeviceTimeline') {
-   const start=Math.floor(new Date(args[1]+'T00:00:00').getTime()/1000), hour=args[2] === '' ? null : Number(args[2]);
-   const step=hour == null?3600:300, first=hour??start;
-   return {json:JSON.stringify({start:first,end:first+(hour==null?86400:3600),step,available_from:start-86400,samples:
-    (hour==null?[8,13,19]:[0,2,3,7,8,9]).map((n,i)=>{const time=first+n*step;const label=value=>new Date(value*1000).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',hour12:false});return {time,label:label(time)+'–'+label(time+step),utc_offset:'+0800',download:(hour==null?[.2,2.6,.2]:[.1,.2,.3,1.1,.7,.2])[i]*1024**3,upload:(i+1)*1024**2};})})};
+   const start=Math.floor(new Date(args[1]+'T00:00:00').getTime()/1000);
+   const end=Math.floor(new Date(new Date(start*1000).setDate(new Date(start*1000).getDate()+1)).getTime()/1000);
+   const usage={1:[9.8,.2],2:[1.5,.08],8:[.7,.1],13:[2.6,.4],19:[4.2,.6],21:[1.2,.04]};
+   const clock=value=>new Date(value*1000).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',hour12:false});
+   return {json:JSON.stringify({start,end,step:3600,now,since:start-86400,available_from:start-86400,samples:
+    Array.from({length:(end-start)/3600},(_,n)=>{const time=start+n*3600,values=time<=now?(usage[n]||[0,0]):[0,0];return {
+     time,label:clock(time)+'–'+(time+3600===end?'24:00':clock(time+3600)),utc_offset:'+0800',
+     download:values[0]*1024**3,upload:values[1]*1024**3,recorded:values[0]>0,available:time<=now,
+     future:time>now,in_progress:time<=now&&now<time+3600,partial:false};})})};
   }
   if (!Object.prototype.hasOwnProperty.call(data,spec.method)) throw Error('Mutating or unsupported RPC disabled in preview: '+spec.method);
   return structuredClone(data[spec.method]);

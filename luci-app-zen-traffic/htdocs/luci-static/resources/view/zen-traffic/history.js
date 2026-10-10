@@ -117,11 +117,15 @@ function injectStyles() {
 		'.zen-tf-legend .zen-tf-dl { color: var(--dl, currentColor); }',
 		'.zen-tf-legend .zen-tf-ul { color: var(--ul, currentColor); }',
 		'.zen-device-timeline [hidden] { display:none!important; }',
+		'#device-hourly { scroll-margin-top:96px; } #device-hourly:focus { outline:none; }',
 		'.zen-timeline-controls { display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap; } .zen-timeline-controls input { min-height:44px; max-width:100%; }',
-		'.zen-device-timeline .zen-timeline-table { display:table; width:100%; table-layout:fixed; font-variant-numeric:tabular-nums; } .zen-timeline-table thead { display:table-header-group; } .zen-timeline-table tbody { display:table-row-group; } .zen-timeline-table th:first-child { width:44%; } .zen-timeline-table td { overflow-wrap:anywhere; vertical-align:middle; }',
-		'.zen-timeline-hour { display:block; width:100%; text-align:left; background:none; border:0; padding:6px 0; color:var(--primary,#168b7f); cursor:pointer; font:inherit; min-height:36px; } .zen-timeline-hour:focus-visible { outline:2px solid currentColor; outline-offset:2px; }',
-		'.zen-timeline-bar { display:block; height:3px; margin-top:4px; border-radius:2px; background:var(--dl,#15803d); opacity:.45; }',
-		'@media(max-width:600px) { .zen-timeline-table td,.zen-timeline-table th { padding:10px 6px; font-size:12px; } .zen-timeline-hour { min-height:44px; } }'
+		'.zen-timeline-frame { position:relative; min-width:0; margin-top:16px; } .zen-timeline-scroll { width:100%; max-width:100%; overflow-x:auto; overscroll-behavior-x:contain; }',
+		'.zen-timeline-scroll-hint { display:none; } @media(max-width:600px) { .zen-timeline-scroll-hint { display:block; font-size:12px; margin:8px 0; } }',
+		'.zen-timeline-chart { display:block; width:100%; min-width:960px; height:280px; color:var(--zt-text,var(--text,#536175)); }',
+		'.zen-traffic-page .zen-device-timeline .zen-rt-summary { grid-template-columns:repeat(3,minmax(0,1fr)); } @media(max-width:600px) { .zen-traffic-page .zen-device-timeline .zen-rt-summary { grid-template-columns:repeat(2,minmax(0,1fr)); } .zen-device-timeline .zen-rt-summary > div:last-child { grid-column:1 / -1; } }',
+		'.zen-timeline-hit { fill:currentColor; fill-opacity:0; } .zen-timeline-slot { cursor:pointer; outline:none; } .zen-timeline-slot[aria-pressed="true"] .zen-timeline-hit { fill-opacity:.06; } .zen-timeline-slot:focus-visible .zen-timeline-hit { stroke:currentColor; stroke-width:1.5; }',
+		'.zen-timeline-slot.is-current .zen-timeline-hit { stroke:var(--primary,#168b7f); stroke-width:1; stroke-dasharray:4 3; } .zen-timeline-slot.is-unavailable .zen-timeline-hit { fill-opacity:.025; }',
+		'.zen-traffic-page .zen-timeline-tip { box-sizing:border-box; max-width:min(360px,calc(100% - 16px)); white-space:normal!important; overflow-wrap:anywhere; } .zen-timeline-readout { min-height:24px; margin-top:10px; font-size:13px; line-height:1.7; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }'
 	].join('\n');
 	document.head.appendChild(style);
 }
@@ -147,7 +151,9 @@ return view.extend({
 		const status = data[0];
 		const devs = (data[1] && data[1].dev) || [];
 		this.scope = status && status.wan_daily ? 'internet' : 'all';
-		this.mac = new URLSearchParams(window.location.search).get('mac') || '';
+		const requestedMac = new URLSearchParams(window.location.search).get('mac') || '';
+		this.mac = /^(?:[0-9a-f]{2}:){5}[0-9a-f]{2}$/i.test(requestedMac) ? requestedMac.toLowerCase() : '';
+		this.jumpToHourly = !!this.mac && window.location.hash === '#device-hourly';
 
 		injectStyles();
 		trafficStyle.inject();
@@ -168,6 +174,8 @@ return view.extend({
 		}, this) }, [
 			E('option', { 'value': '' }, _('All devices'))
 		].concat(devs.map((d) => E('option', { 'value': d.mac }, d.host || d.ip4 || d.mac))));
+		if (this.mac && !devs.some(d => d.mac.toLowerCase() === this.mac))
+			sel.appendChild(E('option', { value: this.mac }, this.mac));
 
 		const tabs = E('div', { 'class': 'zen-tf-tabs' }, [
 			this.tabBtn('day', _('Daily (90 days)')),
@@ -246,7 +254,16 @@ return view.extend({
 			return;
 
 		const request = this.request = (this.request || 0) + 1;
-		this.timelineView?.select(this.mac);
+		const timelineReady = this.timelineView?.select(this.mac);
+		if (this.jumpToHourly) {
+			this.jumpToHourly = false;
+			Promise.resolve(timelineReady).then(() => requestAnimationFrame(() => {
+				const section = this.timelineView?.container;
+				if (!section?.isConnected) return;
+				section.scrollIntoView({ block: 'start' });
+				section.focus({ preventScroll: true });
+			}));
+		}
 		this.statusText.textContent = _('Loading history…');
 		this.resetButton.disabled = !this.mac;
 		this.scopeNote.textContent = this.scope === 'internet' ?
