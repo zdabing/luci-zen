@@ -717,3 +717,96 @@ msgstr "尚未发布适配此固件的版本。"
 
 msgid "Package details"
 msgstr "软件包详情"
+
+msgid "Preparing update…"
+msgstr "正在准备更新…"
+
+msgid "Checking package…"
+msgstr "正在检查软件包…"
+
+msgid "Downloading on router…"
+msgstr "路由器正在下载…"
+
+msgid "Verifying package…"
+msgstr "正在校验软件包…"
+
+msgid "Installing package…"
+msgstr "正在安装软件包…"
+
+msgid "Restarting traffic service…"
+msgstr "正在重启流量服务…"
+
+msgid "Update completed."
+msgstr "更新完成。"
+
+msgid "Update failed."
+msgstr "更新失败。"
+
+msgid "Another update is running."
+msgstr "已有更新正在进行。"
+
+msgid "Invalid update request."
+msgstr "更新请求无效。"
+
+msgid "This updater requires an APK-based OpenWrt system."
+msgstr "此更新功能需要使用 APK 的 OpenWrt 系统。"
+
+msgid "The selected package is not installed."
+msgstr "尚未安装所选软件包。"
+
+msgid "The package does not match this router."
+msgstr "软件包与此路由器不匹配。"
+
+msgid "Package verification failed; nothing was installed."
+msgstr "软件包校验失败，未执行安装。"
+
+msgid "Download failed. Check the router internet connection and retry."
+msgstr "下载失败，请检查路由器的网络连接后重试。"
+
+msgid "The download size does not match."
+msgstr "下载文件大小不符。"
+
+msgid "Not enough temporary space on the router."
+msgstr "路由器临时存储空间不足。"
+
+msgid "The selected version is no longer newer."
+msgstr "所选版本已不是较新版本。"
+
+msgid "The system package manager is busy. Try again later."
+msgstr "系统包管理器正在运行，请稍后重试。"
+
+msgid "The package manager could not install the update."
+msgstr "包管理器无法安装此更新。"
+
+msgid "The installed version could not be verified."
+msgstr "无法核实安装后的版本。"
+
+msgid "The package was installed, but the traffic service could not start."
+msgstr "软件包已安装，但流量服务未能启动。"
+
+msgid "The update was interrupted. Refresh versions before retrying."
+msgstr "更新已中断，请刷新版本后重试。"
+
+msgid "Unable to start the update service."
+msgstr "无法启动更新服务。"
+
+msgid "Unable to complete the update."
+msgstr "无法完成更新。"
+
+msgid "Reconnecting to the update service…"
+msgstr "正在重新连接更新服务…"
+
+msgid "Reload page"
+msgstr "重新载入页面"
+
+msgid "Updates are downloaded, verified and installed by the router. Keep power connected during installation."
+msgstr "更新由路由器下载、校验并安装，安装期间请保持供电。"
+
+msgid "Install the new Zen theme once to enable updates directly on the router."
+msgstr "先手动安装新版 Zen 主题，即可启用路由器直接更新。"
+
+msgid "Download APK"
+msgstr "下载 APK"
+
+msgid "Update"
+msgstr "更新"

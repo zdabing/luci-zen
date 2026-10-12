@@ -13,6 +13,32 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  zen-updater:
+    name: Zen updater ucode and isolated installation tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Build pinned ucode interpreter
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake libjson-c-dev pkg-config
+          git clone https://github.com/jow-/ucode.git "$RUNNER_TEMP/ucode"
+          git -C "$RUNNER_TEMP/ucode" checkout cef2a90f57835c38ab85157a07c4ab3c12925307
+          cmake -S "$RUNNER_TEMP/ucode" -B "$RUNNER_TEMP/ucode-build"
+          cmake --build "$RUNNER_TEMP/ucode-build" -j2
+          echo "UCODE_BIN=$RUNNER_TEMP/ucode-build/ucode" >> "$GITHUB_ENV"
+          echo "LD_LIBRARY_PATH=$RUNNER_TEMP/ucode-build" >> "$GITHUB_ENV"
+      - name: Test real updater policy and worker
+        run: |
+          export UCODE_LIB_PATH="$RUNNER_TEMP/ucode-build/*.so"
+          node tools/test-zen-update-policy.cjs "$RUNNER_TEMP/update-cases.json"
+          "$UCODE_BIN" -L "$UCODE_LIB_PATH" tools/test-zen-update-policy.uc \
+            luci-theme-zen/root/usr/share/zen/update-model.uc "$RUNNER_TEMP/update-cases.json"
+          python3 tools/test-zen-update-worker.py
   rust-check:
     name: Rust check (zen-traffic)
     runs-on: ubuntu-latest
@@ -182,6 +208,7 @@ jobs:
           python3 tools/test-device-timeline.py
           node tools/test-appearance.cjs
           node tools/test-zen-updates.cjs
+          node tools/test-zen-update-policy.cjs
           python3 tools/test-release-metadata.py
           python3 tools/test-apk-repository.py
           python3 tools/test-traffic-install.py

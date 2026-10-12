@@ -1,0 +1,11 @@
+#!/bin/sh
+case "$1" in
+    list) printf '%s\n' '{"status":{},"start":{"package":"String","tag":"String"}}' ;;
+    call)
+        case "$2" in
+            status|start) exec /usr/bin/ucode /usr/share/zen/update.uc "$2" ;;
+            *) exit 1 ;;
+        esac
+        ;;
+    *) exit 1 ;;
+esac

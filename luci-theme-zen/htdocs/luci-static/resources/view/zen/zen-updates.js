@@ -4,6 +4,7 @@
 'require fs';
 'require ui';
 'require view.zen.zen-update-model as model';
+'require view.zen.zen-package-update as packageUpdate';
 
 const boardCall = rpc.declare({ object: 'system', method: 'board' });
 const statusCall = rpc.declare({ object: 'zen.traffic', method: 'getStatus' });
@@ -54,15 +55,30 @@ return baseclass.extend({
 		this.details = E('p', { class: 'zen-update-note' });
 		this.results = E('div', { class: 'zen-update-results', 'aria-live': 'polite', 'aria-atomic': 'true' }, _('Updates have not been checked.'));
 		this.links = E('div', { class: 'zen-update-actions' });
+		this.updater = Object.create(packageUpdate);
+		const progress = this.updater.render(() => this.updateButtons(), async job => {
+			await this.reload();
+			if (this.lastReleases) for (const name of model.PACKAGES)
+				this.outputs[name].replaceChildren(this.result(name, model.select(this.lastReleases, this.board, name)));
+			if (job.stage === 'success' && job.package === 'luci-theme-zen') {
+				this.updater.node.append(E('button', { type: 'button', class: 'btn', click: () => window.location.reload() }, _('Reload page')));
+			}
+		});
 		this.panel = E('section', { id: 'zen-updates', class: 'zen-updates', 'aria-labelledby': 'zen-updates-title' }, [
 			E('div', { class: 'zen-update-heading' }, [E('div', {}, [E('h2', { id: 'zen-updates-title' }, _('Versions & updates')), E('p', { class: 'zen-update-note' }, _('Installed versions are read from this router.'))]), E('div', { class: 'zen-update-actions' }, [this.refresh, this.check])]),
 			E('div', { class: 'zen-version-grid', 'aria-live': 'polite' }, model.PACKAGES.map((name, i) => version(name, titles()[i]))),
-			this.details, this.results, this.links
+			this.details, progress, this.results, this.links
 		]);
 		return this.panel;
 	},
 
 	start() { this.ready = this.reload(); return this.ready; },
+	updateButtons() {
+		if (!this.updater) return;
+		this.refresh.disabled = this.check.disabled = this.busy || this.updater.busy;
+		for (const button of this.panel?.querySelectorAll('.zen-update-install') || [])
+			button.disabled = this.busy || this.updater.busy || !this.updater.canWrite;
+	},
 
 	async reload() {
 		if (this.busy) return;
@@ -74,6 +90,8 @@ return baseclass.extend({
 			]);
 			if (generation !== this.generation) return;
 			this.board = board || {}; this.packages = packages;
+			await this.updater.refresh();
+			if (generation !== this.generation) return;
 			for (const name of model.PACKAGES) {
 				this.values[name].textContent = packages ? packages[name] || _('Not installed') : _('Unable to read');
 				this.outputs[name].replaceChildren();
@@ -93,7 +111,7 @@ return baseclass.extend({
 			}
 			if (!this.links.childElementCount) this.links.append(E('span', { class: 'zen-update-note' }, _('Package management is unavailable for this account.')));
 			this.links.append(E('a', { href: 'https://github.com/' + model.REPO + '/releases', target: '_blank', rel: 'noopener noreferrer' }, _('View releases')));
-		} finally { if (generation === this.generation) { this.busy = false; this.refresh.disabled = this.check.disabled = false; } }
+		} finally { if (generation === this.generation) { this.busy = false; this.updateButtons(); } }
 	},
 
 	async checkUpdates() {
@@ -106,13 +124,16 @@ return baseclass.extend({
 			let result;
 			try {
 				const available = await releases();
+				this.lastReleases = available;
 				if (generation !== this.generation || !this.panel.isConnected) return;
 				for (const name of model.PACKAGES) this.outputs[name].replaceChildren(this.result(name, model.select(available, this.board, name)));
-				result = this.panel.querySelector('a[href*="/releases/download/"]') ? E('p', { class: 'zen-update-note' }, _('Download this APK, then use Manage Zen packages to upload and install it.')) : null;
+				result = this.panel.querySelector('a[href*="/releases/download/"]') ? E('p', { class: 'zen-update-note' },
+					this.updater.available ? _('Updates are downloaded, verified and installed by the router. Keep power connected during installation.') :
+					_('Install the new Zen theme once to enable updates directly on the router.')) : null;
 			}
 			catch (e) { result = E('p', { class: 'zen-update-note' }, e.message === 'rate' ? _('GitHub rate limit reached. Try again later.') : e.message === 'missing' ? _('Release source is unavailable.') : _('Update check failed. Check connectivity and retry.')); }
 			if (generation === this.generation && this.panel.isConnected) this.results.replaceChildren(...(result ? [result] : []), E('p', { class: 'zen-update-note' }, _('Last checked: %s').format(new Date().toLocaleString())));
-		} finally { if (generation === this.generation) { this.busy = false; this.check.disabled = this.refresh.disabled = false; } }
+		} finally { if (generation === this.generation) { this.busy = false; this.updateButtons(); } }
 	},
 
 	result(name, found) {
@@ -130,8 +151,13 @@ return baseclass.extend({
 			const state = !this.packages || cmp === null ? _('Unable to compare') : cmp < 0 ? _('Update available') : cmp === 0 ? _('Up to date') : _('Installed version is newer');
 			items.push(E('p', {}, state + (cmp < 0 && current ? ' · ' + current + ' → ' + file.version : '')));
 			if (current && cmp < 0) {
-				items.push(E('a', { class: 'btn cbi-button-action', href: repo + '/releases/download/' + encodeURIComponent(m.tag) + '/' + encodeURIComponent(file.filename), target: '_blank', rel: 'noopener noreferrer' }, _('Download')));
-				items.push(E('details', { class: 'zen-update-file' }, [E('summary', {}, _('Package details')), E('span', {}, file.filename), E('code', {}, 'SHA256: ' + file.sha256)]));
+				if (this.updater.available) {
+					const button = E('button', { class: 'btn cbi-button-action zen-update-install', type: 'button',
+						click: () => this.updater.install(name, m.tag) }, this.updater.canWrite ? _('Update') : _('Read only'));
+					button.disabled = this.updater.busy || !this.updater.canWrite; items.push(button);
+				}
+				items.push(E('details', { class: 'zen-update-file' }, [E('summary', {}, _('Package details')), E('span', {}, file.filename), E('code', {}, 'SHA256: ' + file.sha256),
+					E('a', { href: repo + '/releases/download/' + encodeURIComponent(m.tag) + '/' + encodeURIComponent(file.filename), target: '_blank', rel: 'noopener noreferrer' }, _('Download APK'))]));
 			}
 		}
 		return E('div', { class: 'zen-update-result' }, items);
