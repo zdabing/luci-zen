@@ -1,11 +1,11 @@
 // The same policy source runs in ucode in CI and in Node with equivalent core functions.
 const fs=require('node:fs'),assert=require('node:assert/strict');
 const policySource=fs.readFileSync('luci-theme-zen/root/usr/share/zen/update-model.uc','utf8');
-const load=()=>new Function('type','length','index','match','int','split','replace','push','json','substr','die',
+const load=()=>new Function('type','length','index','match','int','split','replace','push','json','substr','trim','die',
  policySource.replace(/for \((?:const|let) (\w+) in /g,'for (const $1 of '))(
  v=>Number.isInteger(v)?'int':Array.isArray(v)?'array':v===null?'null':typeof v,v=>v?.length,
  (a,b)=>a.indexOf(b),(s,re)=>String(s).match(re),v=>parseInt(v,10),(s,sep)=>s.split(sep),
- (s,a,b)=>s.replace(a,b),(a,v)=>a.push(v),JSON.parse,(s,i,n)=>s.substr(i,n),msg=>{throw Error(msg);});
+ (s,a,b)=>s.replace(a,b),(a,v)=>a.push(v),JSON.parse,(s,i,n)=>s.substr(i,n),s=>s.trim(),msg=>{throw Error(msg);});
 const policy=load(),board={release:{target:'rockchip/armv8',version:'25.12-SNAPSHOT'}};
 const file={name:'zen-traffic',version:'0.2.3-r1',filename:'zen-traffic-0.2.3-r1-rockchip-armv8.apk',size:100,sha256:'a'.repeat(64)};
 const root={schema:1,repo:'zdabing/luci-zen',tag:'v0.2.3',target:'rockchip/armv8',sdk_version:'25.12.5',packages:[file]};
@@ -33,5 +33,6 @@ for(const test of cases) {
  else assert.equal(policy.candidate(test.release,test.request,test.board,test.current).filename,test.expected);
 }
 assert.deepEqual(policy.installed('P:luci-theme-zen\nV:0.2.2-r1\n\nP:unrelated\nV:1.0.0'),{'luci-theme-zen':'0.2.2-r1'});
+assert.equal(policy.compare('0.2.2-r1','0.2.2-r2'),-1);
 if(process.argv[2])fs.writeFileSync(process.argv[2],JSON.stringify(cases));
 console.log('PASS: updater policy validates repository, release, installed version, platform, path, asset hash/size and package allowlist');
