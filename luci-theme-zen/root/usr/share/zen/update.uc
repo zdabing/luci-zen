@@ -20,7 +20,7 @@ function save(job) {
     if (!fs.rename(statePath + '.new', statePath)) die('storage');
 }
 function cleanup() {
-    for (const name in ['package.apk', 'release.json', 'command.out']) fs.unlink(root + '/' + name);
+    for (let name in ['package.apk', 'release.json', 'command.out']) fs.unlink(root + '/' + name);
     fs.rmdir(root + '/busy');
 }
 function publicState(job) {
@@ -51,14 +51,7 @@ function status() {
     }
     return publicState(job);
 }
-function start(request) {
-    if (!policy.validRequest(request)) return { ok: false, error: 'invalid_request' };
-    ensureRoot();
-    // Hold a request lock while checking the old job and creating the next one.
-    const guard = fs.open(root + '/request.lock', 'a', 0600);
-    if (!guard || !guard.lock('xn')) return { ok: false, error: 'busy' };
-    let response;
-    try {
+function createJob(request) {
         const previous = status();
         if (previous.busy || (previous.job.pid && fs.stat('/proc/' + previous.job.pid)))
             return { ok: false, error: 'busy' };
@@ -72,8 +65,18 @@ function start(request) {
         save(job);
         const launched = command(['/etc/init.d/zen-update', 'start'], 10000);
         if (launched.code != 0) { job.stage = 'failed'; job.error = 'launch'; save(job); cleanup(); }
-        response = { ok: launched.code == 0, ...publicState(job) };
-    } finally { guard.close(); }
+        return { ok: launched.code == 0, ...publicState(job) };
+}
+function start(request) {
+    if (!policy.validRequest(request)) return { ok: false, error: 'invalid_request' };
+    ensureRoot();
+    // Hold a request lock while checking the old job and creating the next one.
+    const guard = fs.open(root + '/request.lock', 'a', 0600);
+    if (!guard || !guard.lock('xn')) return { ok: false, error: 'busy' };
+    let response;
+    try { response = createJob(request); }
+    catch (e) { guard.close(); die(e.message); }
+    guard.close();
     return response;
 }
 function worker() {
@@ -133,9 +136,8 @@ function worker() {
         job.stage = 'success';
     } catch (e) {
         job.stage = 'failed'; job.error = e.message || 'internal';
-    } finally {
-        save(job); if (packageLock) packageLock.close(); cleanup();
     }
+    save(job); if (packageLock) packageLock.close(); cleanup();
 }
 
 try {

@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 const policy = loadfile(ARGV[0])();
-for (const test in json(fs.readfile(ARGV[1]))) {
+for (let test in json(fs.readfile(ARGV[1]))) {
     let failed = false;
     try {
         const file = policy.candidate(test.release, test.request, test.board, test.current);

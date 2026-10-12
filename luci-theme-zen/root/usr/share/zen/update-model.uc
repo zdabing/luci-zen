@@ -16,7 +16,7 @@ function compare(a, b) {
 }
 function installed(text) {
     const versions = {};
-    for (const block in split(replace(text || '', /\r/g, ''), /\n\s*\n/)) {
+    for (let block in split(replace(text || '', /\r/g, ''), /\n\s*\n/)) {
         const name = match(block, /^P:([^\n]+)$/m), version = match(block, /^V:([^\n]+)$/m);
         if (name && version && index(packages, name[1]) >= 0) versions[name[1]] = version[1];
     }
@@ -35,14 +35,14 @@ function candidate(release, request, board, current) {
     const builds = [root];
     if (root.builds != null) {
         if (type(root.builds) != 'array' || length(root.builds) > 31) die('invalid_metadata');
-        for (const build in root.builds) push(builds, build);
+        for (let build in root.builds) push(builds, build);
     }
-    for (const build in builds) {
+    for (let build in builds) {
         if (build.schema != 1 || build.repo != 'zdabing/luci-zen' || build.tag != request.tag ||
             type(build.target) != 'string' || type(build.packages) != 'array') die('invalid_metadata');
         if (request.package == 'zen-traffic' && (build.target != board.release?.target ||
             !major(board.release?.version) || major(build.sdk_version) != major(board.release?.version))) continue;
-        for (const file in build.packages) {
+        for (let file in build.packages) {
             if (file.name != request.package) continue;
             const suffix = replace(build.target, '/', '-');
             if (type(file.version) != 'string' || compare(current, file.version) !== -1) die('not_newer');
@@ -51,7 +51,7 @@ function candidate(release, request, board, current) {
             if (type(file.size) != 'int' || file.size <= 0 || file.size > 33554432 ||
                 type(file.sha256) != 'string' || !match(file.sha256, /^[a-f0-9]{64}$/)) die('invalid_metadata');
             let uploaded = false;
-            for (const asset in release.assets || []) {
+            for (let asset in release.assets || []) {
                 if (asset.name == file.filename && asset.state == 'uploaded' && asset.size == file.size &&
                     (!asset.digest || asset.digest == 'sha256:' + file.sha256)) uploaded = true;
             }

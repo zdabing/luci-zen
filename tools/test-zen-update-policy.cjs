@@ -2,7 +2,7 @@
 const fs=require('node:fs'),assert=require('node:assert/strict');
 const policySource=fs.readFileSync('luci-theme-zen/root/usr/share/zen/update-model.uc','utf8');
 const load=()=>new Function('type','length','index','match','int','split','replace','push','json','die',
- policySource.replace(/for \(const (\w+) in /g,'for (const $1 of '))(
+ policySource.replace(/for \((?:const|let) (\w+) in /g,'for (const $1 of '))(
  v=>Number.isInteger(v)?'int':Array.isArray(v)?'array':v===null?'null':typeof v,v=>v?.length,
  (a,b)=>a.indexOf(b),(s,re)=>String(s).match(re),v=>parseInt(v,10),(s,sep)=>s.split(sep),
  (s,a,b)=>s.replace(a,b),(a,v)=>a.push(v),JSON.parse,msg=>{throw Error(msg);});
