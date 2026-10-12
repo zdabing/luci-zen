@@ -74,11 +74,10 @@ jobs:
               output.write(f'tag={tag}\nversion={version}-r{revision}\n')
           Path('release-notes.md').write_text(
               f'Zen 主题 {version}-r{revision}，APK 架构为 `all`。\n\n'
-              '- 彩色设备类型与品牌字标，名称优先识别，离线 MAC 厂商补充品牌。\n'
-              '- 设备品牌、型号和类型可手动纠正，外观及识别设置保存在路由器，跨浏览器共享。\n'
-              '- 修复设备实时速率排序、对齐和缩放布局，移除重复流量明细。\n'
-              '- 默认读取物理 WAN 实时流量，运行及连接时长统一显示时间单位。\n\n'
-              '- 实时曲线按真实时间戳显示最近五分钟，修复历史采样与横轴时间错位。\n\n'
+              '- 版本页提供路由器一键更新：下载、校验、安装三个 Zen 组件并显示进度；页面重载后恢复后台任务。\n'
+              '- 安装权限独立于外观设置，只允许固定仓库、已安装的 Zen 包和更高版本。\n'
+              '- 更新由独立后台任务执行；服务包升级后重启并检查运行状态。\n\n'
+              '旧主题尚无安装接口，需手动安装一次本版，之后即可在页面点击“更新”。\n\n'
               '安装：下载 APK，在 OpenWrt 软件包页面上传安装，然后选择 Zen 主题。需要 ucode LuCI。\n\n'
               f'源码提交：`{os.environ["GITHUB_SHA"]}`\n', encoding='utf-8')
           Path('out/sources.tsv').write_text(

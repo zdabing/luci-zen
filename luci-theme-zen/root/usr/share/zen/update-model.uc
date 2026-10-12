@@ -17,8 +17,12 @@ function compare(a, b) {
 function installed(text) {
     const versions = {};
     for (let block in split(replace(text || '', /\r/g, ''), /\n\s*\n/)) {
-        const name = match(block, /^P:([^\n]+)$/m), version = match(block, /^V:([^\n]+)$/m);
-        if (name && version && index(packages, name[1]) >= 0) versions[name[1]] = version[1];
+        let name, version;
+        for (let line in split(block, '\n')) {
+            if (substr(line, 0, 2) == 'P:') name = substr(line, 2);
+            if (substr(line, 0, 2) == 'V:') version = substr(line, 2);
+        }
+        if (name && version && index(packages, name) >= 0) versions[name] = version;
     }
     return versions;
 }
