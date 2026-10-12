@@ -36,6 +36,16 @@
  const requests=[]; window.previewRequests=requests;
  const rpc = { declare:spec => async (...args) => {
   requests.push({method:spec.method,args});
+  if(spec.object==='zen.update') {
+   if(spec.method==='status') return structuredClone(window.previewUpdateState||{available:true,busy:false,job:{}});
+   if(spec.method==='start'&&window.previewAllowUpdates) {
+    window.previewJobCounter=(window.previewJobCounter||0)+1;
+    window.previewUpdateState={ok:true,available:true,busy:true,job:{id:'preview-job-'+window.previewJobCounter,package:args[0],tag:args[1],stage:'downloading',version:'0.3.0-r1'}};
+    return structuredClone(window.previewUpdateState);
+   }
+   throw Error('Installing packages is disabled in preview');
+  }
+  if(spec.object==='session'&&spec.method==='access') return {access:window.previewUpdateAccess!==false};
   const data = {
    getStatus:{version:'0.2.0',running:true,device_wan_rates:true,wan_daily:true,device_timeline:true,timeline_today:new Date(now*1000).toLocaleDateString('sv-SE'),now,since:now,interfaces:['pppoe-wan'],uptime:7200},
    getDevices:{dev:devices}, getTotal:{rx_r:9.2e6,tx_r:1.8e6,rx_today:12e9,tx_today:3e9},

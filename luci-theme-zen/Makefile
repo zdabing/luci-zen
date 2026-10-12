@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-theme-zen
 PKG_VERSION:=0.2.2
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
 PKG_MAINTAINER:=luci-zen maintainers
 PKG_LICENSE:=Apache-2.0 GPL-3.0-only
@@ -16,7 +16,7 @@ define Package/luci-theme-zen
   CATEGORY:=LuCI
   SUBMENU:=4. Themes
   TITLE:=Zen - Apple-inspired LuCI theme
-  DEPENDS:=+luci-base
+  DEPENDS:=+luci-base +ucode +ucode-mod-fs +curl +ca-bundle
   PKGARCH:=all
 endef
 
@@ -47,6 +47,9 @@ define Build/Compile
 		$(STAGING_DIR_HOSTPKG)/bin/ucode -T -c,dynlink=luci.core,dynlink=uci -o /dev/null "$$$$template" || exit $$$$?; \
 	done
 	po2lmo $(CURDIR)/po/zh_Hans/theme.po $(PKG_BUILD_DIR)/zen.zh-cn.lmo
+	for script in $(CURDIR)/root/usr/share/zen/*.uc; do \
+		$(STAGING_DIR_HOSTPKG)/bin/ucode -c,dynlink=fs -o /dev/null "$$$$script" || exit $$$$?; \
+	done
 endef
 
 define Package/luci-theme-zen/install
@@ -77,6 +80,9 @@ define Package/luci-theme-zen/install
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_CONF) ./root/etc/config/zen $(1)/etc/config/zen
 	$(INSTALL_BIN) ./root/etc/uci-defaults/30_luci-theme-zen $(1)/etc/uci-defaults/30_luci-theme-zen
+	$(INSTALL_DIR) $(1)/usr/libexec/rpcd $(1)/usr/share/zen
+	$(INSTALL_BIN) ./root/usr/libexec/rpcd/zen.update $(1)/usr/libexec/rpcd/zen.update
+	$(INSTALL_DATA) ./root/usr/share/zen/*.uc $(1)/usr/share/zen/
 
 	$(INSTALL_DIR) $(1)/usr/share/rpcd/acl.d
 	$(INSTALL_DATA) ./root/usr/share/rpcd/acl.d/luci-theme-zen.json $(1)/usr/share/rpcd/acl.d/luci-theme-zen.json

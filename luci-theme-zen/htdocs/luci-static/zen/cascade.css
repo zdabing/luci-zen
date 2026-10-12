@@ -3239,6 +3239,12 @@ header .showSide:focus-visible { outline: 2px solid var(--accent); outline-offse
 .zen-share-legend :is(button, a):hover { background: var(--bg-card); }
 .zen-share-legend :is(button, a):focus-visible { outline: 2px solid var(--gauge); outline-offset: 2px; }
 .zen-share-device-link:hover .zen-share-name { text-decoration: underline; text-underline-offset: 3px; }
+.zen-update-progress { margin:16px 0; padding:14px 16px; border:1px solid var(--line); border-radius:12px; background:var(--bg-card); overflow-wrap:anywhere; }
+.zen-update-progress[hidden], .zen-update-log[hidden] { display:none; }
+.zen-update-progress .zen-update-note { margin:0; }
+.zen-update-progress > button { margin-top:12px; }
+.zen-update-log { max-height:180px; max-width:100%; overflow:auto; white-space:pre-wrap; word-break:break-word; font-size:12px; margin:10px 0 0; }
+.zen-update-file > a { display:block; width:fit-content; margin-top:8px; }
 .zen-share-swatch { width: 8px; height: 8px; margin-top: 5px; border-radius: 50%; }
 .zen-share-name { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .zen-share-amount { grid-column: 2; color: var(--text-secondary); font-size: 11px; font-variant-numeric: tabular-nums; }

@@ -5,6 +5,7 @@
 			"uci": [ "zen" ],
 			"cgi-io": [ "exec", "download" ],
 			"ubus": {
+				"zen.update": [ "status" ],
 				"uci": [ "get" ],
 				"file": [ "read" ],
 				"system": [ "info", "board" ],
@@ -24,5 +25,9 @@
 			"ubus": { "uci": [ "set", "commit" ] },
 			"uci": [ "zen" ]
 		}
+	},
+	"luci-theme-zen-updates": {
+		"description": "Install verified updates for the three Zen components",
+		"write": { "ubus": { "zen.update": [ "start" ] } }
 	}
 }
