@@ -10,7 +10,7 @@
 
 可用更新的主操作为“更新”。点击后调用 `zen.update.start(package,tag)`，后台重新读取固定仓库的正式 Release 元数据并核对已安装版本、target / OpenWrt 大版本、附件名称、大小和 SHA256；不接受客户端提供 URL、路径、哈希或命令。下载、校验、安装和服务重启结果通过 `zen.update.status` 显示，重新打开页面可恢复任务状态。展开软件包详情仍可手动下载 APK。`all` 代表包不含目标二进制，主题仍需要 ucode LuCI；安装时继续由包管理器检查实际依赖。
 
-安装权限单独放在 `luci-theme-zen-updates` ACL 中，仅允许 `zen.update.start`；外观设置写权限不会自动获得安装权限。管理员可更新，只读账号的更新按钮禁用。新 RPC 只允许更新已安装的三个 Zen 包，不支持固件、任意包或任意命令。任务由独立 procd 服务运行，rpcd 或页面重载不停止安装；全局任务锁和包管理器锁防止重复或并发安装。
+安装权限单独放在 `luci-theme-zen-updates` ACL 中，仅允许 `zen.update.start`；外观设置写权限不会自动获得安装权限。管理员可更新，只读账号的更新按钮禁用。新 RPC 只允许更新已安装的三个 Zen 包，不支持固件、任意包或任意命令。任务注册为独立、无 respawn 的临时 procd 实例，不打包 init 服务文件，避免主题升级的 prerm 停止安装任务；rpcd 或页面重载不停止安装；全局任务锁和包管理器锁防止重复或并发安装。
 
 需要 APK-based OpenWrt、ucode/fs、curl 和 CA 证书，主题包声明这些依赖。下载只接受 HTTPS（含重定向），限时、限大小并校验 SHA256。独立 Release APK 尚未进入系统信任库，因此只对已核对固定仓库元数据和文件哈希的本地包调用 `apk add --upgrade --allow-untrusted`，不修改系统信任配置、不使用 force-overwrite 或禁用依赖检查。临时文件放在私有 `/tmp/zen-update` 目录；任务结束清理 APK，状态保留至重启或下一次更新。流量后台安装后核对实际版本并重启/检查采集服务；数据库和配置交由原软件包升级脚本保留。
 

@@ -54,7 +54,7 @@ with tempfile.TemporaryDirectory(prefix='zen-package-assets-') as temp:
                 f'{package}: missing or changed route file {asset.name}'
         resource_root = stage / 'www/luci-static/resources'
         if package == 'luci-theme-zen':
-            for filename in ['etc/init.d/zen-update','usr/libexec/rpcd/zen.update',
+            for filename in ['usr/libexec/rpcd/zen.update',
                              'usr/share/zen/update.uc','usr/share/zen/update-model.uc']:
                 assert (stage / filename).read_bytes() == (source / 'root' / filename).read_bytes(), filename
             assert (stage / 'etc/config/zen').read_bytes() == (source / 'root/etc/config/zen').read_bytes()

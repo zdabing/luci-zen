@@ -80,8 +80,7 @@ define Package/luci-theme-zen/install
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_CONF) ./root/etc/config/zen $(1)/etc/config/zen
 	$(INSTALL_BIN) ./root/etc/uci-defaults/30_luci-theme-zen $(1)/etc/uci-defaults/30_luci-theme-zen
-	$(INSTALL_DIR) $(1)/etc/init.d $(1)/usr/libexec/rpcd $(1)/usr/share/zen
-	$(INSTALL_BIN) ./root/etc/init.d/zen-update $(1)/etc/init.d/zen-update
+	$(INSTALL_DIR) $(1)/usr/libexec/rpcd $(1)/usr/share/zen
 	$(INSTALL_BIN) ./root/usr/libexec/rpcd/zen.update $(1)/usr/libexec/rpcd/zen.update
 	$(INSTALL_DATA) ./root/usr/share/zen/*.uc $(1)/usr/share/zen/
 

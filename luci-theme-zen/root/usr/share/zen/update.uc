@@ -63,7 +63,13 @@ function createJob(request) {
         const job = { id: sprintf('%d-%s', time(), fs.readlink('/proc/self')), package: request.package,
             tag: request.tag, stage: 'queued', started: time() };
         save(job);
-        const launched = command(['/etc/init.d/zen-update', 'start'], 10000);
+        // Register a transient procd instance. Package prerm stops packaged init
+        // services, so an /etc/init.d worker would kill itself during a theme upgrade.
+        command(['/bin/ubus', 'call', 'service', 'delete', '{"name":"zen-update"}'], 5000);
+        const service = { name: 'zen-update', instances: { job: {
+            command: ['/usr/bin/ucode', '/usr/share/zen/update.uc', 'worker'], stdout: true, stderr: true
+        } } };
+        const launched = command(['/bin/ubus', 'call', 'service', 'set', sprintf('%J', service)], 10000);
         if (launched.code != 0) { job.stage = 'failed'; job.error = 'launch'; job.details = launched.text; save(job); cleanup(); }
         return { ok: launched.code == 0, ...publicState(job) };
 }

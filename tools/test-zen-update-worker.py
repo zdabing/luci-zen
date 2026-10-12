@@ -48,7 +48,7 @@ class WorkerTests(unittest.TestCase):
         source = source.replace('/usr/share/zen/update-model.uc',str(REPO/'luci-theme-zen/root/usr/share/zen/update-model.uc'))
         source = source.replace('/lib/apk/db/installed',str(self.root/'installed'))
         for path,kind in [('/usr/bin/curl','curl'),('/usr/bin/apk','apk'),('/bin/ubus','ubus'),
-                ('/etc/init.d/zen-update','launch'),('/etc/init.d/zen-traffic','service')]:
+                ('/etc/init.d/zen-traffic','service')]:
             wrapper = self.root/kind
             wrapper.write_text('#!/bin/sh\nexec '+str(Path(sys.executable))+' '+str(Path(__file__).resolve())+' --mock '+kind+' "$@"\n')
             wrapper.chmod(0o700); source = source.replace(path,str(wrapper))
@@ -78,6 +78,11 @@ class WorkerTests(unittest.TestCase):
         apk = [call for call in self.calls() if call[0]=='apk']
         self.assertEqual(len(apk),1);self.assertEqual(apk[0][1:4],['add','--upgrade','--allow-untrusted'])
         self.assertTrue(any(call[0]=='service' for call in self.calls()))
+        launch=[call for call in self.calls() if call[:4]==['ubus','call','service','set']]
+        self.assertEqual(len(launch),1)
+        instance=json.loads(launch[0][4])['instances']['job']
+        self.assertEqual(instance['command'],['/usr/bin/ucode','/usr/share/zen/update.uc','worker'])
+        self.assertNotIn('respawn',instance,'An installation failure must not automatically retry')
         self.assertFalse((self.root/'job/package.apk').exists());self.assertFalse((self.root/'job/busy').exists())
         self.assertEqual(self.run_ucode('status')['job']['id'],status['job']['id'],'Result survives a new RPC process')
 
