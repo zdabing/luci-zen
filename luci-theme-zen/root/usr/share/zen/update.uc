@@ -30,7 +30,7 @@ function quote(value) { return "'" + replace('' + value, /'/g, "'\\''") + "'"; }
 function command(argv, timeout, maxOutput) {
     // All arguments are quoted; no command, path or option comes from RPC input.
     const output = root + '/command-' + fs.readlink('/proc/self') + '.out';
-    const code = system(join(map(argv, quote), ' ') + ' >' + quote(output) + ' 2>&1', timeout);
+    const code = system(join(' ', map(argv, quote)) + ' >' + quote(output) + ' 2>&1', timeout);
     const text = fs.readfile(output, maxOutput || 4096) || '';
     fs.unlink(output);
     return { code, text };
