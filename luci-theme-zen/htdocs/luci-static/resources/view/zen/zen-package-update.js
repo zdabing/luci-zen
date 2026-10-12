@@ -8,6 +8,7 @@ const access = rpc.declare({ object: 'session', method: 'access', params: ['scop
 const stages = () => ({ queued: _('Preparing update…'), checking: _('Checking package…'), downloading: _('Downloading on router…'),
 	verifying: _('Verifying package…'), installing: _('Installing package…'), restarting: _('Restarting traffic service…'),
 	success: _('Update completed.'), failed: _('Update failed.') });
+const names = () => ({ 'luci-theme-zen': _('Zen theme'), 'luci-app-zen-traffic': _('Zen traffic interface'), 'zen-traffic': _('Zen traffic service') });
 const errors = () => ({ busy: _('Another update is running.'), invalid_request: _('Invalid update request.'),
 	apk_required: _('This updater requires an APK-based OpenWrt system.'), not_installed: _('The selected package is not installed.'),
 	incompatible: _('The package does not match this router.'), checksum: _('Package verification failed; nothing was installed.'),
@@ -40,7 +41,7 @@ return baseclass.extend({
 	show(state) {
 		this.busy = !!state.busy; this.job = state.job || {};
 		this.node.hidden = !this.job.stage;
-		this.text.textContent = (this.job.package ? this.job.package + (this.job.version ? ' → ' + this.job.version : '') + ' · ' : '') +
+		this.text.textContent = (this.job.package ? (names()[this.job.package] || this.job.package) + (this.job.version ? ' → ' + this.job.version : '') + ' · ' : '') +
 			(stages()[this.job.stage] || '') + (this.job.error ? ' ' + (errors()[this.job.error] || _('Unable to complete the update.')) : '');
 		this.log.hidden = !this.job.details; this.log.textContent = this.job.details || '';
 		this.onChange?.();

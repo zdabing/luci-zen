@@ -69,7 +69,7 @@ class WorkerTests(unittest.TestCase):
         return [json.loads(line) for line in (self.root/'calls.jsonl').read_text().splitlines()]
 
     def test_success_serialization_resume_and_cleanup(self):
-        self.assertTrue(self.start()['ok'])
+        first = self.start(); self.assertTrue(first['ok'],first)
         self.assertEqual(self.start()['error'],'busy')
         self.assertTrue(self.run_ucode('status')['busy'])
         self.run_ucode('worker')
