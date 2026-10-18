@@ -12,6 +12,11 @@ SCHEMA = re.search(
 ).group(1)
 
 
+def wan_upsert_sql():
+    body = PERSISTENCE.split("for ((day, mac), bytes) in &wan.daily {", 1)[1].split("tx.execute", 1)[1]
+    return body.split('"', 2)[1]
+
+
 def cleanup_sql(method):
     body = PERSISTENCE.split("fn checkpoint_inner(", 1)[1].split("pub fn wan_window(", 1)[0]
     queries = re.findall(r'\.execute\("([^"]+)"', body)
@@ -61,6 +66,13 @@ class RetentionTests(unittest.TestCase):
             self.assertEqual(len(self.rows("daily_usage")), 4)
             self.assertEqual(len(self.rows("monthly_usage")), 4)
         self.assertEqual(len(self.rows("devices")), 2)
+
+    def test_unchanged_wan_daily_rows_are_not_rewritten(self):
+        sql = wan_upsert_sql()
+        self.db.execute(sql, ("2026-09-30", "02:00:00:00:00:01", 111, 222))
+        before = self.db.total_changes
+        self.db.execute(sql, ("2026-09-30", "02:00:00:00:00:01", 111, 222))
+        self.assertEqual(self.db.total_changes, before, "unchanged WAN rows must not be rewritten")
 
     def test_failed_monthly_cleanup_rolls_back_daily_cleanup(self):
         before = {table: self.rows(table) for table in ("daily_usage", "monthly_usage", "devices")}

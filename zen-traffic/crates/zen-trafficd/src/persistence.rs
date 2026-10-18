@@ -463,13 +463,18 @@ impl Db {
                 tx.execute(
                     "INSERT INTO wan_devices (mac,download_bytes,upload_bytes) VALUES (?1,?2,?3)
                      ON CONFLICT(mac) DO UPDATE SET download_bytes=excluded.download_bytes,
-                     upload_bytes=excluded.upload_bytes",
+                     upload_bytes=excluded.upload_bytes
+                     WHERE download_bytes != excluded.download_bytes OR upload_bytes != excluded.upload_bytes",
                     params![mac, integer(download), integer(upload)],
                 ).map_err(|e| e.to_string())?;
             }
             for ((day, mac), bytes) in &wan.daily {
+                // Historical days are immutable in normal operation. Skip the
+                // UPSERT when values are unchanged so every checkpoint does not
+                // rewrite the full 90-day ledger.
                 tx.execute("INSERT INTO wan_daily VALUES(?1,?2,?3,?4) ON CONFLICT(date,mac)
-                    DO UPDATE SET download_bytes=excluded.download_bytes,upload_bytes=excluded.upload_bytes",
+                    DO UPDATE SET download_bytes=excluded.download_bytes,upload_bytes=excluded.upload_bytes
+                    WHERE download_bytes != excluded.download_bytes OR upload_bytes != excluded.upload_bytes",
                     params![day, mac, integer(bytes.download), integer(bytes.upload)]).map_err(|e| e.to_string())?;
             }
             tx.execute("INSERT INTO app_settings VALUES('wan_daily_since',?1) ON CONFLICT(name) DO UPDATE SET value=excluded.value",

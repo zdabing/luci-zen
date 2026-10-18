@@ -93,15 +93,18 @@ fn main() {
     // 2) 事件循环（SIGTERM 置 uloop_cancelled，≤1s 退出）
     unsafe { zen_ubus_sys::uloop_run_timeout(-1) };
 
-    // 3) 清理：最终 checkpoint → ubus/uloop → drop(Ebpf) 自动 detach filter
-    ubus::with_daemon(|d| {
+    // 3) 清理：最终 checkpoint → 用 attach 返回的 LinkId 显式 detach → ubus/uloop。
+    // Daemon 从 static 中取出，确保清理和 Drop 真正执行。
+    let shutdown_daemon = ubus::DAEMON.lock().expect("DAEMON lock").take();
+    if let Some(mut d) = shutdown_daemon {
         if ubus::shutting_down() {
             println!("[zen-trafficd] 收到 SIGTERM/SIGINT，开始清理");
         }
         unsafe { d.wifi.cancel(d.ubus_ctx); }
         d.realtime.flush(&d.db, state::now_mono_ms(), state::now_epoch(), true);
         d.shutdown_checkpoint();
-    });
+        d.shutdown_attachments();
+    }
 
     if !ubus_ctx.is_null() {
         unsafe {

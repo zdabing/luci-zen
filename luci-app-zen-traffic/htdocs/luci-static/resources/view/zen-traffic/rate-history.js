@@ -102,21 +102,22 @@ return baseclass.extend({
  },
  async query() {
   this.setRange();
-  const now=Math.floor(Date.now()/1000);
   let start=Math.floor(new Date(this.start.value).getTime()/1000), end=Math.floor(new Date(this.end.value).getTime()/1000);
-  if(this.range.value==='custom'&&(!Number.isFinite(start)||!Number.isFinite(end)||start>end||start<now-7*DAY||end>now)) {
-   this.error.textContent=_('Choose a valid time range within the last 7 days.'); return;
-  }
   const id=++this.requestId;
   this.button.disabled=true; this.button.textContent=_('Loading…');this.error.textContent='';
   try {
+   // Always align range validation to the router clock; the browser may be
+   // several minutes ahead/behind, especially on isolated LANs.
+   const status=await callStatus();
+   if(id!==this.requestId) return;
+   const serverNow=Number(status.since);
+   if(!Number.isFinite(serverNow)||serverNow<1700000000) throw new Error('Invalid router time');
+   for(const input of [this.start,this.end]) {input.min=localInput(serverNow-7*DAY);input.max=localInput(serverNow);}
    if(this.range.value!=='custom') {
-    const status=await callStatus();
-    if(id!==this.requestId) return;
-    const serverNow=Number(status.since);
-    if(!Number.isFinite(serverNow)||serverNow<1700000000) throw new Error('Invalid router time');
     end=Math.floor(serverNow);start=end-Number(this.range.value);
     this.start.value=localInput(start);this.end.value=localInput(end);
+   } else if(!Number.isFinite(start)||!Number.isFinite(end)||start>end||start<serverNow-7*DAY||end>serverNow) {
+    this.error.textContent=_('Choose a valid time range within the last 7 days.'); return;
    }
    const data=await callHistory(this.iface.value||'',start,end,600);
    if(id===this.requestId) this.showData(data);

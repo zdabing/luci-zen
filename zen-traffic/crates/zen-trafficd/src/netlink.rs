@@ -52,10 +52,11 @@ const NUD_DELAY: u16 = 0x08;
 const NUD_PROBE: u16 = 0x10;
 const NUD_VALID: u16 = NUD_PERMANENT | NUD_REACHABLE | NUD_STALE | NUD_DELAY | NUD_PROBE;
 
-// tcmsg 内的 clsact parent（TC_H_MAKE(TC_H_CLSACT, minor)）
-const TC_H_CLSACT: u32 = 0xffff_fff1;
-const TC_H_MIN_INGRESS: u32 = 0xffff_fff2;
-const TC_H_MIN_EGRESS: u32 = 0xffff_fff3;
+// tcmsg 内的 clsact parent，等价内核 TC_H_MAKE(TC_H_CLSACT, minor)：
+// (major & 0xffff0000) | (minor & 0x0000ffff)。
+const TC_H_CLSACT_MAJOR: u32 = 0xffff_0000;
+pub(crate) const TC_H_MIN_INGRESS: u32 = 0xfff2;
+pub(crate) const TC_H_MIN_EGRESS: u32 = 0xfff3;
 
 const NETLINK_BUF: usize = 96 * 1024;
 
@@ -328,7 +329,7 @@ impl Netlink {
     /// 清理本项目的残留 TC filter（daemon 崩溃后 Aya link 不会自动 detach）。
     /// 返回删除数量。minor: TC_H_MIN_INGRESS / TC_H_MIN_EGRESS。
     pub fn clean_stale_tfilters(&mut self, ifindex: u32, minor: u32, names: &[&str]) -> usize {
-        let parent = TC_H_CLSACT | minor;
+        let parent = clsact_parent(minor);
         // tcmsg: family@0, ifindex@4, handle@8, parent@12, info@16（共 20B）
         let mut msg = [0u8; 20];
         wr_u32(&mut msg, 4, ifindex);
@@ -439,6 +440,11 @@ impl Netlink {
             }
         }
     }
+}
+
+/// clsact qdisc parent for ingress/egress (TC_H_MAKE(TC_H_CLSACT, minor)).
+fn clsact_parent(minor: u32) -> u32 {
+    TC_H_CLSACT_MAJOR | (minor & 0x0000_ffff)
 }
 
 fn parse_links(raw: &[u8]) -> Vec<LinkInfo> {
@@ -657,6 +663,13 @@ mod tests {
         assert_eq!(neighbors.len(), 1);
         assert_eq!(neighbors[0].mac, mac);
         assert_eq!(neighbors[0].ip, "10.0.0.205");
+    }
+
+    #[test]
+    fn clsact_parents_select_ingress_and_egress_not_the_same_family() {
+        assert_eq!(clsact_parent(TC_H_MIN_INGRESS), 0xffff_fff2);
+        assert_eq!(clsact_parent(TC_H_MIN_EGRESS), 0xffff_fff3);
+        assert_ne!(clsact_parent(TC_H_MIN_INGRESS), clsact_parent(TC_H_MIN_EGRESS));
     }
 
     #[test]

@@ -189,7 +189,7 @@ struct dev_stats {            /* eBPF 层只管 bytes/packets/last_seen */
 - local prefixes：defaults（`169.254/16`、`fe80::/10`）+ UCI `extra_prefix` + ubus `network.interface dump` 子网（**排除默认路由上游接口**）；netifd 变更经 init.d raw trigger reload / ubus `reloadPrefixes` 重学习。
 - 全局速率（getTotal）：netlink `RTM_GETROUTE` 默认路由上游接口 stats64 差分（60s 重探测）。
 - 服务发布：`ubus_connect()` + `ubus_add_object()`（`zen.traffic`）+ `ubus_add_uloop()`；ubus 不可用时采集继续（spike 同款语义）。
-- 生命周期：procd respawn；SIGTERM → checkpoint → drop(Bpf) 自动 detach → 仅本次创建的 clsact 删除 → 退出。
+- 生命周期：procd respawn；SIGTERM → checkpoint → 用 attach 返回的 LinkId 显式 detach → 空 clsact qdisc 保留（可能有其他实例复用）→ 退出。
 - 启动：SQLite 恢复（设备属性/用户名/生命周期累计 + 今日/当月接续）→ 残留 filter 清理 → attach → 前缀学习。
 
 ## 8. Daily/Monthly 数据存储设计（v3：SQLite）

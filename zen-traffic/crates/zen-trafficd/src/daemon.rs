@@ -349,6 +349,19 @@ impl Daemon {
             eprintln!("[zen-trafficd] timeline shutdown checkpoint: {e}");
         }
     }
+
+    /// 显式 detach 本次 attach 的 TC link（LinkId 来自 Attachment）。
+    pub fn shutdown_attachments(&mut self) {
+        for attachment in std::mem::take(&mut self.ifaces_meta) {
+            if let Err(e) = zen_bpf::detach(&mut self.bpf, "zen_ingress", attachment.ingress) {
+                eprintln!("[zen-trafficd] detach zen_ingress@{} 失败: {e}", attachment.name);
+            }
+            if let Err(e) = zen_bpf::detach(&mut self.bpf, "zen_egress", attachment.egress) {
+                eprintln!("[zen-trafficd] detach zen_egress@{} 失败: {e}", attachment.name);
+            }
+        }
+        // qdisc 本体不删除：可能是其他实例复用的，空 clsact 无副作用。
+    }
 }
 
 /// 清理本项目残留 TC filter（zen-bpf attach 幂等语义的另一半）
@@ -361,8 +374,9 @@ unsafe fn clean_stale(nl: &mut Netlink, iface: &str) {
     if idx == 0 {
         return;
     }
-    nl.clean_stale_tfilters(idx, 0xffff_fff2 /* TC_H_MIN_INGRESS */, &["zen-ingress"]);
-    nl.clean_stale_tfilters(idx, 0xffff_fff3 /* TC_H_MIN_EGRESS */, &["zen-egress"]);
+    // Match both Aya program names and the legacy C PoC filter names.
+    nl.clean_stale_tfilters(idx, crate::netlink::TC_H_MIN_INGRESS, &["zen_ingress", "zen-ingress"]);
+    nl.clean_stale_tfilters(idx, crate::netlink::TC_H_MIN_EGRESS, &["zen_egress", "zen-egress"]);
 }
 
 pub fn parse_mac(s: &str) -> Option<MacKey> {

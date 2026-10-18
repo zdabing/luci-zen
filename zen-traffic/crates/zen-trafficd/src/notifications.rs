@@ -260,7 +260,10 @@ impl Notifications {
         }
         if self.inflight.is_some() || !time_synced(now) { return; }
         let day = local_date(now);
-        let next = self.deliveries.iter().position(|d| d.day == day && d.next_at <= now && d.attempts < 3
+        let previous_day = crate::state::date_shift(&day, 1);
+        // Retry queued work across a midnight boundary (one-day grace); a queued
+        // alert must not become permanently undeliverable because the day changed.
+        let next = self.deliveries.iter().position(|d| (d.day == day || d.day == previous_day) && d.next_at <= now && d.attempts < 3
             && ["queued", "retry"].contains(&d.status.as_str())
             && (d.kind == "test" || (self.settings.enabled && self.settings.channel(&d.channel).is_some_and(|c| c.enabled))));
         let Some(index) = next else { return; };
@@ -403,6 +406,25 @@ mod tests {
         restarted.evaluate(&wan, &HashMap::new(), epoch); assert_eq!(restarted.deliveries.len(), 3);
         wan.set_day(epoch + 86400); wan.interface_delta(200, 1);
         restarted.evaluate(&wan, &HashMap::new(), epoch + 86400); assert_eq!(restarted.deliveries.len(), 5);
+    }
+
+    #[test]
+    fn queued_delivery_survives_midnight_boundary() {
+        let db = Db::open(":memory:").unwrap();
+        let epoch = crate::state::MIN_SYNC_EPOCH + 12 * 3600;
+        let mut n = Notifications::load_with_sender(&db, |_, _, _, _| Ok(())).unwrap();
+        n.settings.enabled = true;
+        n.settings.feishu.enabled = true;
+        n.settings.feishu.webhook = "https://open.feishu.cn/open-apis/bot/v2/hook/token".into();
+        n.deliveries.push(Delivery {
+            id: "day/threshold/feishu".into(),
+            day: crate::state::date_shift(&local_date(epoch), 1), channel: "feishu".into(),
+            kind: "threshold".into(), text: "fixture".into(), status: "retry".into(),
+            attempts: 0, next_at: epoch - 60, at: epoch - 60, error: String::new(),
+        });
+        n.tick(&db, &WanUsage::load(&db, epoch).unwrap(), &HashMap::new(), epoch, 10_000);
+        assert_eq!(n.deliveries[0].status, "sending");
+        assert_eq!(n.deliveries[0].attempts, 1);
     }
 
     #[test]

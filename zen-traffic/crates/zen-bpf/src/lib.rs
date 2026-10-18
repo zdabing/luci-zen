@@ -149,21 +149,6 @@ pub fn detach(
         .map_err(|e| format!("{prog_name} detach 失败: {e}"))
 }
 
-/// 退出清理：按名字卸载本项目 filter（与 daemon 启动时的 netlink 清理同一目标）。
-/// aya 0.14 无 qdisc_remove_clsact：空 clsact qdisc 本体保留在接口上，无副作用。
-pub fn qdisc_cleanup(iface: &str, created_by_us: bool) {
-    let _ = created_by_us;
-    for (ty, name) in [
-        (TcAttachType::Ingress, "zen_ingress"),
-        (TcAttachType::Egress, "zen_egress"),
-    ] {
-        if let Err(e) = aya::programs::tc::qdisc_detach_program(iface, ty, name) {
-            // NotFound = 接口上无本项目残留 filter，属正常
-            eprintln!("[zen-bpf] {iface}: 卸载 {name} 未执行: {e}");
-        }
-    }
-}
-
 pub struct DeviceRow {
     pub mac: MacKey,
     pub stats: DevStats,

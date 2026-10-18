@@ -226,6 +226,13 @@ return view.extend({
 			this.resizeObserver.observe(this.chart);
 		}
 		this.refresh();
+		// A page opened in a background tab skips refresh() while hidden; retry
+		// once when it becomes visible instead of leaving the chart blank.
+		this.visibilityHandler = () => {
+			if (!document.hidden && !this.lastResult)
+				this.refresh();
+		};
+		document.addEventListener('visibilitychange', this.visibilityHandler);
 		return root;
 	},
 

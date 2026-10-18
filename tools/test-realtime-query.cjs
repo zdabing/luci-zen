@@ -34,8 +34,16 @@ view.showData=data=>{view.data=data;};
   }
   view.range.value='custom';view.start.value=view.end.value;await view.query();
   assert.equal(requests.at(-1).payload.start,serverNow,'Custom timestamps must be preserved');
-  const beforeInvalid=requests.length;view.end.value='';await view.query();
-  assert.equal(requests.length,beforeInvalid,'Invalid custom input must not query');
+  // A fast browser clock must not turn a router-time custom range into a future query.
+  const browserOffset = Date.now;
+  Date.now = () => (serverNow + 600) * 1000;
+  const customStart={value:view.start.value}, customEnd={value:view.end.value};
+  view.start.value=customStart.value;view.end.value=customEnd.value;await view.query();
+  assert.equal(requests.at(-1).payload.end,serverNow,'Custom end must be validated against router time');
+  Date.now = browserOffset;
+  view.end.value='';
+  const beforeInvalid=requests.filter(r=>r.method==='getRealtimeHistory').length;await view.query();
+  assert.equal(requests.filter(r=>r.method==='getRealtimeHistory').length,beforeInvalid,'Invalid custom input must not query history');
   assert.equal(view.error.textContent,'Choose a valid time range within the last 7 days.');
   view.range.value='300';
   fail=true;
@@ -48,5 +56,5 @@ view.showData=data=>{view.data=data;};
   const old=view.query(),count=requests.length;view.requestId++;
   release({since:serverNow});await old;
   assert.equal(requests.length,count,'An obsolete status request must not issue a history query');
-  console.log('PASS: realtime presets use router clock, initial defaults and RPC failure handling');
+  console.log('PASS: realtime ranges use router clock, including custom ranges and RPC failure handling');
 })().catch(e=>{console.error(e);process.exitCode=1;}).finally(()=>{Date.now=realNow;});

@@ -27,7 +27,8 @@ for(const name of ['devices','realtime']) {
 const E=(tag,attrs={},children=[])=>({tag,attrs,disabled:Object.hasOwn(attrs,'disabled')&&attrs.disabled!=null,
  children:Array.isArray(children)?children:[children],value:attrs.value||'',textContent:'',
  appendChild(child){this.children.push(child);return child;}});
-const document={getElementById:()=>null,createElement:tag=>E(tag),head:E('head')};
+const listeners={};
+const document={getElementById:()=>null,createElement:tag=>E(tag),head:E('head'),hidden:false,addEventListener(type,fn){listeners[type]=fn;},removeEventListener(type,fn){if(listeners[type]===fn)delete listeners[type];}};
 const historySource=fs.readFileSync(path.join(root,'htdocs/luci-static/resources/view/zen-traffic/history.js'),'utf8');
 const find=(node,predicate)=>predicate(node)?node:(node.children||[]).map(child=>child&&typeof child==='object'?find(child,predicate):null).find(Boolean);
 for(const available of [true,false]) {
