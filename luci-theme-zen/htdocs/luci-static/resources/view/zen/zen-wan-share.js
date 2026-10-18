@@ -6,7 +6,7 @@
 'require view.zen.zen-share-periods as periods';
 
 const callUsage = rpc.declare({ object: 'zen.traffic', method: 'getWanUsage' });
-const COLORS = ['#3275db', '#b269cd', '#d7802f', '#349b8b', '#d76785', '#899344', '#6a80ca', '#a66f46'];
+const COLORS = ['#327563', '#ad8c5b', '#6d8792', '#82956d', '#9f7168', '#697d6b', '#9a927c', '#798da0'];
 const C = 2 * Math.PI * 54;
 const number = value => Math.max(0, Number.isFinite(Number(value)) ? Number(value) : 0);
 const PERIODS = [['day',_('This day')],['week',_('This week')],['month',_('This month')],['all',_('All time')]];

@@ -49,7 +49,10 @@ return baseclass.extend({
 		if (darkMask)
 			darkMask.addEventListener('click', ui.createHandlerFn(this, 'handleSidebarMask'));
 		document.addEventListener('click', ev => {
-			if (this.isTopNavigation() && !ev.target.closest('#mainmenu')) this.closeTopMenus();
+			if ((this.isTopNavigation() || this.isRailNavigation()) && !ev.target.closest('#mainmenu')) this.closeTopMenus();
+		});
+		document.addEventListener('focusin', ev => {
+			if (this.isRailNavigation() && !ev.target.closest('#mainmenu')) this.closeTopMenus();
 		});
 		document.addEventListener('zenappearancechange', () => {
 			const layout = document.documentElement.dataset.layout;
@@ -79,7 +82,13 @@ return baseclass.extend({
 			this._resizeTimer = setTimeout(() => this.handleSidebarResize(), 100);
 		});
 		window.addEventListener('keydown', ev => {
-			if (ev.key === 'Escape' && this.isTopNavigation()) {
+			if (ev.key === 'Tab' && window.innerWidth <= MOBILE_BP && document.body.classList.contains('sidebar-open')) {
+				const links = Array.from(document.querySelectorAll('#mainmenu a, .showSide')).filter(el => el.getClientRects().length);
+				const first = links[0], last = links[links.length - 1];
+				if (ev.shiftKey && document.activeElement === first) { last.focus(); ev.preventDefault(); }
+				else if (!ev.shiftKey && document.activeElement === last) { first.focus(); ev.preventDefault(); }
+			}
+			if (ev.key === 'Escape' && (this.isTopNavigation() || this.isRailNavigation())) {
 				const open = document.querySelector('#mainmenu .zen-menu-open > a');
 				if (open) { this.closeTopMenus(); open.focus(); ev.preventDefault(); }
 			}
@@ -94,14 +103,16 @@ return baseclass.extend({
 		const a = ev.currentTarget;
 		const li = a.parentNode;
 		const submenu = a.nextElementSibling;
-		if (this.isTopNavigation()) {
+		if (this.isTopNavigation() || (this.isRailNavigation() && li.parentNode.classList.contains('nav'))) {
 			const open = !li.classList.contains('zen-menu-open');
 			this.closeTopMenus();
 			li.classList.toggle('zen-menu-open', open);
 			a.setAttribute('aria-expanded', String(open));
 			if (open && submenu) {
 				submenu.style.left = ''; submenu.style.right = '';
-				if (submenu.getBoundingClientRect().right > window.innerWidth - 16) {
+				if (this.isRailNavigation()) {
+					submenu.style.top = Math.max(72, Math.min(a.getBoundingClientRect().top, window.innerHeight - submenu.offsetHeight - 16)) + 'px';
+				} else if (submenu.getBoundingClientRect().right > window.innerWidth - 16) {
 					submenu.style.left = 'auto'; submenu.style.right = '0';
 				}
 			}
@@ -133,6 +144,10 @@ return baseclass.extend({
 		return document.documentElement.dataset.layout === 'top' && window.innerWidth > MOBILE_BP;
 	},
 
+	isRailNavigation() {
+		return !this.isTopNavigation() && window.innerWidth > MOBILE_BP && document.body.classList.contains('sidebar-collapsed');
+	},
+
 	syncNavigationPlacement() {
 		const menu = document.querySelector('#mainmenu');
 		const header = document.querySelector('body > header .container');
@@ -148,13 +163,13 @@ return baseclass.extend({
 
 	syncMenuExpansion() {
 		document.querySelectorAll('#mainmenu .slide > .menu').forEach(a => {
-			a.setAttribute('aria-expanded', String(a.parentNode.classList.contains(this.isTopNavigation() ? 'zen-menu-open' : 'active')));
+			a.setAttribute('aria-expanded', String(a.parentNode.classList.contains(this.isTopNavigation() || this.isRailNavigation() ? 'zen-menu-open' : 'active')));
 		});
 	},
 
 	closeTopMenus() {
 		document.querySelectorAll('#mainmenu .zen-menu-open').forEach(li => li.classList.remove('zen-menu-open'));
-		document.querySelectorAll('#mainmenu .slide-menu').forEach(ul => { ul.style.left = ''; ul.style.right = ''; });
+		document.querySelectorAll('#mainmenu .slide-menu').forEach(ul => { ul.style.left = ''; ul.style.right = ''; ul.style.top = ''; });
 		this.syncMenuExpansion();
 	},
 
@@ -275,8 +290,9 @@ return baseclass.extend({
 			return;
 
 		document.body.classList.toggle('sidebar-open', open);
+		mainLeft.inert = window.innerWidth <= MOBILE_BP && !open;
 		const toggle = document.querySelector('.showSide');
-		if (toggle) toggle.setAttribute('aria-expanded', String(open));
+		if (toggle) { toggle.setAttribute('aria-expanded', String(open)); toggle.setAttribute('aria-label', open ? _('Close navigation') : _('Open navigation')); }
 
 		if (darkMask) {
 			darkMask.style.visibility = open ? 'visible' : '';
@@ -300,8 +316,11 @@ return baseclass.extend({
 
 	setDesktopCollapsed(collapsed) {
 		document.body.classList.toggle('sidebar-collapsed', collapsed);
+		const menu = document.querySelector('#mainmenu');
+		if (menu) menu.inert = false;
+		this.closeTopMenus();
 		const toggle = document.querySelector('.showSide');
-		if (toggle) toggle.setAttribute('aria-expanded', String(this.isTopNavigation() || !collapsed));
+		if (toggle) { toggle.setAttribute('aria-expanded', String(this.isTopNavigation() || !collapsed)); toggle.setAttribute('aria-label', collapsed ? _('Expand navigation') : _('Collapse navigation')); }
 		try {
 			localStorage.setItem(SIDEBAR_KEY, collapsed ? 'collapsed' : 'open');
 		} catch (e) { /* private mode */ }
@@ -336,6 +355,6 @@ return baseclass.extend({
 		if (window.innerWidth > MOBILE_BP) {
 			this.setSidebarOpen(false);
 			this.setDesktopCollapsed(this.readDesktopCollapsed());
-		}
+		} else this.setSidebarOpen(document.body.classList.contains('sidebar-open'));
 	}
 });

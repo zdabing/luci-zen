@@ -1,6 +1,5 @@
-/* luci-theme-zen
-   Monochrome LuCI theme. Tonal surfaces, clear typography and
-   restrained feedback; selectors are LuCI. */
+/* LuCI component contracts and dashboard structure.
+   Theme colors and surface rules are defined in theme.css. */
 
 :root {
 	--bg-base: #f5f5f5;
@@ -544,7 +543,7 @@ footer a {
 :root[data-theme="dark"] .theme-icon-moon,
 :root[data-darkmode="true"] .theme-icon-moon { display: none; }
 
-/* ---------- Sidebar nav（Apple HIG：填充式圆角选中态、克制 hover、150-200ms） ---------- */
+/* ---------- Sidebar navigation ---------- */
 .main-left .nav,
 .main-left ul {
 	list-style: none;

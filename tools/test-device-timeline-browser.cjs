@@ -58,7 +58,7 @@ const base=process.env.ZEN_PREVIEW_URL||'http://127.0.0.1:8770';
   if(shots)fs.mkdirSync(shots,{recursive:true});
   for(const width of [1440,390,320])for(const mode of ['light','dark']) {
    await page.setViewportSize({width,height:1000});
-   await page.evaluate(mode=>ZenAppearance.set({accent:'blue',material:'outline',mode,layout:'sidebar'}),mode);
+   await page.evaluate(mode=>ZenAppearance.set({mode,layout:'sidebar'}),mode);
    await section.scrollIntoViewIfNeeded();
    await slots.nth(1).tap();
    const bounds=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth}));

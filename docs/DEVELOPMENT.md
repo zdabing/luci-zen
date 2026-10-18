@@ -37,36 +37,30 @@ SDK/内核树头文件：参照 `poc/rust-spike/scripts/build-bpf.sh` 的 `LINUX
 
 ## 主题设置与本地页面预览
 
-Sunny UI 的原始材质文件为 `luci-theme-zen/htdocs/luci-static/zen/appearance.css`，
-保持上游版本不变；LuCI 映射放在 `appearance-zen.css`，原生偏好、共享表单及登录页弹窗代码在
-`appearance.js`。出处和许可见主题目录的 `THIRD_PARTY_NOTICES.md`。
-主题不引入 React、npm 运行时或新的后端接口。
-静态文件使用固件原生 Web 服务，安装不注册 `uhttpd.ucode_prefix` 缓存处理器；
-从旧版升级时仅清理旧 Zen 自己注册的前缀。已有主题选择保持不变。
+当前主题为项目自有的「雾岚」：雾白/石墨灰底色、青绿强调色，使用 taste 仓库的现有界面优化规范设计。
+颜色与组件规则集中在 `luci-theme-zen/htdocs/luci-static/zen/theme.css`，显示偏好由
+`preferences.js` 管理；不再包含第三方配色、材质选择器或外观运行时。
+主题使用 ucode、LuCI 原生 JavaScript 和 CSS，不引入前端框架。
 
-首页使用独立菜单路由 `admin/zen`（`root/usr/share/luci/menu.d/luci-theme-zen.json`），
-由 `view/zen/home.js` 按 LuCI 视图生命周期挂载，`dashboard.js` 仅提供数据和组件，
-导入时不操作 DOM 或启动轮询。菜单排序在标准「状态」之前；管理入口首个可用页面
-及 Logo 指向 Zen 首页。原生 `admin/status/overview` 保留原 action、权限和内容，
-Zen 菜单中显示为「OpenWrt 概览」，不再在它前面插入仪表盘。
-实现对应 [LuCI 25.12 菜单入口](https://github.com/openwrt/luci/blob/openwrt-25.12/modules/luci-base/root/usr/share/luci/menu.d/luci-base.json)
-和 [标准视图生命周期](https://github.com/openwrt/luci/blob/openwrt-25.12/modules/luci-base/htdocs/luci-static/resources/luci.js)。
+首页由独立 `admin/zen` 路由的 `view/zen/home.js` 挂载，`dashboard.js` 提供数据与组件；
+原生 `admin/status/overview` 的 action、权限和页面内容保持独立。
+管理页右上角「Zen 设置」进入 `admin/status/zen-traffic/settings`；旧 `admin/system/zen`
+保留无标题别名。外观标签复用 `ZenAppearance.render()`，版本标签按需启动更新模块。
+登录页仍有显示设置弹窗及明暗快捷按钮，不写路由器配置。
 
-管理页右上角「Zen 设置」进入独立 `admin/status/zen-traffic/settings` 页面，菜单入口位于「状态 → Zen 流量 → Zen 设置」。旧 `admin/system/zen` 仅保留无标题别名，不显示在系统菜单。外观/布局标签复用 `ZenAppearance.render()`，版本/更新标签按需挂载 `zen-updates.js`；首页不加载该模块。登录页仍提供外观弹窗，右上角深浅色快捷切换保持独立。默认马卡龙＋iOS 玻璃，明暗默认跟随系统；
-保留既有 `luci-theme-zen` 明暗存储键，新增 `luci-theme-zen-accent` 和
-`luci-theme-zen-material` 和 `luci-theme-zen-layout`。四个选择互相独立，五个预设只同时调整配色与材质。
-布局默认 `sidebar`（左侧导航），另可选择 `top`（顶部导航）。顶部布局在桌面
-复用 LuCI 菜单树显示横向分类及点击展开的子菜单，内容使用全部可用宽度；
-手机仍显示折叠菜单。布局不会覆盖独立的 `luci-theme-zen-sidebar` 收起偏好。
-未知值回退默认方案，存储不可用时仍可在当前会话切换。
+支持跟随系统、浅色、深色，以及左侧/顶部导航。主题自身不提供配色和材质预设。
+既有 `luci-theme-zen` 明暗键和 `luci-theme-zen-layout` 布局键继续使用；旧配色/材质键被忽略。
+已登录会话通过原生 UCI 适配器保存显示模式与布局，按修改字段串行提交，失败可重试；
+已保存的路由器配置优先于浏览器缓存。首次迁移保留已有明暗和布局选择。
 
 从仓库根目录启动：
 
 ```sh
-python -m http.server 8770 --bind 127.0.0.1
+python dev-preview/serve.py
 ```
 
 打开 `http://127.0.0.1:8770/dev-preview/runtime.html?page=dashboard`。
+预览服务对 HTML、脚本和样式发送 `no-store`；页面跳转携带预览版本，避免旧页面缓存重新加载已移除的主题。
 `page` 也可为 `realtime`、`history`、`notifications`、`login`。
 `page=overview` 仅展示原生概览的独立入口占位；完整原生页面需要在路由器验收。
 此预览加载正式 LuCI 渲染模块和真实中文翻译，以模拟 RPC 数据验收布局；
@@ -81,6 +75,9 @@ node tools/test-appearance-browser.cjs
 
 浏览器测试支持 `ZEN_PREVIEW_URL`、`ZEN_BROWSER_CHANNEL`（如 `msedge`）及
 `ZEN_SCREENSHOT_DIR`。浏览器依赖仅用于开发验收，不加入主题部署包。
+`node tools/test-console-browser.cjs` 验收图标导航、设备抽屉、筛选、批量选择、CSV 和批量重置。
+默认截图保存在 `acceptance-out/console/`。预览默认拒绝写操作；该测试显式开启的设备重置
+只改内存样本，不连接生产设备。设备详情使用原生 dialog；批量确认和身份编辑沿用 LuCI 弹窗。
 Windows 未安装 GNU make 时，安装资产检查可把 `ZEN_TEST_BASH` 设为 Git Bash 的
 绝对路径，再运行 `python tools/test-package-assets.py`；测试仍执行包中的原安装配方。
 

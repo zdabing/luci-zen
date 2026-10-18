@@ -2,6 +2,18 @@
  * deterministic, read-only RPC fixtures and their actual Chinese PO strings. */
 (async function () {
  'use strict';
+ // Keep preview navigation off document URLs cached before a theme migration.
+ // The preview server also sends no-store for HTML, modules and stylesheets.
+ const previewRevision = 'mist-2';
+ document.addEventListener('click', event => {
+  if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  const link = event.target.closest('a[href]');
+  if (!link || link.target || link.hasAttribute('download')) return;
+  const target = new URL(link.href, location.href);
+  if (target.origin !== location.origin || target.pathname !== location.pathname || !target.searchParams.has('page')) return;
+  if (target.searchParams.get('preview') === previewRevision) return;
+  target.searchParams.set('preview', previewRevision); event.preventDefault(); location.assign(target.href);
+ });
  const page = new URLSearchParams(location.search).get('page') || 'dashboard';
  if (['realtime','devices'].includes(page)) { location.replace('?page=dashboard'); return; }
  const translations = {};
@@ -34,6 +46,7 @@
  const notificationConfig = { enabled:false, feishu:{enabled:false,has_webhook:false,has_secret:false}, wecom:{enabled:false,has_webhook:false,has_secret:false}, daily_enabled:false,daily_time:'21:00',rules:[{id:'sample',enabled:true,mac:'',metric:'total',bytes:20*1024**3}] };
  const history = { days:Array.from({length:7},(_,i)=>({date:new Date((now-(6-i)*86400)*1000).toISOString().slice(0,10),download:3e9+i*5e8,upload:7e8+i*1e8})), months:[{month:'2026-09',download:80e9,upload:16e9}], network_upload:7e9,network_download:40e9,ranking:devices.map(d=>({mac:d.mac,upload:d.tx_today,download:d.rx_today})),unassigned_upload:2e8,unassigned_download:1e9 };
  const requests=[]; window.previewRequests=requests;
+ window.previewDevices=devices;
  const rpc = { declare:spec => async (...args) => {
   requests.push({method:spec.method,args});
   if(spec.object==='zen.update') {
@@ -45,7 +58,15 @@
    }
    throw Error('Installing packages is disabled in preview');
   }
-  if(spec.object==='session'&&spec.method==='access') return {access:window.previewUpdateAccess!==false};
+  if(spec.object==='session'&&spec.method==='access') return {access:args[1]==='zen.traffic'?window.previewDeviceWriteAccess!==false:window.previewUpdateAccess!==false};
+  // Explicitly opt-in, in-memory acceptance only. No router is contacted.
+  if(spec.object==='zen.traffic'&&spec.method==='resetDevice'&&window.previewAllowDeviceReset) {
+   if((window.previewResetFailures||[]).includes(args[0])) throw Error('Simulated reset failure');
+   const device=devices.find(d=>d.mac===args[0]);
+   if(!device) throw Error('Unknown sample device');
+   for(const key of ['tx_today','rx_today','tx_month','rx_month','tx_total','rx_total']) device[key]=0;
+   return {ok:true};
+  }
   const data = {
    getStatus:{version:'0.2.0',running:true,device_wan_rates:true,wan_daily:true,device_timeline:true,timeline_today:new Date(now*1000).toLocaleDateString('sv-SE'),now,since:now,interfaces:['pppoe-wan'],uptime:7200},
    getDevices:{dev:devices}, getTotal:{rx_r:9.2e6,tx_r:1.8e6,rx_today:12e9,tx_today:3e9},
@@ -81,6 +102,27 @@
  window.L={bind:(fn,owner,...args)=>fn.bind(owner,...args),url,resolveDefault:(promise,fallback)=>Promise.resolve(promise).catch(()=>fallback),env:{dispatchpath:page==='dashboard'?['admin','zen']:['realtime','history','notifications','settings'].includes(page)?['admin','status','zen-traffic',page]:['admin','status',page],requestpath:['admin']}};
  document.body.classList.add(page==='dashboard'?'node-admin-zen':page==='overview'?'node-admin-status-overview':'node-preview');
  const ui={menu:{load:async()=>({children:{admin:{name:'admin',title:'管理',children:{status:{name:'status',title:'状态',children:Object.fromEntries([['overview','概览'],['realtime','实时监控'],['history','历史分析'],['notifications','通知设置'],['login','登录页']].map(([name,title])=>[name,{name,title,children:{}}]))}}}}}),getChildren:node=>Object.values(node.children||{})},createHandlerFn:(owner,method)=>owner[method].bind(owner),addNotification:(_title,node)=>document.getElementById('view').prepend(node),showModal:(title,nodes)=>{const dialog=E('dialog',{},[E('h2',{},title),...nodes]);document.body.append(dialog);dialog.showModal();},hideModal:()=>document.querySelectorAll('dialog:not(.zen-appearance-dialog)').forEach(d=>d.remove())};
+ // Match the core LuCI modal hooks so global modal CSS is exercised locally.
+ let modalTrigger;
+ ui.hideModal=()=>{
+  document.getElementById('modal_overlay')?.remove();document.body.classList.remove('modal-overlay-active');
+  if(modalTrigger?.isConnected)modalTrigger.focus({preventScroll:true});
+ };
+ ui.showModal=(title,nodes)=>{
+  ui.hideModal();modalTrigger=document.activeElement;
+  const modal=E('div',{'class':'modal',role:'dialog','aria-modal':'true','aria-labelledby':'preview-modal-title',tabindex:'-1'},[E('h4',{id:'preview-modal-title'},[title]),...nodes]);
+  document.body.appendChild(E('div',{id:'modal_overlay'},[modal]));document.body.classList.add('modal-overlay-active');modal.focus();return modal;
+ };
+ document.addEventListener('keydown',ev=>{
+  const modal=document.querySelector('#modal_overlay > .modal');if(!modal)return;
+  if(ev.key==='Escape'){ev.preventDefault();ui.hideModal();}
+  if(ev.key==='Tab'){
+   const controls=Array.from(modal.querySelectorAll('button:not([disabled]),input:not([disabled]),select:not([disabled]),a[href]')).filter(el=>el.getClientRects().length);
+   if(!controls.length)return;const first=controls[0],last=controls.at(-1);
+   if(ev.shiftKey&&(document.activeElement===first||document.activeElement===modal)){last.focus();ev.preventDefault();}
+   else if(!ev.shiftKey&&(document.activeElement===last||document.activeElement===modal)){first.focus();ev.preventDefault();}
+  }
+ });
  const modules={baseclass:{extend:props=>props},view:{extend:props=>props},rpc,poll,ui,network,fs:{exec_direct:async (cmd,args)=>{requests.push({method:'list-installed',args});if(cmd!=='/usr/libexec/package-manager-call'||args.join(' ')!=='list-installed')throw Error('Mutation disabled');return JSON.stringify(['luci-theme-zen','luci-app-zen-traffic','zen-traffic'].map(name=>({name,version:'0.2.0-r10'})));},read:async path=>{if(path!=='/proc/stat')throw Error('Preview file unavailable: '+path);return 'cpu 200 0 100 900 0 0 0 0\ncpu0 0\ncpu1 0\ncpu2 0\ncpu3 0';}}};
  async function load(name) {
   if (modules[name]) return modules[name];

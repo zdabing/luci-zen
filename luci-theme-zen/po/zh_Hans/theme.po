@@ -394,68 +394,26 @@ msgstr "暂时无法读取用量，正在显示上次结果。"
 msgid "Theme settings"
 msgstr "主题设置"
 
-msgid "Macaron"
-msgstr "马卡龙"
 
-msgid "Nord"
-msgstr "北境极光"
 
-msgid "Honey"
-msgstr "蜂蜜麦田"
 
-msgid "Sunny blue"
-msgstr "晴蓝"
 
-msgid "Coast"
-msgstr "海盐日落"
 
-msgid "iOS glass"
-msgstr "iOS 玻璃"
 
-msgid "Aurora glass"
-msgstr "极光玻璃"
 
-msgid "Archive paper"
-msgstr "纸页档案"
 
-msgid "Fine outline"
-msgstr "精致描边"
 
-msgid "Duotone gradient"
-msgstr "双色渐层"
 
-msgid "Frosted surfaces, bright edges and floating depth"
-msgstr "磨砂表面、明亮边缘与悬浮层次"
 
-msgid "Translucent layers with soft ambient color"
-msgstr "半透明层次与柔和环境色光"
 
-msgid "Warm paper, fine lines and quiet reading"
-msgstr "暖色纸面、纤细边线与安静阅读"
 
-msgid "Clear surfaces, fine edges and restrained depth"
-msgstr "清晰实色、精致描边与克制层次"
 
-msgid "Directional color gradients with solid surfaces"
-msgstr "有方向的双色渐变与实色表面"
 
-msgid "Bright macaron glass"
-msgstr "马卡龙明亮玻璃"
 
-msgid "Northern aurora"
-msgstr "北境极光半透流光"
 
-msgid "Honey paper"
-msgstr "蜂蜜麦田暖色纸页"
 
-msgid "Clear blue outline"
-msgstr "晴蓝清晰描边"
 
-msgid "Coastal sunset"
-msgstr "海盐日落双色渐层"
 
-msgid "Color, material, display mode and layout are independent. Changes apply immediately."
-msgstr "配色、质感、明暗与布局分别选择，调整立即生效。"
 
 msgid "Display mode"
 msgstr "显示模式"
@@ -463,32 +421,16 @@ msgstr "显示模式"
 msgid "Follow system"
 msgstr "跟随系统"
 
-msgid "Style presets"
-msgstr "风格预设"
 
-msgid "Color palette"
-msgstr "配色"
 
-msgid "Surface material"
-msgstr "界面质感"
 
-msgid "Clear content, consistent layers"
-msgstr "清晰的内容，一致的层次"
 
-msgid "Cards and controls share the material. Traffic and status colors keep their meaning."
-msgstr "大小卡片与控件共享质感，流量和状态颜色保留原有含义。"
 
-msgid "Small card"
-msgstr "小卡片"
 
 msgid "Your network"
 msgstr "我的网络"
 
-msgid "Preview input"
-msgstr "预览输入框"
 
-msgid "Primary action"
-msgstr "主要操作"
 
 msgid "Saved in this browser"
 msgstr "已保存在此浏览器"
@@ -523,11 +465,7 @@ msgstr "左侧导航"
 msgid "Top navigation"
 msgstr "顶部导航"
 
-msgid "Navigation stays on the left"
-msgstr "导航栏位于页面左侧"
 
-msgid "Horizontal on desktop; collapsible menu on mobile"
-msgstr "桌面横向导航，手机折叠菜单"
 
 msgid "Zen home"
 msgstr "Zen 首页"
@@ -694,6 +632,12 @@ msgstr "保存"
 msgid "Cancel"
 msgstr "取消"
 
+msgid "Resetting…"
+msgstr "正在重置…"
+
+msgid "Retry failed devices"
+msgstr "重试失败设备"
+
 msgid "This day"
 msgstr "本日"
 
@@ -810,3 +754,93 @@ msgstr "下载 APK"
 
 msgid "Update"
 msgstr "更新"
+
+msgid "Close navigation"
+msgstr "关闭导航"
+
+msgid "Open navigation"
+msgstr "打开导航"
+
+msgid "Expand navigation"
+msgstr "展开导航"
+
+msgid "Collapse navigation"
+msgstr "收起导航"
+
+msgid "Close details"
+msgstr "关闭详情"
+
+msgid "Device details"
+msgstr "设备详情"
+
+msgid "Select device"
+msgstr "选择设备"
+
+msgid "Search name, IP or MAC"
+msgstr "搜索设备名称、IP 或 MAC"
+
+msgid "Search devices"
+msgstr "搜索设备"
+
+msgid "Connection filter"
+msgstr "连接类型筛选"
+
+msgid "All connections"
+msgstr "全部连接"
+
+msgid "Offline"
+msgstr "离线"
+
+msgid "Select matching devices"
+msgstr "全选筛选结果"
+
+msgid "Export CSV"
+msgstr "导出 CSV"
+
+msgid "Clear selection"
+msgstr "取消选择"
+
+msgid "No matching devices. Try another search or connection filter."
+msgstr "没有符合条件的设备，请更换关键词或连接类型。"
+
+msgid "%d selected"
+msgstr "已选 %d 台"
+
+msgid "%d matching devices"
+msgstr "共 %d 台符合条件"
+
+msgid "%d devices could not be reset. Retry to process only these devices."
+msgstr "%d 台设备重置失败，重试时仅处理这些设备。"
+
+msgid "Selected device counters have been reset."
+msgstr "所选设备的流量统计已重置。"
+
+msgid "This clears the selected devices’ traffic counters. This action cannot be undone."
+msgstr "这将清空所选设备的流量统计，操作无法撤销。"
+
+msgid "Reset selected device counters"
+msgstr "重置所选设备统计"
+
+msgid "Reset counters"
+msgstr "重置统计"
+
+msgid "History analysis"
+msgstr "历史分析"
+
+msgid "Mist"
+msgstr "雾岚"
+
+msgid "A quieter view of your network."
+msgstr "让网络状态，一目了然。"
+
+msgid "Keep pages within reach in the sidebar."
+msgstr "常用页面集中在左侧，随时切换。"
+
+msgid "Use the full width with navigation above."
+msgstr "导航置于顶部，为内容留出完整宽度。"
+
+msgid "Changes apply immediately."
+msgstr "更改即时生效。"
+
+msgid "Preview"
+msgstr "效果预览"

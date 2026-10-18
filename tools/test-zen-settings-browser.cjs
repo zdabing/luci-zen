@@ -12,24 +12,29 @@ const base=process.env.ZEN_PREVIEW_URL||'http://127.0.0.1:8770',shot=process.env
   assert.equal(await page.locator('#zen-updates').count(),0);
   assert.equal(await page.evaluate(()=>!!previewModules['view.zen.zen-updates']),false,'Home does not even import update RPC code');
   await page.locator('body > header .zen-settings-link').click();await ready();
+  assert.equal(new URL(page.url()).searchParams.get('preview'),'mist-2','Navigation bypasses old cached HTML');
+  await page.locator('#logo').click();await ready();
+  assert.equal(new URL(page.url()).searchParams.get('preview'),'mist-2');
+  assert.equal(await page.locator('body > header').evaluate(el=>getComputedStyle(el).backgroundImage),'none','Header has no old glass gradient');
+  assert.equal(await page.locator('#theme-toggle').evaluate(el=>getComputedStyle(el).boxShadow),'none','Header button has no old raised shadow');
+  await page.locator('body > header .zen-settings-link').click();await ready();
   assert.equal(await page.locator('#zen-settings').count(),1);
   assert.equal(await page.locator('#zen-dashboard').count(),0);
   assert.deepEqual(await page.evaluate(()=>previewRequests),[],'Appearance tab does not read router versions');
   const appearance=page.locator('#zen-settings-appearance');
   assert.equal(await page.getByRole('tab',{name:'外观与布局',exact:true}).getAttribute('aria-selected'),'true');
-  await appearance.getByRole('button',{name:'晴蓝清晰描边',exact:true}).click();
+  assert.equal(await appearance.locator('.zen-appearance-presets, .appearance-materials').count(),0,'Old appearance system is absent');
   await appearance.getByRole('button',{name:'深色模式',exact:true}).click();
-  await appearance.locator('.zen-appearance-layouts button').nth(1).click();
-  assert.deepEqual(await page.evaluate(()=>ZenAppearance.get()),{accent:'blue',material:'outline',mode:'dark',theme:'dark',layout:'top'});
+  await appearance.locator('.zen-pref-layout button').nth(1).click();
+  assert.deepEqual(await page.evaluate(()=>ZenAppearance.get()),{mode:'dark',layout:'top',theme:'dark'});
   await page.reload({waitUntil:'networkidle'});await ready();
-  assert.equal(await appearance.locator('.zen-appearance-layouts button').nth(1).getAttribute('aria-pressed'),'true');
-  const presets=[['macaron','glass'],['nord','aurora'],['honey','paper'],['blue','outline'],['coast','duotone']];
+  assert.equal(await appearance.locator('.zen-pref-layout button').nth(1).getAttribute('aria-pressed'),'true');
   let checked=0;
-  for(const width of [1440,1024,769,390,320])for(const layout of ['sidebar','top'])for(const [accent,material] of presets)for(const mode of ['light','dark']){
-   await page.setViewportSize({width,height:1000});await page.evaluate(v=>ZenAppearance.set(v),{accent,material,mode,layout});await page.waitForTimeout(35);
+  for(const width of [1440,1024,769,390,320])for(const layout of ['sidebar','top'])for(const mode of ['light','dark']){
+   await page.setViewportSize({width,height:1000});await page.evaluate(v=>ZenAppearance.set(v),{mode,layout});await page.waitForTimeout(35);
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Settings must fit '+width);
    checked++;
-   if(shot&&[1440,390].includes(width)&&layout==='sidebar'&&accent==='macaron'){
+   if(shot&&[1440,390].includes(width)&&layout==='sidebar'){
     await page.waitForTimeout(350); // Finish the native sidebar layout transition before visual QA.
     // Edge full-page capture can distort fixed glass layers. Desktop QA uses
     // the actual viewport; mobile still captures the vertically stacked form.

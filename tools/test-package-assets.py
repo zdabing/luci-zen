@@ -54,11 +54,13 @@ with tempfile.TemporaryDirectory(prefix='zen-package-assets-') as temp:
                 f'{package}: missing or changed route file {asset.name}'
         resource_root = stage / 'www/luci-static/resources'
         if package == 'luci-theme-zen':
+            for old_asset in ['appearance.css', 'appearance-zen.css', 'appearance.js']:
+                assert not (stage / 'www/luci-static/zen' / old_asset).exists(), old_asset
             for filename in ['usr/libexec/rpcd/zen.update',
                              'usr/share/zen/update.uc','usr/share/zen/update-model.uc']:
                 assert (stage / filename).read_bytes() == (source / 'root' / filename).read_bytes(), filename
             assert (stage / 'etc/config/zen').read_bytes() == (source / 'root/etc/config/zen').read_bytes()
-            for asset in ['THIRD_PARTY_NOTICES.md', 'sunny-ui-GPL-3.0.txt']:
+            for asset in ['THIRD_PARTY_NOTICES.md']:
                 installed = stage / 'usr/share/licenses/luci-theme-zen' / asset
                 original = source / ('licenses/' + asset if asset.endswith('.txt') else asset)
                 assert installed.is_file() and installed.read_bytes() == original.read_bytes(), \

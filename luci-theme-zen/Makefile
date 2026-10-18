@@ -2,11 +2,11 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-theme-zen
 PKG_VERSION:=0.2.2
-PKG_RELEASE:=2
+PKG_RELEASE:=3
 
 PKG_MAINTAINER:=luci-zen maintainers
-PKG_LICENSE:=Apache-2.0 GPL-3.0-only
-PKG_LICENSE_FILES:=LICENSE licenses/sunny-ui-GPL-3.0.txt
+PKG_LICENSE:=Apache-2.0
+PKG_LICENSE_FILES:=LICENSE
 PKG_BUILD_DEPENDS:=luci-base/host ucode/host
 
 include $(INCLUDE_DIR)/package.mk
@@ -15,7 +15,7 @@ define Package/luci-theme-zen
   SECTION:=luci
   CATEGORY:=LuCI
   SUBMENU:=4. Themes
-  TITLE:=Zen - Apple-inspired LuCI theme
+  TITLE:=Zen - LuCI network console
   DEPENDS:=+luci-base +ucode +ucode-mod-fs +curl +ca-bundle
   PKGARCH:=all
 endef
@@ -25,7 +25,7 @@ define Package/luci-theme-zen/conffiles
 endef
 
 define Package/luci-theme-zen/description
-  Apple-inspired LuCI theme for OpenWrt 25.x (apk, ucode + native JS, no Lua).
+  Zen network console for OpenWrt 25.x (apk, ucode + native JS, no Lua).
   ucode + native JS, no Lua runtime. Light/dark, reduced-motion aware.
   Overview dashboard: system gauges, network status, realtime traffic.
   Optional device-traffic module auto-enables when `zen-traffic` daemon
@@ -56,14 +56,12 @@ define Package/luci-theme-zen/install
 	$(INSTALL_DIR) $(1)/www/luci-static/zen
 	$(INSTALL_DATA) ./htdocs/luci-static/zen/cascade.css $(1)/www/luci-static/zen/cascade.css
 	$(INSTALL_DATA) ./htdocs/luci-static/zen/mobile.css $(1)/www/luci-static/zen/mobile.css
-	$(INSTALL_DATA) ./htdocs/luci-static/zen/appearance.css $(1)/www/luci-static/zen/appearance.css
-	$(INSTALL_DATA) ./htdocs/luci-static/zen/appearance-zen.css $(1)/www/luci-static/zen/appearance-zen.css
-	$(INSTALL_DATA) ./htdocs/luci-static/zen/appearance.js $(1)/www/luci-static/zen/appearance.js
+	$(INSTALL_DATA) ./htdocs/luci-static/zen/theme.css $(1)/www/luci-static/zen/theme.css
+	$(INSTALL_DATA) ./htdocs/luci-static/zen/preferences.js $(1)/www/luci-static/zen/preferences.js
 	$(INSTALL_DATA) ./htdocs/luci-static/zen/custom.css $(1)/www/luci-static/zen/custom.css
 	$(INSTALL_DATA) ./htdocs/luci-static/zen/logo.svg $(1)/www/luci-static/zen/logo.svg
 	$(INSTALL_DIR) $(1)/usr/share/licenses/luci-theme-zen
 	$(INSTALL_DATA) ./THIRD_PARTY_NOTICES.md $(1)/usr/share/licenses/luci-theme-zen/THIRD_PARTY_NOTICES.md
-	$(INSTALL_DATA) ./licenses/sunny-ui-GPL-3.0.txt $(1)/usr/share/licenses/luci-theme-zen/sunny-ui-GPL-3.0.txt
 
 	$(INSTALL_DIR) $(1)/www/luci-static/resources
 	$(INSTALL_DATA) ./htdocs/luci-static/resources/menu-zen.js $(1)/www/luci-static/resources/menu-zen.js

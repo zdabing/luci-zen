@@ -1,7 +1,5 @@
 config appearance 'appearance'
 	option mode 'auto'
-	option accent 'macaron'
-	option material 'glass'
 	option layout 'sidebar'
 	option saved '0'
 

@@ -56,11 +56,11 @@ const release=m=>({tag_name:m.tag,body:'<!-- zen-update-metadata\n'+JSON.stringi
   mode='matched';await clickCheck();
   assert.equal(await panel.locator('.zen-version-item').count(),3,'Exactly one row per component after checking');
   assert.equal(await panel.locator('h3').count(),0,'Component names are not repeated in separate cards');
-  for(const width of [1440,1024,769,390,320])for(const layout of ['sidebar','top'])for(const appearance of [{accent:'macaron',material:'glass'},{accent:'nord',material:'aurora'},{accent:'honey',material:'paper'},{accent:'blue',material:'outline'},{accent:'coast',material:'duotone'}])for(const theme of ['light','dark']){
-   await page.setViewportSize({width,height:1000});await page.evaluate(v=>ZenAppearance.set(v),{...appearance,mode:theme,layout});
+  for(const width of [1440,1024,769,390,320])for(const layout of ['sidebar','top'])for(const theme of ['light','dark']){
+   await page.setViewportSize({width,height:1000});await page.evaluate(v=>ZenAppearance.set(v),{mode:theme,layout});
    await page.waitForTimeout(30);
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'No overflow with long versions/downloads: '+width);
-   if(shot&&['1440','390'].includes(String(width))&&layout==='sidebar'&&appearance.accent==='macaron'){
+   if(shot&&['1440','390'].includes(String(width))&&layout==='sidebar'){
     fs.mkdirSync(shot,{recursive:true});await page.screenshot({path:path.join(shot,'updates-'+width+'-'+theme+'.png'),fullPage:width<769});
    }
   }
@@ -124,7 +124,7 @@ const release=m=>({tag_name:m.tag,body:'<!-- zen-update-metadata\n'+JSON.stringi
   assert.equal(await panel.locator('.zen-update-file').count(),0,'No package details when no update exists');
   if(shot)for(const width of [1440,390]){
    await page.setViewportSize({width,height:1000});
-   await page.evaluate(()=>{ZenAppearance.set({accent:'macaron',material:'glass',mode:'light',layout:'sidebar'});previewModules['menu-zen'].setSidebarOpen(false);});
+   await page.evaluate(()=>{ZenAppearance.set({mode:'light',layout:'sidebar'});previewModules['menu-zen'].setSidebarOpen(false);});
    await page.waitForTimeout(350);
    await page.screenshot({path:path.join(shot,'updates-current-'+width+'.png'),fullPage:true});
   }
@@ -168,6 +168,6 @@ const release=m=>({tag_name:m.tag,body:'<!-- zen-update-metadata\n'+JSON.stringi
   assert.deepEqual(errors,[]);
   const mutating=await page.evaluate(()=>previewRequests.filter(r=>/^(install|update|upgrade|remove|exec|write|set|flash|reboot)/i.test(r.method)));
   assert.deepEqual(mutating,[]);
-  console.log('PASS: three Zen packages only; OpenWrt/ImmortalWrt major matching with legacy exact lists; cross-major/target rejection; one Zen release request per check; 200 theme/layout/width cases; legacy/mismatch/rate/offline; package fallback/failure; ACL links; no firmware actions; zero mutation');
+  console.log('PASS: three Zen packages only; OpenWrt/ImmortalWrt major matching with legacy exact lists; cross-major/target rejection; one Zen release request per check; 20 mode/layout/width cases; legacy/mismatch/rate/offline; package fallback/failure; ACL links; no firmware actions; zero mutation');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

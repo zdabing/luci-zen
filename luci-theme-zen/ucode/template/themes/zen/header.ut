@@ -28,17 +28,16 @@
 -%}
 
 <!DOCTYPE html>
-<html lang="{{ dispatcher.lang }}" data-zen-appearance="router" data-zen-authenticated="{{ ctx.authsession ? 'true' : 'false' }}" data-zen-saved="{{ appearance.saved == '1' ? 'true' : 'false' }}" data-zen-mode="{{ entityencode(appearance.mode ?? 'auto', true) }}" data-zen-accent="{{ entityencode(appearance.accent ?? 'macaron', true) }}" data-zen-material="{{ entityencode(appearance.material ?? 'glass', true) }}" data-zen-layout="{{ entityencode(appearance.layout ?? 'sidebar', true) }}">
+<html lang="{{ dispatcher.lang }}" data-zen-appearance="router" data-zen-authenticated="{{ ctx.authsession ? 'true' : 'false' }}" data-zen-saved="{{ appearance.saved == '1' ? 'true' : 'false' }}" data-zen-mode="{{ entityencode(appearance.mode ?? 'auto', true) }}" data-zen-layout="{{ entityencode(appearance.layout ?? 'sidebar', true) }}">
 	<head>
 		<meta charset="utf-8">
 		<title>{{ striptags(`${boardinfo.hostname ?? '?'}${dispatched?.title ? ` | ${_(dispatched.title)}` : ''}`) }}</title>
-		<script src="{{ media }}/appearance.js?v={{ pkgmtime }}"></script>
+		<script src="{{ media }}/preferences.js?v={{ pkgmtime }}"></script>
 		<meta name="viewport" content="width=device-width, initial-scale=1">
 		<meta name="darkreader-lock">
 		<link rel="stylesheet" href="{{ media }}/cascade.css?v={{ pkgmtime }}">
 		<link rel="stylesheet" href="{{ media }}/mobile.css?v={{ pkgmtime }}">
-		<link rel="stylesheet" href="{{ media }}/appearance.css?v={{ pkgmtime }}">
-		<link rel="stylesheet" href="{{ media }}/appearance-zen.css?v={{ pkgmtime }}">
+		<link rel="stylesheet" href="{{ media }}/theme.css?v={{ pkgmtime }}">
 		<link rel="stylesheet" href="{{ media }}/custom.css?v={{ pkgmtime }}">
 		<link rel="icon" href="{{ media }}/logo.svg?v={{ pkgmtime }}" sizes="any" type="image/svg+xml">
 		{% if (dispatched?.css): %}

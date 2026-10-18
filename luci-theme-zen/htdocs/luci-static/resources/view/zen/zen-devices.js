@@ -2,9 +2,11 @@
 'require baseclass';
 'require rpc';
 'require poll';
+'require ui';
 'require view.zen.zen-format as fmt';
 'require view.zen.zen-icons as icons';
 'require view.zen.zen-identity as identity';
+'require view.zen.zen-device-panel as panel';
 
 /*
  * view.zen.zen-devices — 首页“设备流量”模块。
@@ -34,6 +36,9 @@ const callDevices = rpc.declare({
 const callHistory = rpc.declare({
 	object: 'zen.traffic', method: 'getHistory', params: ['agg', 'mac'], reject: true
 });
+
+const callAccess = rpc.declare({ object: 'session', method: 'access', params: ['scope', 'object', 'function'], expect: { access: false } });
+const callReset = rpc.declare({ object: 'zen.traffic', method: 'resetDevice', params: ['mac'], reject: true });
 
 function historySvg(tag, attrs, text) {
 	const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
@@ -174,7 +179,12 @@ function connText(d) {
 	return d.conn || '';
 }
 
-function buildRow() {
+function detailFacts(d) {
+	return [[_('Connection'), connText(d)], ['IPv4', d.ip4 || '—'], ['IPv6', d.ip6 || '—'], [_('MAC'), d.mac],
+		[_('Last activity'), d.last > 0 ? new Date(d.last * 1000).toLocaleString() : '—']];
+}
+
+function buildRow(owner) {
 	const li = E('li', { 'class': 'zen-dash-dev-row', role: 'button', tabindex: '0', 'aria-expanded': 'false' });
 
 	const iconBox = E('span', { 'class': 'zen-dash-dev-icon' }, []);
@@ -226,12 +236,9 @@ function buildRow() {
 
 	/* 展开时立即使用缓存数据，不等待下一轮轮询。 */
 	const toggle = (ev) => {
-		if (ev.target.closest('.zen-dash-dev-detail, .zen-dash-identity-edit'))
+		if (ev.target.closest('.zen-dash-dev-detail, .zen-dash-identity-edit, .zen-device-check'))
 			return;
-		if (!li.classList.contains('open') && ent.d)
-			updateDetail(ent, ent.d);
-		li.classList.toggle('open');
-		li.setAttribute('aria-expanded', String(li.classList.contains('open')));
+		if (ent.d) owner.openDetail(ent);
 	};
 	li.addEventListener('click', toggle);
 	li.addEventListener('keydown', ev => {
@@ -240,6 +247,12 @@ function buildRow() {
 			toggle(ev);
 		}
 	});
+	const check = E('input', { type: 'checkbox', 'aria-label': _('Select device'), change: () => {
+		if (check.checked) owner.selected.add(ent.d.mac); else owner.selected.delete(ent.d.mac);
+		owner.syncSelection();
+	} });
+	ent.check = check;
+	li.insertBefore(E('label', { 'class': 'zen-device-check' }, [check]), iconBox);
 
 	return ent;
 }
@@ -298,6 +311,38 @@ return baseclass.extend({
 		this.sortKey = 'rx_today';
 		this.sortDescending = true;
 		this.sortButtons = [];
+		this.selected = new Set();
+		this.query = '';
+		this.connection = 'all';
+		this.canReset = false;
+		const search = E('input', { type: 'search', 'class': 'zen-device-search', placeholder: _('Search name, IP or MAC'), 'aria-label': _('Search devices'), input: ev => {
+			this.query = ev.target.value.trim().toLocaleLowerCase(); this.applyVisibility();
+		} });
+		const filter = E('select', { 'aria-label': _('Connection filter'), change: ev => { this.connection = ev.target.value; this.applyVisibility(); } },
+			[['all', _('All connections')], ['wifi', _('Wi-Fi')], ['wired', _('Wired')], ['offline', _('Offline')]].map(([value, label]) => E('option', { value }, [label])));
+		this.selectAll = E('input', { type: 'checkbox', 'aria-label': _('Select matching devices'), change: ev => {
+			for (const ent of this.cache.values()) if (this.matches(ent.d)) {
+				if (ev.target.checked) this.selected.add(ent.d.mac); else this.selected.delete(ent.d.mac);
+			}
+			this.syncSelection();
+		} });
+		this.selectionLabel = E('span', { 'aria-live': 'polite' });
+		this.exportButton = E('button', { type: 'button', 'class': 'cbi-button', click: () => this.exportSelected() }, [_('Export CSV')]);
+		this.resetSelectedButton = E('button', { type: 'button', 'class': 'cbi-button cbi-button-negative', hidden: true, click: () => this.resetSelected() }, [_('Reset counters')]);
+		this.clearButton = E('button', { type: 'button', 'class': 'zen-selection-clear', click: () => { this.selected.clear(); this.syncSelection(); } }, [_('Clear selection')]);
+		this.bulkBar = E('div', { 'class': 'zen-device-bulkbar' }, [
+			E('label', { 'class': 'zen-select-all' }, [this.selectAll, E('span', {}, [_('Select matching devices')])]),
+			this.selectionLabel, E('div', { 'class': 'zen-bulk-actions' }, [this.exportButton, this.resetSelectedButton, this.clearButton])
+		]);
+		this.feedback = E('p', { 'class': 'zen-device-feedback', role: 'status', hidden: true });
+		this.empty = E('p', { 'class': 'zen-device-empty', hidden: true }, [_('No matching devices. Try another search or connection filter.')]);
+		section.appendChild(E('div', { 'class': 'zen-device-toolbar' }, [search, filter]));
+		section.appendChild(this.bulkBar);
+		section.appendChild(this.feedback);
+		callAccess('ubus', 'zen.traffic', 'resetDevice').then(access => {
+			this.canReset = access === true || access && access.access === true;
+			this.resetSelectedButton.hidden = !this.canReset; this.syncSelection();
+		}).catch(() => {});
 		const sortColumn = (key, label) => {
 			const arrow = E('span', { 'class': 'zen-sort-arrow', 'aria-hidden': 'true' }, '↕');
 			const button = E('button', { type: 'button', 'class': 'zen-dash-dev-sort', 'aria-pressed': 'false', title: _('Sort descending') }, [label, arrow]);
@@ -316,6 +361,7 @@ return baseclass.extend({
 			return button;
 		};
 		section.appendChild(E('div', { 'class': 'zen-dash-dev-columns' }, [
+			E('span', {}, ''),
 			E('span', {}, ''),
 			E('span', {}, _('Hostname')),
 			E('span', { 'class': 'zen-dash-dev-ip' }, 'IPv4'),
@@ -342,17 +388,17 @@ return baseclass.extend({
 		});
 
 		section.appendChild(this.list);
+		section.appendChild(this.empty);
 		section.appendChild(this.more);
 
 		poll.add(L.bind(this.tick, this), DEV_POLL_SECS);
-		this.tick();
-
 		dash.appendChild(section);
+		this.tick();
 		return section;
 	},
 
 	tick() {
-		if (document.hidden || !this.section)
+		if (document.hidden || !this.section || !this.section.isConnected)
 			return;
 
 		return callDevices().then(L.bind((data) => {
@@ -381,7 +427,7 @@ return baseclass.extend({
 
 			let ent = this.cache.get(d.mac);
 			if (!ent) {
-				ent = buildRow();
+				ent = buildRow(this);
 				ent.li.addEventListener('zen-identity-changed',()=>this.render(this.devs||[]));
 				this.cache.set(d.mac, ent);
 				this.list.appendChild(ent.li);
@@ -391,6 +437,7 @@ return baseclass.extend({
 			if (position !== ent.li) this.list.insertBefore(ent.li, position || null);
 
 			ent.d = d;
+			if (ent.check) ent.check.setAttribute('aria-label', _('Select device') + ': ' + devName(d));
 			const info = identity.identify(d);
 			const type = info.type;
 			const signature = type + ':' + info.brand;
@@ -433,11 +480,19 @@ return baseclass.extend({
 
 			if (ent.li.classList.contains('open'))
 				updateDetail(ent, d);
+			if (this.activeDetail === ent && this.detailRates) {
+				setText(this.detailRates.querySelector('.ul'), fmt.fmtRate(d.tx_r || 0));
+				setText(this.detailRates.querySelector('.dl'), fmt.fmtRate(d.rx_r || 0));
+				detailFacts(d).forEach((pair, i) => setText(this.detailFacts[i], pair[1]));
+				setText(this.detailDialog.querySelector('h2'), devName(d));
+			}
 		});
 
 		/* 消失的设备（含休眠）移除 */
 		for (const [mac, ent] of this.cache) {
 			if (!keep.has(mac)) {
+				if (this.activeDetail === ent) panel.close();
+				if (this.selected) this.selected.delete(mac);
 				if (ent.historyResize) ent.historyResize.disconnect();
 				ent.li.remove();
 				this.cache.delete(mac);
@@ -453,9 +508,111 @@ return baseclass.extend({
 		if (!this.list)
 			return;
 		const rows = this.list.children;
-		for (let i = 0; i < rows.length; i++)
-			rows[i].style.display = (this.showAll || i < TOP_N) ? '' : 'none';
+		let matched = 0;
+		for (let i = 0; i < rows.length; i++) {
+			const ent = this.cache && Array.from(this.cache.values()).find(entry => entry.li === rows[i]);
+			const match = !ent || this.matches(ent.d);
+			rows[i].style.display = match && (this.showAll || matched < TOP_N) ? '' : 'none';
+			if (match) matched++;
+		}
 		if (this.more)
-			this.more.style.display = rows.length > TOP_N ? '' : 'none';
+			this.more.style.display = matched > TOP_N ? '' : 'none';
+		if (this.empty) this.empty.hidden = matched > 0;
+		this.syncSelection();
+	},
+
+	matches(d) {
+		if (!d) return false;
+		const query = this.query || '';
+		return (!query || [d.host, d.mac, d.ip4, d.ip6].some(v => String(v || '').toLocaleLowerCase().includes(query))) &&
+			(!this.connection || this.connection === 'all' || (this.connection === 'offline' ? !d.online : d.conn === this.connection));
+	},
+
+	syncSelection() {
+		if (!this.selected || !this.selectionLabel) return;
+		const matching = Array.from(this.cache.values()).filter(ent => this.matches(ent.d));
+		const checked = matching.filter(ent => this.selected.has(ent.d.mac)).length;
+		this.selectAll.checked = matching.length > 0 && checked === matching.length;
+		this.selectAll.indeterminate = checked > 0 && checked < matching.length;
+		this.selectAll.disabled = !matching.length;
+		for (const ent of this.cache.values()) {
+			ent.check.checked = this.selected.has(ent.d.mac);
+			ent.li.classList.toggle('selected', ent.check.checked);
+		}
+		setText(this.selectionLabel, this.selected.size ? _('%d selected').format(this.selected.size) : _('%d matching devices').format(matching.length));
+		this.bulkBar.classList.toggle('has-selection', this.selected.size > 0);
+		this.exportButton.disabled = !this.selected.size;
+		this.resetSelectedButton.disabled = !this.selected.size || !this.canReset || this.resetBusy;
+		this.clearButton.hidden = !this.selected.size;
+	},
+
+	openDetail(ent) {
+		if (this.activeDetail === ent) return;
+		panel.close();
+		this.activeDetail = ent;
+		ent.li.classList.add('open');
+		ent.li.setAttribute('aria-expanded', 'true');
+		updateDetail(ent, ent.d);
+		const d = ent.d;
+		const historyUrl = L.url('admin/status/zen-traffic/history');
+		const facts = E('dl', { 'class': 'zen-device-facts' }, detailFacts(d).map(([key, value]) => E('div', {}, [E('dt', {}, [key]), E('dd', {}, [value])])));
+		this.detailFacts = facts.querySelectorAll('dd');
+		const rates = E('div', { 'class': 'zen-device-live' }, [
+			E('div', {}, [E('span', {}, [_('Realtime upload')]), E('strong', { 'class': 'ul' }, [fmt.fmtRate(d.tx_r || 0)])]),
+			E('div', {}, [E('span', {}, [_('Realtime download')]), E('strong', { 'class': 'dl' }, [fmt.fmtRate(d.rx_r || 0)])])
+		]);
+		this.detailRates = rates;
+		this.detailDialog = panel.open({ title: devName(d), subtitle: d.mac, content: [rates, facts, ent.detail], actions: [
+			E('button', { type: 'button', 'class': 'cbi-button', click: () => { panel.close(); identity.edit(ent.d, () => this.render(this.devs || [])); } }, [_('Device identity')]),
+			E('a', { 'class': 'cbi-button cbi-button-action', href: historyUrl + (historyUrl.includes('?') ? '&' : '?') + 'mac=' + encodeURIComponent(d.mac) + '#device-hourly' }, [_('History analysis')])
+		], onClose: () => {
+			ent.li.classList.remove('open'); ent.li.setAttribute('aria-expanded', 'false'); ent.li.appendChild(ent.detail);
+			if (this.activeDetail === ent) this.activeDetail = null;
+		} });
+	},
+
+	exportSelected() {
+		const keys = ['host', 'mac', 'ip4', 'ip6', 'conn', 'tx_r', 'rx_r', 'tx_today', 'rx_today', 'tx_month', 'rx_month', 'tx_total', 'rx_total'];
+		const quote = value => {
+			let text = String(value == null ? '' : value);
+			if (/^\s*[=+@\-]/.test(text) || /^[\t\r]/.test(text)) text = "'" + text;
+			return '"' + text.replace(/"/g, '""') + '"';
+		};
+		const rows = (this.devs || []).filter(d => this.selected.has(d.mac));
+		const csv = '\ufeff' + [keys.join(','), ...rows.map(d => keys.map(key => quote(d[key])).join(','))].join('\r\n');
+		const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+		const link = E('a', { href: url, download: 'zen-devices-' + new Date().toISOString().slice(0, 10) + '.csv' });
+		document.body.appendChild(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+	},
+
+	resetSelected() {
+		if (!this.canReset || this.resetBusy || !this.selected.size) return;
+		let pending = (this.devs || []).filter(d => this.selected.has(d.mac));
+		if (!pending.length) return;
+		const error = E('p', { role: 'alert', 'class': 'zen-identity-error', hidden: true });
+		const deviceList = E('ul', { 'class': 'zen-batch-device-list' });
+		const updateList = () => deviceList.replaceChildren(...pending.map(d => E('li', {}, [E('strong', {}, [devName(d)]), E('span', {}, [d.mac])])));
+		updateList();
+		const cancel = E('button', { type: 'button', 'class': 'cbi-button', click: () => ui.hideModal() }, [_('Cancel')]);
+		const confirm = E('button', { type: 'button', 'class': 'cbi-button cbi-button-negative', click: async () => {
+			if (this.resetBusy) return;
+			this.resetBusy = true; confirm.disabled = true; cancel.disabled = true; error.hidden = true;
+			confirm.textContent = _('Resetting…');
+			const failed = [];
+			for (const d of pending) {
+				try { const result = await callReset(d.mac); if (!result || result.ok !== true) throw Error('reset failed'); this.selected.delete(d.mac); }
+				catch (e) { failed.push(d); }
+			}
+			this.resetBusy = false; confirm.disabled = false; cancel.disabled = false; this.syncSelection();
+			if (failed.length) { pending = failed; updateList(); confirm.textContent = _('Retry failed devices'); error.textContent = _('%d devices could not be reset. Retry to process only these devices.').format(failed.length); error.hidden = false; }
+			else { ui.hideModal(); this.feedback.textContent = _('Selected device counters have been reset.'); this.feedback.hidden = false; }
+			this.tick();
+		} }, [_('Reset counters')]);
+		ui.showModal(_('Reset selected device counters'), [
+			E('div', { 'class': 'zen-batch-confirm' }, [
+				E('p', {}, [_('This clears the selected devices’ traffic counters. This action cannot be undone.')]),
+				deviceList, error
+			]), E('div', { 'class': 'right zen-tf-modal-actions' }, [cancel, confirm])
+		]);
 	}
 });
