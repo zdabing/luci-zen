@@ -13,9 +13,11 @@ class Element {
 }
 const E=(...args)=>new Element(...args),document={createElementNS:(_,tag)=>E(tag)};
 const source=fs.readFileSync('luci-app-zen-traffic/htdocs/luci-static/resources/view/zen-traffic/device-timeline.js','utf8');
+const pickerSource=fs.readFileSync('luci-app-zen-traffic/htdocs/luci-static/resources/view/zen-traffic/date-picker.js','utf8');
+const datePicker=new Function('baseclass','trafficStyle','E','_','document',pickerSource)({extend:p=>p},{inject(){}},E,s=>s,document);
 const queued=[],rpc={declare:spec=>{assert.equal(spec.method,'getDeviceTimeline');assert.deepEqual(spec.params,['mac','date']);return (...args)=>new Promise((resolve,reject)=>queued.push({args,resolve,reject}));}};
 let mounts=0;
-const component=new Function('baseclass','view','rpc','E','_','document',source)({extend:p=>p},{extend:()=>{mounts++;}},rpc,E,s=>s,document);
+const component=new Function('baseclass','view','rpc','datePicker','E','_','document',source)({extend:p=>p},{extend:()=>{mounts++;}},rpc,datePicker,E,s=>s,document);
 const findAll=(n,p)=>n&&typeof n==='object'? [...(p(n)?[n]:[]),...n.children.flatMap(c=>findAll(c,p))]:[];
 const slots=v=>findAll(v.body,n=>n.tag==='g');
 const start=1791302400;

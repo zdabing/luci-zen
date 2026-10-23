@@ -6,7 +6,7 @@
 'require poll';
 'require view.zen.zen-format as fmt';
 'require view.zen.zen-devices as devices';
-'require view.zen.zen-wan-share as wanShare';
+'require view.zen.zen-health as health';
 
 /*
  * view.zen.dashboard — Zen 首页的数据与组件，供 admin/zen 的独立视图使用。
@@ -48,6 +48,7 @@ const callDhcpLeases = rpc.declare({
 	method: 'getDHCPLeases',
 	expect: { '': {} }
 });
+const callDHCPConfig = rpc.declare({ object: 'uci', method: 'get', params: ['config'] });
 
 const callMountPoints = rpc.declare({
 	object: 'luci',
@@ -127,9 +128,8 @@ return baseclass.extend({
 		this.ready = this.tick();
 
 		// 设备流量模块独立探测（zen.traffic 缺失时仅显示提示，不影响其他卡）
-		wanShare.mount(this.dash).catch((e) => console.warn('zen-wan-share', e));
 		try {
-			devices.mount(this.dash).catch((e) => console.warn('zen-devices', e));
+			this.devicesReady = devices.mount(this.dash).catch((e) => console.warn('zen-devices', e));
 		} catch (e) { /* 模块缺失不阻塞首页 */ }
 	},
 
@@ -229,6 +229,23 @@ return baseclass.extend({
 		]);
 	},
 
+	buildConnectionSummary() {
+		return E('section', { 'class': 'zen-dash-connections', 'aria-label': _('Network') }, [
+			...[['wan', _('WAN IPv4')], ['wan6', _('WAN IPv6')], ['lan', _('LAN IP')], ['uptime', _('Uptime')]].map(([key, label]) =>
+				E('div', { 'class': 'zen-dash-connection' }, [
+					E('span', { 'class': 'zen-dash-connection-label' }, [label, key === 'wan' ?
+						E('span', { 'class': 'zen-dash-connection-state', 'data-connection': 'state', role: 'status' }, fmt.MISSING) : null].filter(Boolean)),
+					E('strong', { 'data-connection': key }, fmt.MISSING),
+					E('span', { 'class': 'zen-dash-connection-note', 'data-connection': key + '-detail' }, fmt.MISSING)
+				])),
+			E('div', { 'class': 'zen-dash-health' }, [['temperature', _('Temperature')], ['connections', _('Connections')], ['latency', _('Latency')]].map(([key, label]) =>
+				E('div', { 'class': 'zen-dash-health-metric', 'data-health-metric': key }, [
+					E('span', {}, label), E('strong', { 'data-health': key }, fmt.MISSING),
+					key !== 'latency' ? E('span', { 'class': 'zen-dash-health-track' }, E('i', { 'data-health-bar': key })) : null
+				].filter(Boolean))))
+		]);
+	},
+
 	build() {
 		const iface = E('select', { id: 'zen-dash-iface', 'aria-label': _('Interface') }, [
 			E('option', { value: 'all' }, _('All'))
@@ -283,7 +300,7 @@ return baseclass.extend({
 		chart.addEventListener('click', (ev) => this.onChartHover(ev));
 		chart.addEventListener('pointerleave', () => this.hideHover());
 
-		return E('div', { id: 'zen-dashboard' }, [
+		const root = E('div', { id: 'zen-dashboard' }, [
 			E('div', { 'class': 'zen-dash-strip' }, [
 				E('div', { 'class': 'zen-dash-system-info' }, [
 					this.buildSystemItem('host', _('Hostname'), ['M3 10 12 3l9 7v11H3z', 'M8 13v2m4-2v2m4-2v2M10 21v-4h4v4']),
@@ -311,6 +328,10 @@ return baseclass.extend({
 							this.buildNetworkRow('lan', 'LAN'),
 							this.buildNetworkRow('wan6', 'WAN6')
 						])
+					]),
+					E('dl', { 'class': 'zen-dash-network-extra' }, [
+						E('div', {}, [E('dt', {}, _('WAN IPv4 gateway')), E('dd', { 'data-network-extra': 'gateway' }, fmt.MISSING)]),
+						E('div', {}, [E('dt', {}, _('WAN IPv4 DNS')), E('dd', { 'data-network-extra': 'dns' }, fmt.MISSING)])
 					])
 				]),
 				E('section', { 'class': 'zen-dash-panel zen-dash-traffic' }, [
@@ -347,6 +368,24 @@ return baseclass.extend({
 				])
 			])
 		]);
+		// Low-frequency system metadata stays available without occupying the first screen.
+		const body = root.querySelector('.zen-dash-body');
+		const traffic = root.querySelector('.zen-dash-traffic');
+		const details = E('details', { 'class': 'zen-dash-system-details' }, [
+			E('summary', {}, _('System & interface details'))
+		]);
+		for (const selector of ['.zen-dash-strip', '.zen-dash-gauges', '.zen-dash-overview'])
+			details.appendChild(root.querySelector(selector));
+		const totals = E('div', { 'class': 'zen-dash-interface-totals' });
+		for (const el of traffic.querySelectorAll('.total-tx, .total-rx')) totals.appendChild(el);
+		details.appendChild(totals);
+		traffic.appendChild(root.querySelector('.zen-dash-trend'));
+		traffic.classList.add('zen-dash-focus-traffic');
+		body.classList.add('zen-dash-focus-body');
+		root.insertBefore(this.buildConnectionSummary(), body);
+		root.appendChild(details);
+		return root;
+
 	},
 
 	async loadRealtimeHistory() {
@@ -413,6 +452,15 @@ return baseclass.extend({
 			return;
 		const addresses = addrsOf(net, !!ipv6);
 		const up = !!net && (typeof net.isUp === 'function' ? net.isUp() : !!addresses.length);
+		this.setText(this.dash, '[data-connection="' + key + '"]', addresses.join('\n') || fmt.MISSING);
+		if (key === 'wan') {
+			this.setText(this.dash, '[data-connection="state"]', up ? _('Connected') : _('Down'));
+			const state = this.dash.querySelector('[data-connection="state"]');
+			if (state) state.setAttribute('data-state', up ? 'connected' : 'down');
+			this.setText(this.dash, '[data-network-extra="gateway"]', net && typeof net.getGatewayAddr === 'function' ? net.getGatewayAddr() || fmt.MISSING : fmt.MISSING);
+			const dns = net && typeof net.getDNSAddrs === 'function' ? net.getDNSAddrs() || [] : [];
+			this.setText(this.dash, '[data-network-extra="dns"]', dns.join('\n') || fmt.MISSING);
+		}
 		const proto = net && typeof net.getProtocol === 'function' ? net.getProtocol() : null;
 		const protocols = { dhcp: _('DHCP client'), static: _('Static address'), dhcpv6: 'DHCPv6', pppoe: 'PPPoE' };
 		this.setText(row, '[data-network-field="protocol"]', proto ? (protocols[proto] || proto) : fmt.MISSING);
@@ -425,6 +473,11 @@ return baseclass.extend({
 			status += ' ' + fmt.fmtUptime(uptime);
 		}
 		this.setText(row, '[data-network-field="status"]', status);
+		if (key === 'wan') this.setText(this.dash, '[data-connection="wan-detail"]', [proto ? (protocols[proto] || proto) : '', status].filter(Boolean).join(' · '));
+		if (key === 'wan6') {
+			const delegated = health.prefixes(net);
+			this.setText(this.dash, '[data-connection="wan6-detail"]', delegated.length ? _('Prefix %s').format(delegated.join('\n')) : _('No delegated prefix'));
+		}
 		row.querySelector('.zen-dash-net-status').setAttribute('data-state', up ? (key === 'lan' ? 'running' : 'connected') : 'down');
 		row.querySelector('.zen-dash-ov-dot').className = 'zen-dash-ov-dot ' + (up ? 'up' : 'down');
 	},
@@ -443,7 +496,28 @@ return baseclass.extend({
 			}
 		}
 		this.setText(this.dash, '[data-uptime]', value);
+		this.setText(this.dash, '[data-connection="uptime"]', value);
 		this.setText(this.dash, '[data-restart]', restart);
+		this.setText(this.dash, '[data-connection="uptime-detail"]', restart === fmt.MISSING ? restart : _('Restarted %s').format(restart));
+	},
+
+	setHealth(data, dhcp) {
+		const temp = data.temperature;
+		this.setText(this.dash, '[data-health="temperature"]', temp ? temp.celsius.toFixed(1).replace(/\.0$/, '') + ' °C' : fmt.MISSING);
+		const temperature = this.dash.querySelector('[data-health="temperature"]');
+		if (temperature) temperature.title = temp ? temp.sensor + ' · ' + temp.path : _('Temperature sensor unavailable');
+		this.setText(this.dash, '[data-health="connections"]', data.connections == null ? fmt.MISSING : Number(data.connections).toLocaleString());
+		const connections = this.dash.querySelector('[data-health="connections"]');
+		if (connections) connections.title = data.connections == null ? _('Connection count unavailable') : String(data.connections) + ' / ' + (data.connectionLimit || fmt.MISSING);
+		for (const [key, percent] of [['temperature', temp ? temp.celsius : 0], ['connections', data.connectionLimit ? data.connections / data.connectionLimit * 100 : 0]]) {
+			const bar = this.dash.querySelector('[data-health-bar="' + key + '"]');
+			if (bar) bar.style.width = Math.max(0, Math.min(100, Number(percent) || 0)) + '%';
+		}
+		const latency = data.latency || {};
+		this.setText(this.dash, '[data-health="latency"]', latency.state === 'ok' ? (latency.lessThan ? '<' : '') + latency.ms + ' ms' : latency.state === 'timeout' ? _('Timeout') : fmt.MISSING);
+		const probe = this.dash.querySelector('[data-health="latency"]');
+		if (probe) { probe.title = 'ICMP · ' + (latency.target || '1.1.1.1'); probe.setAttribute('data-state', latency.state || 'unavailable'); }
+		this.setText(this.dash, '[data-connection="lan-detail"]', dhcp.state === 'ok' ? _('DHCP leases %s / %s').format(dhcp.used, dhcp.total) : dhcp.state === 'disabled' ? _('DHCP disabled') : dhcp.state === 'static' ? _('Static DHCP leases only') : _('DHCP leases unavailable'));
 	},
 
 	setStrip(host, model) {
@@ -524,10 +598,19 @@ return baseclass.extend({
 	},
 
 	renderTraffic(t) {
+		this.lastTraffic = t;
 		this.lastNames = t.names || [];
 		this.syncIfaceSelect(this.lastNames);
 		this.setText(this.dash, '[data-k="txRate"]', fmt.fmtRate(t.txRate));
 		this.setText(this.dash, '[data-k="rxRate"]', fmt.fmtRate(t.rxRate));
+		if (this.compactChart) {
+			for (const [key, value] of [['tx',t.txRate],['rx',t.rxRate]]) {
+				const node=this.dash.querySelector('[data-k="'+key+'Rate"]');
+				if (node) { const [number,...units]=fmt.fmtRate(value).split(' ');node.replaceChildren(E('span',{class:'rf-number'},number),E('small',{class:'rf-unit'},units.join(' '))); }
+				const peak=this.dash.querySelector('[data-peak="'+key+'"]');
+				if(peak)peak.textContent=_('Peak')+' '+fmt.fmtRate(Math.max(0,...this.history.map(row=>Number(row[key])||0)));
+			}
+		}
 		this.setText(this.dash, '[data-k="txTotal"]', fmt.fmtBytes(t.txTotal));
 		this.setText(this.dash, '[data-k="rxTotal"]', fmt.fmtBytes(t.rxTotal));
 
@@ -540,7 +623,9 @@ return baseclass.extend({
 		const w = Math.max(host.clientWidth || 0, 320);
 		const h = Math.max(host.clientHeight || 0, 160);
 
-		const padL = 86, padR = 86, padT = 26, padB = 28;
+		// Compact overview charts omit axis labels and compare both rates on one scale.
+		const padL = this.compactChart ? 4 : 86, padR = this.compactChart ? 4 : 86,
+			padT = this.compactChart ? 10 : 26, padB = this.compactChart ? 14 : 28;
 		const innerW = Math.max(w - padL - padR, 10);
 		const innerH = Math.max(h - padT - padB, 10);
 		const samples = this.history;
@@ -550,6 +635,10 @@ return baseclass.extend({
 			const unit = Math.pow(10, Math.floor(Math.log10(Math.max(peak, 1)))) / 5;
 			bands[key] = { top: padT,
 				max: Math.max(64, Math.ceil(peak * 1.05 / unit) * unit) };
+		}
+		if (this.compactChart) {
+			const sharedMax = Math.max(bands.tx.max, bands.rx.max);
+			bands.tx.max = bands.rx.max = sharedMax;
 		}
 		// History and live polling may have different intervals. Use timestamps,
 		// rather than sample indexes, for the fixed five-minute window.
@@ -875,6 +964,8 @@ return baseclass.extend({
 		]);
 
 		const sys = info || {};
+		const wan = (wans || [])[0];
+		const wan6 = (wans6 || [])[0] || (addrsOf(wan, true).length ? wan : null);
 		this.setSystemInfo(board || {}, sys);
 		this.setUptime(sys.uptime, sys.localtime);
 
@@ -892,7 +983,12 @@ return baseclass.extend({
 		const memUsed = memTotal ? Math.max(0, memTotal - memAvail) : 0;
 		const memPct = memTotal ? (memUsed / memTotal) * 100 : 0;
 
-		const disk = await this.readDisk(sys);
+		const [disk, healthData, leases, dhcpConfig] = await Promise.all([
+			this.readDisk(sys),
+			health.read(!!wan && (typeof wan.isUp === 'function' ? wan.isUp() : !!addrsOf(wan, false).length)),
+			settled(callDhcpLeases(), null), settled(callDHCPConfig('dhcp'), null)
+		]);
+		this.setHealth(healthData, health.dhcpUsage(dhcpConfig, leases, lan));
 		this.diskInfo = disk;
 		const diskUsed = (disk && disk.used) || 0;
 		const diskTotal = (disk && disk.total) || 0;
@@ -903,8 +999,6 @@ return baseclass.extend({
 		this.setGauge('ram', _('Memory'), fmt.fmtBytes(memUsed), _('Total %s').format(fmt.fmtBytes(memTotal)), memPct);
 		this.setGauge('disk', _('Storage'), fmt.fmtBytes(diskUsed), _('Total %s').format(fmt.fmtBytes(diskTotal)), diskPct);
 
-		const wan = (wans || [])[0];
-		const wan6 = (wans6 || [])[0] || (addrsOf(wan, true).length ? wan : null);
 		this.setNetworkRow('wan', wan, false);
 		this.setNetworkRow('lan', lan, false);
 		this.setNetworkRow('wan6', wan6, true);

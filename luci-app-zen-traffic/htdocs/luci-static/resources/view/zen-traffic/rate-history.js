@@ -36,7 +36,13 @@ return baseclass.extend({
  injectStyles: styles,
  load() {
   // Let the router choose its current window; the browser clock may be ahead.
-  return callDefaultHistory().then(data => ({data})).catch(() => ({error:true}));
+  return callDefaultHistory().then(async data => {
+   if(data.interface === 'lo') {
+    const preferred=(data.interfaces || []).find(name=>name!=='lo');
+    if(preferred) data=await callHistory(preferred,data.start,data.end,600);
+   }
+   return {data};
+  }).catch(() => ({error:true}));
  },
  render(initial) {
   styles(); trafficStyle.inject(); this.requestId = 0; this.page = 0;
@@ -119,7 +125,13 @@ return baseclass.extend({
    } else if(!Number.isFinite(start)||!Number.isFinite(end)||start>end||start<serverNow-7*DAY||end>serverNow) {
     this.error.textContent=_('Choose a valid time range within the last 7 days.'); return;
    }
-   const data=await callHistory(this.iface.value||'',start,end,600);
+   const requested=this.iface.value||'';
+   let data=await callHistory(requested,start,end,600);
+   if(id!==this.requestId) return;
+   if(!requested&&data.interface==='lo') {
+    const preferred=(data.interfaces||[]).find(name=>name!=='lo');
+    if(preferred) data=await callHistory(preferred,start,end,600);
+   }
    if(id===this.requestId) this.showData(data);
   } catch(e) {
    if(id===this.requestId) this.error.textContent=_('Unable to query realtime history.');

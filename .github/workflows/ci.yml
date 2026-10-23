@@ -26,12 +26,26 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake libjson-c-dev pkg-config
+          PREFIX="$RUNNER_TEMP/zen-uci"
+          git clone https://github.com/openwrt/libubox.git "$RUNNER_TEMP/libubox"
+          git -C "$RUNNER_TEMP/libubox" checkout 7dd127841e82eb1cfb61185da37dde7b9bd9ba6d
+          cmake -S "$RUNNER_TEMP/libubox" -B "$RUNNER_TEMP/libubox-build" \
+            -DCMAKE_INSTALL_PREFIX="$PREFIX" -DBUILD_LUA=OFF -DBUILD_EXAMPLES=OFF
+          cmake --build "$RUNNER_TEMP/libubox-build" -j2
+          cmake --install "$RUNNER_TEMP/libubox-build"
+          git clone https://github.com/openwrt/uci.git "$RUNNER_TEMP/uci"
+          git -C "$RUNNER_TEMP/uci" checkout 74f6277aabffc943d026f406df57c22595134c42
+          cmake -S "$RUNNER_TEMP/uci" -B "$RUNNER_TEMP/uci-build" \
+            -DCMAKE_INSTALL_PREFIX="$PREFIX" -DCMAKE_PREFIX_PATH="$PREFIX" -DBUILD_LUA=OFF
+          cmake --build "$RUNNER_TEMP/uci-build" -j2
+          cmake --install "$RUNNER_TEMP/uci-build"
           git clone https://github.com/jow-/ucode.git "$RUNNER_TEMP/ucode"
           git -C "$RUNNER_TEMP/ucode" checkout cef2a90f57835c38ab85157a07c4ab3c12925307
-          cmake -S "$RUNNER_TEMP/ucode" -B "$RUNNER_TEMP/ucode-build"
+          cmake -S "$RUNNER_TEMP/ucode" -B "$RUNNER_TEMP/ucode-build" \
+            -DCMAKE_PREFIX_PATH="$PREFIX" -DUCI_SUPPORT=ON
           cmake --build "$RUNNER_TEMP/ucode-build" -j2
           echo "UCODE_BIN=$RUNNER_TEMP/ucode-build/ucode" >> "$GITHUB_ENV"
-          echo "LD_LIBRARY_PATH=$RUNNER_TEMP/ucode-build" >> "$GITHUB_ENV"
+          echo "LD_LIBRARY_PATH=$PREFIX/lib:$RUNNER_TEMP/ucode-build" >> "$GITHUB_ENV"
       - name: Test real updater policy and worker
         run: |
           export UCODE_LIB_PATH="$RUNNER_TEMP/ucode-build/*.so"
@@ -39,6 +53,13 @@ jobs:
           "$UCODE_BIN" -L "$UCODE_LIB_PATH" tools/test-zen-update-policy.uc \
             luci-theme-zen/root/usr/share/zen/update-model.uc "$RUNNER_TEMP/update-cases.json"
           python3 tools/test-zen-update-worker.py
+          node tools/test-device-binding.cjs
+          "$UCODE_BIN" -c,dynlink=fs,dynlink=uci,dynlink=ubus -o /dev/null \
+            luci-theme-zen/root/usr/share/zen/device-binding.uc
+          python3 tools/test-device-binding-worker.py
+          "$UCODE_BIN" -c,dynlink=fs,dynlink=ubus -o /dev/null \
+            luci-theme-zen/root/usr/share/zen/device-connections.uc
+          python3 tools/test-device-connections.py
   rust-check:
     name: Rust check (zen-traffic)
     runs-on: ubuntu-latest
@@ -103,6 +124,15 @@ jobs:
         working-directory: zen-traffic
         run: cargo test --workspace
 
+      - name: Device policy arithmetic and real kernel enforcement
+        run: |
+          cc -O2 -DZEN_POLICY_STANDALONE tools/test-device-policy.c -o "$RUNNER_TEMP/device-policy-unit"
+          "$RUNNER_TEMP/device-policy-unit"
+          clang -O2 -g -target bpf -I/usr/include/x86_64-linux-gnu \
+            -c zen-traffic/bpf/zen_traffic.bpf.c -o "$RUNNER_TEMP/device-policy.bpf.o"
+          cc -O2 tools/test-device-policy-kernel.c -lbpf -lelf -lz -o "$RUNNER_TEMP/device-policy-kernel"
+          sudo "$RUNNER_TEMP/device-policy-kernel" "$RUNNER_TEMP/device-policy.bpf.o"
+
       - name: Real kernel two-interface attachment regression
         working-directory: zen-traffic
         run: |
@@ -161,6 +191,13 @@ jobs:
             -o zen_traffic.bpf.o
           file zen_traffic.bpf.o
 
+      - name: Compile zen_capture.bpf.c (zen-capture tap)
+        run: |
+          clang -O2 -g -target bpf -I/usr/include/x86_64-linux-gnu \
+            -c zen-traffic/bpf/zen_capture.bpf.c \
+            -o zen_capture.bpf.o
+          file zen_capture.bpf.o
+
       # PoC 数据面与正式包同源，保持可编译
       - name: Compile poc/bpf/zen_traffic.bpf.c
         run: |
@@ -191,6 +228,9 @@ jobs:
           node tools/check-po.js luci-app-zen-traffic
           node tools/test-dashboard-history.cjs
           node tools/test-dashboard-poll.cjs
+          node tools/test-dashboard-network.cjs
+          node tools/test-menu-routing.cjs
+          node tools/test-zen-health.cjs
           node tools/test-appearance-rpc.cjs
           node tools/test-home-view-lifecycle.cjs
           node tools/test-wan-share.cjs
@@ -200,12 +240,16 @@ jobs:
           node tools/test-share-periods.cjs
           node tools/test-device-history.cjs
           node tools/test-history-bars.cjs
-          node tools/test-homepage-history-bars.cjs
+          node tools/test-device-internet.cjs
+          node tools/test-device-connection-info.cjs
+          node tools/test-zen-settings.cjs
           node tools/test-realtime-chart-hover.cjs
           node tools/test-realtime-query.cjs
           node tools/test-notifications.cjs
           node tools/test-traffic-view-lifecycle.cjs
+          node tools/test-zen-capture.cjs
           node tools/test-device-timeline.cjs
+          node tools/test-date-picker.cjs
           python3 tools/test-device-timeline.py
           node tools/test-appearance.cjs
           node tools/test-zen-updates.cjs

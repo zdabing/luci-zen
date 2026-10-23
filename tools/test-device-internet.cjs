@@ -1,0 +1,12 @@
+const fs=require('node:fs'),assert=require('node:assert/strict');
+const source=fs.readFileSync('luci-theme-zen/htdocs/luci-static/resources/view/zen/zen-devices.js','utf8');
+const calls=[];
+const {scopedRate,rateText}=new Function('rpc','fmt',source.slice(0,source.indexOf("/* 'ok'"))+'\nreturn {scopedRate,rateText};')({declare:spec=>{calls.push(spec.method);return()=>{};}},{MISSING:'—',fmtRate:String});
+assert.deepEqual(calls,['getStatus','getDevices','getConnections'],'Realtime imports only live traffic and read-only connection metadata');
+assert.equal(scopedRate({rx_r:999,rx_today:999},'wan_rx_r'),null);
+for(const value of [NaN,Infinity,-1,null,undefined])assert.equal(scopedRate({wan_rx_r:value},'wan_rx_r'),null);
+assert.equal(rateText({rx_r:999},'wan_rx_r'),'—');
+assert.equal(rateText({wan_rx_r:0,rx_r:999},'wan_rx_r'),'0');
+assert.equal(rateText({wan_rx_r:12,lan_rx_r:987,rx_r:999},'wan_rx_r'),'12');
+assert.equal(rateText({wan_rx_r:12,lan_rx_r:987,rx_r:999},'lan_rx_r'),'987');
+console.log('PASS: separate Internet/LAN rates, missing versus zero, no mixed-counter fallback or realtime history reads');

@@ -85,6 +85,15 @@ msgstr "无法连接流量统计服务。请安装并启用 zen-traffic，然后
 msgid "This month"
 msgstr "本月"
 
+msgid "Previous month"
+msgstr "上个月"
+
+msgid "Next month"
+msgstr "下个月"
+
+msgid "Close"
+msgstr "关闭"
+
 msgid "Today"
 msgstr "今日"
 
@@ -269,7 +278,7 @@ msgid "History analysis"
 msgstr "历史分析"
 
 msgid "Compare recorded usage by date and device, then inspect past internet rates. Current speeds are on Zen home."
-msgstr "按日期和设备分析历史用量，也可查询过去的互联网速率。当前速度请看 Zen 首页。"
+msgstr "按设备与日期回看用量，或切换到设备占比、过去速率。"
 
 msgid "Device usage ranking"
 msgstr "设备用量排名"
@@ -609,3 +618,282 @@ msgstr "此时段仅有部分记录。"
 
 msgid "Time period"
 msgstr "时段"
+
+msgid "Zen"
+msgstr "Zen"
+
+msgid "Realtime"
+msgstr "实时"
+
+msgid "Analysis"
+msgstr "分析"
+
+msgid "Settings"
+msgstr "设置"
+
+msgid "Retry"
+msgstr "重试"
+
+msgid "Notification settings are unavailable. Install and enable luci-app-zen-traffic and zen-traffic."
+msgstr "通知设置不可用，请安装并启用 luci-app-zen-traffic 和 zen-traffic。"
+
+msgid "Unable to load versions. Please try again."
+msgstr "无法加载版本信息，请重试。"
+
+msgid "Reset counters…"
+msgstr "重置统计…"
+
+msgid "%d selected"
+msgstr "已选 %d 台"
+
+msgid "Select device"
+msgstr "选择设备"
+
+msgid "Resetting…"
+msgstr "正在重置…"
+
+msgid "Retry failed devices"
+msgstr "重试失败设备"
+
+msgid "%d devices could not be reset. Retry to process only these devices."
+msgstr "%d 台设备重置失败，重试时仅处理这些设备。"
+
+msgid "This clears the selected devices’ traffic counters. This action cannot be undone."
+msgstr "这会清空所选设备的流量统计，操作无法撤销。"
+
+msgid "Select all devices"
+msgstr "全选设备"
+
+msgid "Loading internet usage…"
+msgstr "正在加载互联网用量…"
+
+msgid "Device shares require the Zen theme. Usage and ranking remain available."
+msgstr "设备占比图需要 Zen 主题，用量与排名仍可使用。"
+
+msgid "Usage & devices"
+msgstr "用量与设备"
+
+msgid "Device shares"
+msgstr "设备占比"
+
+msgid "Past rates"
+msgstr "过去速率"
+
+msgid "Capture"
+msgstr "抓包"
+
+msgid "Capture one device into pcap files for Wireshark. Captures stop automatically at the time or size limit, and files are kept on the router only until deleted or rebooted."
+msgstr "将单台设备的网络流量抓取为 pcap 文件，可用 Wireshark 分析。到达时长或大小上限会自动停止，文件仅保存在路由器上，删除或重启后清除。"
+
+msgid "Packet Capture"
+msgstr "抓包"
+
+msgid "The capture service (zen-capture) is not reachable. Is zen-traffic installed and running?"
+msgstr "抓包服务（zen-capture）不可用。zen-traffic 是否已安装并运行？"
+
+msgid "Select a device…"
+msgstr "选择设备…"
+
+msgid "Select a device to capture."
+msgstr "请先选择要抓包的设备。"
+
+msgid "Duration"
+msgstr "时长"
+
+msgid "Size limit"
+msgstr "大小上限"
+
+msgid "Start capture"
+msgstr "开始抓包"
+
+msgid "No captures yet."
+msgstr "暂无抓包记录。"
+
+msgid "Started"
+msgstr "开始时间"
+
+msgid "State"
+msgstr "状态"
+
+msgid "Stop"
+msgstr "停止"
+
+msgid "Delete"
+msgstr "删除"
+
+msgid "Capturing…"
+msgstr "抓包中…"
+
+msgid "Completed"
+msgstr "已完成"
+
+msgid "Stopped: time limit"
+msgstr "已停止：到达时长上限"
+
+msgid "Stopped: size limit"
+msgstr "已停止：到达大小上限"
+
+msgid "Stopped by user"
+msgstr "已手动停止"
+
+msgid "Stopped: low disk space"
+msgstr "已停止：磁盘空间不足"
+
+msgid "Failed (tcpdump exited)"
+msgstr "失败（tcpdump 已退出）"
+
+msgid "Interrupted (service restart)"
+msgstr "已中断（服务重启）"
+
+msgid "Invalid MAC address."
+msgstr "MAC 地址无效。"
+
+msgid "tcpdump is not installed on the router. Install the tcpdump package and try again."
+msgstr "路由器上未安装 tcpdump，请先安装 tcpdump 软件包后重试。"
+
+msgid "Session limit reached. Stop a running capture first."
+msgstr "已达到会话上限，请先停止正在进行的抓包。"
+
+msgid "This device is already being captured."
+msgstr "该设备已在抓包中。"
+
+msgid "Failed to start tcpdump. Check the system log."
+msgstr "tcpdump 启动失败，请查看系统日志。"
+
+msgid "Stop the running capture before deleting it."
+msgstr "请先停止抓包再删除。"
+
+msgid "Capture session not found."
+msgstr "未找到该抓包会话。"
+
+msgid "Capture failed: %s"
+msgstr "抓包失败：%s"
+
+msgid "Delete the capture of %s?"
+msgstr "删除 %s 的抓包记录？"
+
+msgid "Download failed. The capture file is no longer available."
+msgstr "下载失败，抓包文件已不存在。"
+
+msgid "%d s"
+msgstr "%d 秒"
+
+msgid "%d min"
+msgstr "%d 分钟"
+
+msgid "%d h"
+msgstr "%d 小时"
+
+msgid "%d MB"
+msgstr "%d MB"
+
+msgid "Size"
+msgstr "大小"
+
+msgid "pcap (Wireshark)"
+msgstr "pcap（Wireshark）"
+
+msgid "pcap (tcpdump)"
+msgstr "pcap（tcpdump）"
+
+msgid "HTTP requests"
+msgstr "HTTP 请求"
+
+msgid "Capture mode"
+msgstr "抓包方式"
+
+msgid "Decrypt HTTPS"
+msgstr "解密 HTTPS"
+
+msgid "decrypt"
+msgstr "解密"
+
+msgid "Download CA certificate"
+msgstr "下载 CA 证书"
+
+msgid "The router creates its CA on the first encrypted capture. Install the downloaded certificate on the device and trust it for HTTPS."
+msgstr "路由器会在第一次加密抓包时创建 CA。请把下载的证书安装到设备上，并信任其用于 HTTPS。"
+
+msgid "Hide details"
+msgstr "收起详情"
+
+msgid "Details"
+msgstr "详情"
+
+msgid "Unable to load the session details."
+msgstr "无法加载会话详情。"
+
+msgid "Domains visited"
+msgstr "访问的域名"
+
+msgid "No domains captured yet."
+msgstr "尚未抓到域名。"
+
+msgid "Request events"
+msgstr "请求事件"
+
+msgid "No requests captured yet."
+msgstr "尚未抓到请求。"
+
+msgid "Domain"
+msgstr "域名"
+
+msgid "Count"
+msgstr "次数"
+
+msgid "Last seen"
+msgstr "最近出现"
+
+msgid "Time"
+msgstr "时间"
+
+msgid "Kind"
+msgstr "类型"
+
+msgid "HTTP"
+msgstr "HTTP"
+
+msgid "HTTPS"
+msgstr "HTTPS"
+
+msgid "Passthrough (protected app)"
+msgstr "直连（受保护应用）"
+
+msgid "Decryption failed"
+msgstr "解密失败"
+
+msgid "Download HAR"
+msgstr "下载 HAR"
+
+msgid "The eBPF capture engine is unavailable on this kernel. Try the tcpdump mode."
+msgstr "此内核不支持 eBPF 抓包引擎，请改用 tcpdump 模式。"
+
+msgid "The firewall (nftables) redirect could not be created. Check the system log."
+msgstr "无法创建防火墙（nftables）重定向规则，请查看系统日志。"
+
+msgid "The capture CA is not available yet. It is created when you start an encrypted capture."
+msgstr "抓包 CA 尚未创建，它会在你启动第一次加密抓包时生成。"
+
+msgid "HTTPS decryption is not available on this router."
+msgstr "此路由器不支持 HTTPS 解密。"
+
+msgid "Capture one device into pcap files for Wireshark, list its HTTP requests, or decrypt HTTPS after trusting the router CA on that device. Captures stop automatically at the time or size limit, and files are kept on the router only until deleted or rebooted."
+msgstr "抓取单台设备的流量为 pcap 文件（Wireshark 分析）、列出其 HTTP 请求，或在设备信任路由器 CA 后解密 HTTPS。到达时长或大小上限会自动停止，文件仅保存在路由器上，删除或重启后清除。"
+
+msgid "Mode"
+msgstr "方式"
+
+msgid "Method"
+msgstr "方法"
+
+msgid "Host"
+msgstr "主机"
+
+msgid "Path"
+msgstr "路径"
+
+msgid "↑"
+msgstr "↑"
+
+msgid "↓"
+msgstr "↓"

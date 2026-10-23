@@ -13,7 +13,7 @@ const PERIODS = [['day',_('This day')],['week',_('This week')],['month',_('This 
 
 function deviceHistoryUrl(mac) {
 	if (!/^(?:[0-9a-f]{2}:){5}[0-9a-f]{2}$/i.test(mac || '')) return null;
-	const url = new URL(L.url('admin', 'status', 'zen-traffic', 'history'), window.location.href);
+	const url = new URL(L.url('admin', 'zen', 'analysis'), window.location.href);
 	url.searchParams.set('mac', mac.toLowerCase());
 	url.hash = 'device-hourly';
 	return url.pathname + url.search + url.hash;
@@ -53,6 +53,13 @@ function breakdown(data, direction, all) {
 	return { slices, total, observed, excess: Math.max(0, attributed - observed), devices: rows.length };
 }
 
+// Share the ring denominators with overview totals, including accounting differences.
+function usageTotals(data) {
+	const upload = breakdown(data, 'upload', true).total;
+	const download = breakdown(data, 'download', true).total;
+	return { upload, download, total: upload + download };
+}
+
 function svg(tag, attrs) {
 	const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
 	for (const key in attrs) el.setAttribute(key, attrs[key]);
@@ -73,19 +80,13 @@ function chart(direction) {
 	const legend = E('ul', { 'class': 'zen-share-legend' });
 	const note = E('p', { 'class': 'zen-share-note' });
 	const more = E('button', { type: 'button', 'class': 'zen-share-more', hidden: true }, _('Show all'));
+	const footer = E('div', { 'class': 'zen-share-footer', hidden: true }, [note, more]);
 	let period = 'day', snapshot = null;
-	const buttons = PERIODS.map(([key,label])=>E('button',{type:'button','aria-pressed':String(key===period),click:()=>{
-		if(!snapshot) return;
-		period=key;selected=null;
-		buttons.forEach((button,i)=>button.setAttribute('aria-pressed',String(PERIODS[i][0]===period)));
-		update(period==='all' ? snapshot.all : snapshot[period]);
-	}},label));
 	const root = E('article', { 'class': 'zen-share-card ' + direction }, [
-		E('div',{'class':'zen-share-head'},[E('h4', {}, direction === 'upload' ? _('Upload share') : _('Download share')),
-			E('div',{'class':'zen-share-periods',role:'group','aria-label':_('Time range')},buttons)]),
+		E('div',{'class':'zen-share-head'},E('h4', {}, direction === 'upload' ? _('Upload share') : _('Download share'))),
 		E('div', { 'class': 'zen-share-content' }, [E('div', { 'class': 'zen-share-ring' }, [ring,
 			E('div', { 'class': 'zen-share-center' }, [name, value, percentValue]), tooltip]), legend]),
-		E('div', { 'class': 'zen-share-footer' }, [note, more])
+		footer
 	]);
 	let expanded = false, data = null, selected = null;
 	const cache = new Map();
@@ -93,7 +94,7 @@ function chart(direction) {
 		const entry = cache.get(key);
 		selected = entry ? key : null;
 		for (const [id, item] of cache) item.arc.style.opacity = !entry || id === key ? '1' : '.25';
-		name.textContent = entry ? entry.label : PERIODS.find(([key])=>key===period)[1]+' · '+_('Recorded traffic');
+		name.textContent = entry ? entry.label : PERIODS.find(([key])=>key===period)[1];
 		value.textContent = fmt.fmtBytes(entry ? entry.bytes : breakdown(data, direction, expanded).total);
 		percentValue.hidden = !entry;
 		percentValue.textContent = entry ? entry.percent.toFixed(1) + '%' : '';
@@ -158,35 +159,45 @@ function chart(direction) {
 		else for (const empty of legend.querySelectorAll('.zen-share-empty')) empty.remove();
 		more.hidden = model.devices <= 6;
 		more.textContent = expanded ? _('Show less') : _('Show all');
-		note.textContent = _('WAN interface: %s').format(fmt.fmtBytes(model.observed));
-		if (model.excess > 0) note.textContent += ' · ' + _('Device-side excess: %s; shares use device-side totals.').format(fmt.fmtBytes(model.excess));
+		note.hidden = model.excess <= 0;
+		note.textContent = note.hidden ? '' : _('WAN interface: %s').format(fmt.fmtBytes(model.observed));
+		footer.hidden = note.hidden && more.hidden;
 	}
 	more.addEventListener('click', () => { expanded = !expanded; update(data); });
-	return { root, update(next) { snapshot=next;update(period==='all' ? next.all : next[period]); } };
+	return { root, setPeriod(key) { period=key;selected=null;if(snapshot)update(key==='all'?snapshot.all:snapshot[key]); }, update(next) { snapshot=next;update(period==='all' ? next.all : next[period]); } };
 }
 
 return baseclass.extend({
-	async mount(dash) {
+	async mount(dash, options = {}) {
 		if (dash.querySelector('.zen-wan-share')) return;
 		const subtitle = E('p', { 'class': 'zen-share-description' }, _('Loading internet usage…'));
 		const status = E('p', { 'class': 'zen-share-status', role: 'status' });
 		const upload = chart('upload'), download = chart('download');
+		let selectedPeriod = 'day', snapshot = null;
+		function publishTotals() {
+			if (snapshot && typeof options.onUpdate === 'function')
+				options.onUpdate({ period: selectedPeriod, ...usageTotals(snapshot[selectedPeriod]),
+					uploadBreakdown: breakdown(snapshot[selectedPeriod], 'upload', true),
+					downloadBreakdown: breakdown(snapshot[selectedPeriod], 'download', true) });
+		}
+		const buttons=PERIODS.map(([key,label])=>E('button',{type:'button','aria-pressed':String(key==='day'),click:()=>{selectedPeriod=key;upload.setPeriod(key);download.setPeriod(key);buttons.forEach((button,index)=>button.setAttribute('aria-pressed',String(PERIODS[index][0]===key)));publishTotals();}},label));
+		const range=E('div',{class:'zen-share-periods zen-segmented',role:'group','aria-label':_('Time range')},buttons);
 		const cards = E('div', { 'class': 'zen-share-grid', hidden: true }, [upload.root, download.root]);
 		const section = E('section', { 'class': 'zen-dash-panel zen-wan-share' }, [E('h3', {}, _('Internet usage by device')),
-			subtitle, cards, status, E('details', { 'class': 'zen-share-help' }, [E('summary', {}, _('How shares are counted')),
-				E('p', {}, _('Only internet traffic recorded since the date above is included. Earlier combined LAN/WAN history is excluded. Collection pauses while the service is stopped.')),
-				E('p', {}, _('Unassigned is interface traffic not allocated to a device, including possible router traffic, cleared devices and accounting differences.'))])]);
+			subtitle, range, cards, status]);
 		dash.appendChild(section);
 		let loaded = false, busy = false;
 		async function tick() {
-			if (document.hidden || !section.isConnected || busy) return;
+			if (document.hidden || !section.isConnected || section.closest('[hidden]') || busy) return;
 			busy=true;
 			try {
 				const data = await callUsage();
 				if (!data || !Array.isArray(data.dev) || !number(data.since)) throw new Error('usage unavailable');
-				const snapshot={all:data,...await periods.load(data)};
+				snapshot={all:data,...await periods.load(data)};
 				upload.update(snapshot); download.update(snapshot); cards.hidden = false; loaded = true;
-				subtitle.textContent = _('Internet traffic since %s').format(new Date(data.since * 1000).toLocaleString());
+				publishTotals();
+				subtitle.hidden = true;
+				subtitle.textContent = '';
 				status.textContent = '';
 			} catch (e) {
 				if (!loaded) subtitle.textContent = _('Internet shares require an updated zen-traffic service and a valid system clock.');
@@ -196,5 +207,6 @@ return baseclass.extend({
 		poll.add(tick, 5); await tick();
 	},
 	breakdown,
+	usageTotals,
 	deviceHistoryUrl
 });

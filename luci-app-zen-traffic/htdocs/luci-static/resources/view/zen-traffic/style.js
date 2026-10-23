@@ -7,10 +7,46 @@ return baseclass.extend({
 		if (document.getElementById('zen-traffic-page-css')) return;
 		const style = E('style', { id: 'zen-traffic-page-css' });
 		style.textContent = `
+.zen-analysis-tabs { display:flex; gap:8px; flex-wrap:wrap; margin:20px 0 24px; border-bottom:1px solid var(--zt-line); }
+.zen-analysis-tabs button { border:0; border-bottom:2px solid transparent; background:transparent; color:var(--zt-muted); padding:12px 16px; font:inherit; min-height:44px; cursor:pointer; }
+.zen-analysis-tabs button[aria-selected="true"] { color:var(--accent-strong);border-bottom-color:var(--accent); }
+.zen-analysis-tabs button:focus-visible { outline:2px solid var(--accent);outline-offset:2px; }
+.zen-traffic-page [role="tabpanel"][hidden], .zen-traffic-page button[hidden] { display:none!important; }
+.zen-reset-devices { max-height:45dvh; overflow:auto; margin:16px 0; }
+.zen-reset-device { display:flex; align-items:center; gap:12px; min-height:52px; padding:8px 0; cursor:pointer; }
+.zen-reset-device input { width:18px!important;height:18px!important;flex:none; }
+.zen-reset-device span { display:grid;gap:4px;min-width:0;overflow-wrap:anywhere; }
+.zen-reset-device small { color:var(--zt-muted); }
+.zen-date-picker{display:block;min-width:0;width:100%}
+.zen-date-picker>input[hidden]{display:none!important}
+.zen-traffic-page .zen-date-trigger{display:flex;align-items:center;justify-content:space-between;gap:18px;width:100%;min-height:44px;border:1px solid var(--line,#dce2d9);border-radius:16px;padding:10px 14px;background:var(--bg-input,var(--bg-panel,#f7f8f3));color:var(--text,#283028);font:inherit;font-size:13px;font-variant-numeric:tabular-nums;text-align:left;cursor:pointer}
+.zen-date-trigger svg{width:19px;height:19px;color:var(--text-secondary,#7c8778);flex:none}
+.zen-date-trigger[aria-expanded="true"]{border-color:var(--accent,#278e67)}
+.zen-date-dialog{position:fixed;inset:auto;margin:0!important;width:min(320px,calc(100vw - 24px));max-width:calc(100vw - 24px);max-height:calc(100dvh - 24px);overflow:auto;padding:18px;border:1px solid var(--line,#fff);border-radius:24px;background:var(--modal-grad,var(--bg-panel,#f5f7f0));color:var(--text,#283028);font:13px/1.4 var(--font,system-ui,sans-serif);box-shadow:0 20px 65px -22px #34483155;backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px)}
+.zen-date-dialog::backdrop{background:transparent}
+.zen-date-heading{display:flex;align-items:center;gap:5px;margin-bottom:15px}
+.zen-date-month{flex:1;font-size:16px;font-weight:600;letter-spacing:-.3px}
+.zen-date-dialog button{display:inline-flex;align-items:center;justify-content:center;min-width:0;margin:0;padding:0;border:0;background:transparent;color:inherit;font:inherit;font-variant-numeric:tabular-nums;cursor:pointer;box-shadow:none}
+.zen-date-dialog .zen-date-nav{width:30px;height:32px;flex:none;border-radius:50%;background:var(--bg-nested,#ffffff80)}
+.zen-date-nav svg{width:17px;height:17px;display:block}
+.zen-date-weekdays,.zen-date-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;text-align:center}
+.zen-date-weekdays{color:var(--text-secondary,#82907b);font-size:11px;margin-bottom:6px}
+.zen-date-weekdays span{padding:4px 0}
+.zen-date-dialog .zen-date-day{height:36px;min-height:36px;border:1px solid transparent;border-radius:50%;font-size:13px}
+.zen-date-dialog .zen-date-day.is-outside{color:var(--text-secondary,#8a9682)}
+.zen-date-dialog .zen-date-day[aria-current="date"]{border-color:var(--accent,#278e67);color:var(--accent-strong,#247e5c)}
+.zen-date-dialog .zen-date-day[aria-pressed="true"]{background:var(--accent,#278e67);color:var(--on-accent,#fff);border-color:transparent}
+.zen-date-dialog button:disabled{opacity:.28;cursor:default}
+.zen-date-dialog button:not(:disabled):hover{background:var(--accent-soft,#d9eadc);color:var(--accent-strong,#247e5c)}
+.zen-date-dialog .zen-date-day[aria-pressed="true"]:hover{background:var(--accent-strong,#247e5c);color:var(--on-accent,#fff)}
+.zen-date-dialog button:focus-visible,.zen-date-trigger:focus-visible{outline:2px solid var(--accent,#278e67);outline-offset:2px}
+.zen-date-footer{display:flex;justify-content:flex-end;border-top:1px solid var(--border,#74846518);padding-top:10px;margin-top:12px}
+.zen-date-dialog .zen-date-today{min-height:32px;padding:6px 13px;border-radius:18px;background:var(--bg-nested,#fff8);color:var(--accent-strong,#247e5c);font-size:12px}
+
 .zen-traffic-page{--zt-panel:var(--bg-panel,#fff);--zt-nested:var(--bg-nested,#f1f1f1);--zt-text:var(--text,#171717);--zt-muted:var(--text-secondary,#525252);--zt-line:var(--line,#e5e5e5);--zt-dl:var(--dl,#15803d);--zt-ul:var(--ul,#ea580c);color:var(--zt-text);font-family:var(--font,system-ui,sans-serif);min-width:0}
 .zen-traffic-page>h2{font-size:26px;font-weight:650;letter-spacing:-.025em;border:0;padding:0;margin:0 0 10px}
 .zen-traffic-page>.cbi-map-descr{color:var(--zt-muted);font-size:13px;line-height:1.65;margin:0 0 24px;max-width:80ch}
-.zen-traffic-page>.cbi-section{background:var(--zt-panel);border:0;border-radius:var(--radius,24px);padding:24px;margin:0 0 20px;min-width:0;box-shadow:none}
+.zen-traffic-page>.cbi-section,.zen-traffic-page>[role="tabpanel"]>.cbi-section{background:var(--zt-panel);border:0;border-radius:var(--radius,24px);padding:24px;margin:0 0 20px;min-width:0;box-shadow:none}
 .zen-traffic-page button{min-height:40px;border-radius:12px;font-size:13px;box-shadow:none}
 .zen-traffic-page button:focus-visible,.zen-traffic-page select:focus-visible{outline:2px solid var(--accent,#171717);outline-offset:3px}
 .zen-traffic-page select,.zen-traffic-page input{min-height:40px;min-width:0;max-width:100%;border-radius:12px;font-size:13px}
@@ -53,7 +89,7 @@ return baseclass.extend({
 .zen-traffic-page .zen-rt-field input,.zen-traffic-page .zen-rt-field select{width:100%}.zen-traffic-page .zen-rt-table{width:100%;table-layout:fixed}.zen-rt-table th:first-child{width:42%}.zen-rt-table td{font-variant-numeric:tabular-nums;font-size:13px;overflow-wrap:anywhere}
 @media(max-width:900px){.zen-traffic-page .zen-tf-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.zen-tf-table th:first-child{width:26%}.zen-tf-table td{padding-left:8px;padding-right:8px}}
 @media(max-width:600px){
-.zen-traffic-page button,.zen-traffic-page select,.zen-traffic-page input{min-height:44px}.zen-traffic-page .zen-tf-expand{width:44px;min-width:44px}.zen-traffic-page>h2{font-size:24px}.zen-traffic-page>.cbi-map-descr{margin-bottom:18px}.zen-traffic-page>.cbi-section{padding:18px;border-radius:24px;margin-bottom:16px}
+.zen-traffic-page button,.zen-traffic-page select,.zen-traffic-page input{min-height:44px}.zen-traffic-page .zen-tf-expand{width:44px;min-width:44px}.zen-traffic-page>h2{font-size:24px}.zen-traffic-page>.cbi-map-descr{margin-bottom:18px}.zen-traffic-page>.cbi-section,.zen-traffic-page>[role="tabpanel"]>.cbi-section{padding:18px;border-radius:24px;margin-bottom:16px}
 .zen-traffic-page .zen-tf-summary{padding:0;gap:12px}.zen-tf-sum-item{padding:18px 16px;border-radius:22px}.zen-tf-sum-label{font-size:11px;margin-bottom:8px}.zen-tf-sum-value{font-size:22px}
 .zen-traffic-page .zen-tf-list{background:transparent;padding:0}.zen-tf-list-head{margin:4px 2px 14px}.zen-tf-table{display:block;border:0}.zen-tf-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}.zen-tf-table tbody{display:block}
 .zen-tf-table .zen-tf-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:'name action' 'conn conn' 'up down';gap:0 16px;background:var(--zt-panel);border-radius:24px;padding:18px;margin-bottom:12px}

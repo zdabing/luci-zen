@@ -4,7 +4,7 @@ const source = fs.readFileSync(require('path').join(__dirname, '../luci-theme-ze
 const moduleView = new Function('baseclass', 'rpc', 'poll', 'fmt', '_', 'L', 'window', source)(
  { extend: x => x }, { declare: () => () => {} }, {}, {}, x => x,
  {url:(...parts)=>'/cgi-bin/luci/'+parts.join('/')},{location:{href:'http://router.local/cgi-bin/luci/admin/zen'}});
-assert.equal(moduleView.deviceHistoryUrl('AA:BB:CC:DD:EE:01'),'/cgi-bin/luci/admin/status/zen-traffic/history?mac=aa%3Abb%3Acc%3Add%3Aee%3A01#device-hourly');
+assert.equal(moduleView.deviceHistoryUrl('AA:BB:CC:DD:EE:01'),'/cgi-bin/luci/admin/zen/analysis?mac=aa%3Abb%3Acc%3Add%3Aee%3A01#device-hourly');
 for(const key of ['other','unassigned','not-a-device','']) assert.equal(moduleView.deviceHistoryUrl(key),null,'Aggregate rows are not device links');
 const model = (dev, observed, all = false, direction = 'download') => moduleView.breakdown({dev, ['interface_' + direction]: observed}, direction, all);
 const device = (mac, download, upload = 0) => ({mac, download, upload});
@@ -24,4 +24,8 @@ assert.equal(result.slices.find(d => d.key === 'other').bytes, 105);
 assert.equal(model(devices, 230, true).slices.length, 21);
 assert.equal(model(devices, 250, true, 'upload').slices.reduce((sum, d) => sum + d.bytes, 0), 250);
 assert.equal(model([device('a', -20), device('b', NaN)], 5).total, 5);
+assert.deepEqual(moduleView.usageTotals({dev:[device('a',60,20),device('b',30,10)],interface_download:100,interface_upload:40}),
+ {upload:40,download:100,total:140}, 'Overview totals include the same unassigned traffic as the rings');
+assert.deepEqual(moduleView.usageTotals({dev:[device('a',110,25)],interface_download:100,interface_upload:20}),
+ {upload:25,download:110,total:135}, 'Overview totals use the ring denominator when devices exceed interface counters');
 console.log('WAN share accounting cases passed');

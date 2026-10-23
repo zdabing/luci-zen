@@ -150,6 +150,8 @@ luci-zen/
 | `getTotal` | – | `{rx_r, tx_r, rx_total, tx_total, rx_today, tx_today, rx_month, tx_month}`（netlink 接口级） | read |
 | `getHistory` | `{mac?, start_ms?, end_ms?, agg:"day"\|"month"}` | `{agg, start, days:[{date, download, upload}]}` 或 `{agg:"month", start, months:[{month, download, upload}]}`（SQLite 聚合；mac 缺省 = 全设备 SUM；默认范围 90 天 / 12 月） | read |
 | `setHostname` | `{mac, host}` | `{ok:1}` | write |
+| `getDevicePolicy` | `{mac}` | `{json:{ok,policy:{upload_kbps,download_kbps,blocked},enforceable}}` | read |
+| `setDevicePolicy` | `{json:{action:"limit",mac,upload_kbps,download_kbps}}` 或 `{json:{action:"block",mac,blocked}}` | `{json:{ok,policy}}`；失败返回固定 `error` | write |
 | `resetDevice` | `{mac}` | `{ok:1}` | write |
 
 字段方向约定延续 Bandix：**rx=下载、tx=上传**；速率 B/s、累计字节。前端 `rpc.declare + poll` 1~2s。
@@ -161,6 +163,7 @@ luci-zen/
 | Map | 类型 | key | value | 用途 |
 |---|---|---|---|---|
 | `devices` | HASH（≤4096） | `__u8[6]` MAC | `struct dev_stats` | 每设备计数器 |
+| `device_policies` | HASH（≤4096） | MAC | spin lock、拉黑标记、双方向 token bucket | 可选的设备互联网限制 |
 | `local_prefixes` | LPM_TRIE（≤256，`BPF_F_NO_PREALLOC`） | `{u32 prefixlen; u8 data[16]}` | `u8` | 本地前缀（IPv4 以 `::ffff:a.b.c.d` 归一化，prefixlen=96+n；IPv6 原生；单 map 双栈） |
 
 ```c
@@ -178,7 +181,7 @@ struct dev_stats {            /* eBPF 层只管 bytes/packets/last_seen */
 - 两个程序 `zen_ingress` / `zen_egress`（`SEC("tc")`），同一份 `account()` 内联逻辑，稳定 UAPI 头（`ethhdr/iphdr/ipv6hdr/vlan_hdr`），**无 CO-RE、无 kfunc、不依赖目标内核 BTF**；对象内 BTF 仅用于 BTF-defined maps（本地 BTF 随 .o 提供，与内核 BTF 无关）。
 - 解析：eth → 802.1Q/QinQ → IPv4/IPv6；计数 `skb->len`（L3 字节，含 GSO 聚合长度）；跳过 IPv4 224/4 与 255.255.255.255、IPv6 ff00::/8、组播/广播 MAC（I/G 位）、ARP/非 IP。
 - 计数器更新用 `__sync_fetch_and_add`（内核 ≥5.2 原子加；如遇个别 32 位目标 JIT 不支持，Phase B 提供 spin_lock 变体）。
-- 挂载：netlink 原生实现——`clsact` qdisc + `cls_bpf` filter（`TCA_BPF_FD` + `TCA_BPF_FLAG_ACT_DIRECT`），固定 pref/handle 幂等 REPLACE；verdict 恒 `TC_ACT_OK`（旁路观测，不过滤）。
+- 挂载：生产使用 Aya TC/TCX，复用当前 LAN 接口挂载点。默认 verdict 为 `TC_ACT_OK`；显式配置设备策略后，互联网包按 MAC、上传/下载分别执行 token-bucket policing，超额或拉黑包返回 `TC_ACT_SHOT`。本地前缀与 ARP/NDP 保持可达，丢弃包不累计为已通过的互联网用量。`poc/` 仍保留只观测基线。
 - 持久化/恢复（v3 Rust 版）：**maps 不 pin**——BPF 计数随 daemon 重启清零，累计（今日/月/总量）由 SQLite checkpoint 恢复（崩溃丢失去 checkpoint 止，正常 SIGTERM 无损失）；attach 幂等由 **netlink 按名清理残留 filter**（zen_ingress/zen_egress）+ Aya Link 语义保证（等价 C 版固定 pref/handle REPLACE）。
 
 ### 7.3 zen-trafficd（Rust + Aya + libubus FFI，v3 实现）

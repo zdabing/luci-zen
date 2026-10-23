@@ -3,7 +3,7 @@ const fs = require('node:fs'),path = require('node:path'),assert = require('node
 const source = fs.readFileSync(process.argv[2] || path.join(__dirname,
   '../luci-app-zen-traffic/htdocs/luci-static/resources/view/zen-traffic/rate-history.js'), 'utf8');
 const requests = [], serverNow = 1790998101;
-let fail = false, delayStatus;
+let fail = false, delayStatus, defaultInterface='pppoe-wan', interfaces=['pppoe-wan'];
 const realNow = Date.now;
 Date.now = () => (serverNow + 1) * 1000;
 String.prototype.format = function(...args) {return this.replace(/%[ds]/g,()=>String(args.shift()));};
@@ -12,7 +12,7 @@ const rpc = {declare: spec => (...args) => {
   requests.push({method:spec.method,payload,reject:spec.reject});
   if(spec.method==='getStatus') return delayStatus || Promise.resolve({since:serverNow});
   if(fail || payload.end>serverNow) return spec.reject ? Promise.reject(new Error('ubus code 2')) : Promise.resolve(2);
-  return Promise.resolve({interface:'pppoe-wan',interfaces:['pppoe-wan'],start:serverNow-300,end:serverNow,step:5,samples:[{time:serverNow-5,download:1234,upload:456}]});
+  return Promise.resolve({interface:payload.iface||defaultInterface,interfaces,start:serverNow-300,end:serverNow,step:5,samples:[{time:serverNow-5,download:1234,upload:456}]});
 }};
 const view = new Function('baseclass','rpc','trafficStyle','_',source)({extend:x=>x},rpc,{},x=>x);
 view.range={value:'300'};view.iface={value:'pppoe-wan'};
@@ -24,6 +24,15 @@ view.showData=data=>{view.data=data;};
   assert.ok(initial.data && Array.isArray(initial.data.samples),'Initial load must return history data, not a ubus error code');
   assert.equal(initial.data.samples.length,1,'Initial load must not ask for a future browser timestamp');
   assert.deepEqual(requests[0].payload,{});
+  defaultInterface='lo';interfaces=['lo','eth1'];
+  const physical=await view.load();
+  assert.equal(physical.data.interface,'eth1','Initial internet rates must prefer the upstream interface over loopback');
+  assert.deepEqual(requests.at(-1).payload,{iface:'eth1',start:serverNow-300,end:serverNow,limit:600});
+  view.iface.value='';await view.query();
+  assert.equal(view.data.interface,'eth1','An empty interface on the new workspace must also select the upstream');
+  assert.equal(requests.at(-1).payload.iface,'eth1');
+  view.iface.value='pppoe-wan';
+  defaultInterface='pppoe-wan';interfaces=['pppoe-wan'];
   await view.query();
   assert.deepEqual(requests.at(-1).payload,{iface:'pppoe-wan',start:serverNow-300,end:serverNow,limit:600});
   assert.equal(view.data.samples.length,1);

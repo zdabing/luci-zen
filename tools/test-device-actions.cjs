@@ -1,45 +1,24 @@
-// Verify the LuCI RPC contract and explicit confirmation before counter reset.
-const fs = require('node:fs');
-const path = require('node:path');
-const assert = require('node:assert/strict');
-String.prototype.format = function (...args) { return this.replace(/%[ds]/g, () => String(args.shift())); };
-let modal = null, requests = [], ticks = 0;
-const E = (tag, attrs = {}, children = []) => ({tag, attrs,
-  children: Array.isArray(children) ? children : [children]});
-const ui = {
-  showModal: (title, children) => { modal = {title, children}; },
-  hideModal: () => { modal = null; },
-  addNotification: () => { throw new Error('Unexpected action error'); }
-};
-const rpc = {declare: spec => (...args) => {
-  requests.push({method: spec.method,
-    payload: Object.fromEntries((spec.params || []).map((key, i) => [key, args[i]]))});
-  return Promise.resolve({ok: true});
+// Explicit confirmation, permissions, cancellation and partial-success retry.
+const fs=require('node:fs'),assert=require('node:assert/strict'),{E,find}=require('./test-ui-dom.cjs');
+String.prototype.format=function(...args){return this.replace(/%[ds]/g,()=>String(args.shift()));};
+const source=fs.readFileSync('luci-app-zen-traffic/htdocs/luci-static/resources/view/zen-traffic/device-reset.js','utf8');
+let modal,fail='b',allowed=true,refreshes=0;const calls=[];
+const rpc={declare:spec=>async(...args)=>{
+ if(spec.method==='access')return {access:allowed};
+ calls.push(args[0]);if(args[0]===fail)throw Error('offline');return {ok:true};
 }};
-const historySource=fs.readFileSync(path.join(__dirname,'../luci-app-zen-traffic/htdocs/luci-static/resources/view/zen-traffic/history.js'),'utf8');
-const history=new Function('view','rpc','ui','_','E',historySource)({extend:x=>x},rpc,ui,x=>x,E);
-history.mac='02:00:00:00:00:01';history.sel={selectedOptions:[{textContent:'NAS'}]};history.refresh=()=>{ticks++;};
-const row = {d: {mac: '02:00:00:00:00:01', host: 'NAS'}};
-function button(label) {
-  function find(nodes) {
-    for (const node of nodes) {
-      if (!node || typeof node !== 'object') continue;
-      if (node.tag === 'button' && node.children.includes(label)) return node;
-      const match = find(node.children || []); if (match) return match;
-    }
-  }
-  const result = find(modal.children);
-  assert.ok(result, 'Missing action button ' + label); return result;
-}
-const settled = () => new Promise(resolve => setImmediate(resolve));
-(async () => {
-  history.resetSelected();
-  assert.equal(requests.length, 0, 'Opening the reset dialog must not clear counters');
-  button('Cancel').attrs.click(); await settled();
-  assert.equal(requests.length, 0, 'Cancel must not issue a reset');
-  history.resetSelected();
-  button('Reset counters').attrs.click(); await settled();
-  assert.deepEqual(requests.at(-1), {method: 'resetDevice', payload: {mac: row.d.mac}});
-  assert.equal(ticks, 1);
-  console.log('PASS: reset RPC fields and explicit reset confirmation');
-})().catch(error => {console.error(error); process.exit(1);});
+const ui={showModal:(title,children)=>{modal=E('div',{},children);},hideModal:()=>{modal=null;}};
+const component=new Function('baseclass','rpc','ui','_','E',source)({extend:x=>x},rpc,ui,x=>x,E);
+const devices=[{mac:'a',host:'Laptop'},{mac:'b',host:'NAS'}];
+const button=label=>find(modal,node=>node.tag==='button'&&node.textContent===label);
+(async()=>{
+ const denied=component.build(devices,()=>'',()=>{});allowed=false;await new Promise(setImmediate);assert.equal(denied.hidden,false);
+ const denied2=component.build(devices,()=>'',()=>{});await new Promise(setImmediate);assert.equal(denied2.hidden,true);
+ component.open(devices,'a',()=>refreshes++);assert.deepEqual(calls,[]);button('Cancel').attrs.click();assert.equal(modal,null);assert.deepEqual(calls,[]);
+ component.open(devices,'a',()=>refreshes++);
+ const all=find(modal,node=>node.tag==='input'&&node.attrs.change&&!node.attrs['aria-label']);all.checked=true;all.attrs.change();
+ await button('Reset counters').attrs.click();assert.deepEqual(calls,['a','b']);assert.equal(refreshes,1);
+ assert.equal(button('Retry failed devices').disabled,false);
+ fail=null;await button('Retry failed devices').attrs.click();assert.deepEqual(calls,['a','b','b'],'Successful devices are never retried');assert.equal(modal,null);
+ console.log('PASS: reset permissions, explicit confirm, cancellation, selected MACs and partial-success retry');
+})().catch(error=>{console.error(error);process.exitCode=1;});

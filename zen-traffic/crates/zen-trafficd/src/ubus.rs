@@ -40,7 +40,7 @@ const fn cs(s: &'static [u8]) -> *const c_char {
 // ubus 方法表
 // ---------------------------------------------------------------------------
 
-static METHODS: [ubus::ubus_method; 14] = [
+static METHODS: [ubus::ubus_method; 16] = [
     m(b"getStatus\0", handle_get_status),
     m(b"getDevices\0", handle_get_devices),
     m(b"getTotal\0", handle_get_total),
@@ -53,6 +53,8 @@ static METHODS: [ubus::ubus_method; 14] = [
     m(b"getHistory\0", handle_get_history),
     m(b"getRealtimeHistory\0", handle_get_realtime_history),
     m(b"setHostname\0", handle_set_hostname),
+    m(b"getDevicePolicy\0", handle_get_device_policy),
+    m(b"setDevicePolicy\0", handle_set_device_policy),
     m(b"resetDevice\0", handle_reset_device),
     m(b"reloadPrefixes\0", handle_reload_prefixes),
 ];
@@ -102,6 +104,39 @@ unsafe fn send_json(ctx: *mut ubus::ubus_context, req: *mut ubus::ubus_request_d
     add_str(&mut b, b"json\0", &value.to_string());
     send(ctx, req, &mut b);
     ubus::UBUS_STATUS_OK
+}
+
+fn policy_enforceable(d: &Daemon) -> bool {
+    d.offload.known && !d.offload.hardware_requested && !d.ifaces_meta.is_empty()
+}
+
+unsafe extern "C" fn handle_get_device_policy(ctx: *mut ubus::ubus_context, _obj: *mut ubus::ubus_object,
+    req: *mut ubus::ubus_request_data, _method: *const c_char, msg: *mut ubus::blob_attr) -> c_int {
+    let mac = ubus::parse_msg(msg).into_iter().find(|a| a.name == Some("mac"))
+        .and_then(|a| a.as_str().map(str::to_ascii_lowercase));
+    let Some(mac) = mac.filter(|mac| crate::policy::valid_mac(mac)) else { return ubus::UBUS_STATUS_INVALID_ARGUMENT };
+    match with_daemon(|d| serde_json::json!({"ok":true,"policy":d.policies.get(&mac),"enforceable":policy_enforceable(d)})) {
+        Some(value) => send_json(ctx, req, value), None => ubus::UBUS_STATUS_NOT_SUPPORTED,
+    }
+}
+
+unsafe extern "C" fn handle_set_device_policy(ctx: *mut ubus::ubus_context, _obj: *mut ubus::ubus_object,
+    req: *mut ubus::ubus_request_data, _method: *const c_char, msg: *mut ubus::blob_attr) -> c_int {
+    let input = ubus::parse_msg(msg).into_iter().find(|a| a.name == Some("json"))
+        .and_then(|a| a.as_str().map(str::to_owned));
+    let Some(input) = input else { return ubus::UBUS_STATUS_INVALID_ARGUMENT };
+    match with_daemon(|d| {
+        d.offload = crate::offload::Status::detect();
+        let enforceable = policy_enforceable(d);
+        let bpf = &mut d.bpf; let db = &d.db;
+        d.policies.apply(&input, enforceable,
+            |mac, policy| zen_bpf::set_device_policy(bpf, parse_mac(mac).ok_or("invalid_mac")?, policy.runtime()),
+            |data| db.save_setting(crate::policy::Policies::save_key(), data))
+    }) {
+        Some(Ok(policy)) => send_json(ctx, req, serde_json::json!({"ok":true,"policy":policy})),
+        Some(Err(error)) => send_json(ctx, req, serde_json::json!({"ok":false,"error":error})),
+        None => ubus::UBUS_STATUS_NOT_SUPPORTED,
+    }
 }
 
 unsafe extern "C" fn handle_get_internet_history(ctx: *mut ubus::ubus_context, _obj: *mut ubus::ubus_object,

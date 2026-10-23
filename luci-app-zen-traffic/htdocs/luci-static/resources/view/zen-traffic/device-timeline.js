@@ -1,6 +1,7 @@
 'use strict';
 'require baseclass';
 'require rpc';
+'require view.zen-traffic.date-picker as datePicker';
 
 const callTimeline = rpc.declare({ object: 'zen.traffic', method: 'getDeviceTimeline', params: ['mac', 'date'], reject: true });
 
@@ -37,13 +38,14 @@ return baseclass.extend({
 		this.date = E('input', { type: 'date', value: status?.timeline_today || '', max: status?.timeline_today || '',
 			change: () => this.query() });
 		this.date.disabled = !this.supported;
+		const dateControl = datePicker.create(this.date, { today: status?.timeline_today });
 		this.notice = E('p', { class: 'zen-app-muted', role: 'status' });
 		this.summary = E('div', { class: 'zen-rt-summary' });
 		this.body = E('div');
 		this.container = E('section', { id: 'device-hourly', class: 'cbi-section zen-device-timeline', tabindex: '-1' }, [
 			E('h3', {}, _('Hourly device internet usage')),
 			E('div', { class: 'zen-timeline-controls' }, [
-				E('label', { class: 'zen-history-field' }, [_('Date'), this.date])
+				E('label', { class: 'zen-history-field' }, [_('Date'), dateControl])
 			]),
 			E('p', { class: 'zen-app-muted' }, _('Router local time · hourly usage retained for 30 days.')),
 			this.notice, this.summary, this.body
@@ -62,7 +64,7 @@ return baseclass.extend({
 		this.body.replaceChildren(); this.summary.replaceChildren();
 		if (!this.supported) { this.notice.textContent = _('Update the traffic service to enable device time history.'); return; }
 		if (!this.mac) { this.notice.textContent = _('Choose a device above to see when it used traffic.'); return; }
-		if (!/^\d{4}-\d{2}-\d{2}$/.test(this.date.value)) { this.notice.textContent = _('Choose a valid date.'); return; }
+		if (!datePicker.selectable(this.date.value, this.date.min, this.date.max)) { this.notice.textContent = _('Choose a valid date.'); return; }
 		this.notice.textContent = _('Loading history…');
 		try {
 			const reply = await callTimeline(this.mac, this.date.value);
@@ -101,7 +103,7 @@ return baseclass.extend({
 				in_progress: time <= now && now < time + 3600, future: time > now, ...sample });
 		}
 		const total = rows.reduce((sum, row) => ({ download: sum.download + row.download, upload: sum.upload + row.upload }), { download: 0, upload: 0 });
-		this.summary.replaceChildren(...[[ _('Recorded download'), total.download, 'zen-tf-dl'], [ _('Recorded upload'), total.upload, 'zen-tf-ul'],
+		this.summary.replaceChildren(...[[ _('Recorded upload'), total.upload, 'zen-tf-ul'], [ _('Recorded download'), total.download, 'zen-tf-dl'],
 			[ _('Recorded total'), total.download + total.upload, '']]
 			.map(([label, value, cls]) => E('div', {}, [E('span', {}, label), E('strong', { class: cls }, bytes(value))])));
 
@@ -168,7 +170,7 @@ return baseclass.extend({
 		chart.addEventListener('pointerleave', () => { tip.hidden = true; });
 		chart.addEventListener('focusout', ev => { if (!chart.contains(ev.relatedTarget)) tip.hidden = true; });
 		this.body.replaceChildren(frame, E('div', { class: 'zen-tf-legend' }, [
-			E('span', { class: 'zen-tf-dl' }, _('Download')), E('span', { class: 'zen-tf-ul' }, _('Upload'))
+			E('span', { class: 'zen-tf-ul' }, _('Upload')), E('span', { class: 'zen-tf-dl' }, _('Download'))
 		]), E('p', { class: 'zen-app-muted zen-timeline-scroll-hint' }, _('Swipe horizontally to view all hours.')), readout);
 		const initial = rows.findIndex(row => row.in_progress);
 		select(initial >= 0 ? initial : rows.reduce((best, row, index) => row.download + row.upload > rows[best].download + rows[best].upload ? index : best, 0), null, false);

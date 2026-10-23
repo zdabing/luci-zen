@@ -179,6 +179,51 @@ msgstr "WAN IPv4"
 msgid "WAN IPv6"
 msgstr "WAN IPv6"
 
+msgid "WAN IPv4 gateway"
+msgstr "WAN IPv4 网关"
+
+msgid "WAN IPv4 DNS"
+msgstr "WAN IPv4 DNS"
+
+msgid "Temperature"
+msgstr "温度"
+
+msgid "Connections"
+msgstr "连接数"
+
+msgid "Latency"
+msgstr "延迟"
+
+msgid "Prefix %s"
+msgstr "前缀 %s"
+
+msgid "No delegated prefix"
+msgstr "未获得委派前缀"
+
+msgid "Restarted %s"
+msgstr "%s 重启"
+
+msgid "DHCP leases %s / %s"
+msgstr "DHCP 已用 %s / %s"
+
+msgid "DHCP disabled"
+msgstr "DHCP 已关闭"
+
+msgid "Static DHCP leases only"
+msgstr "仅静态 DHCP 租约"
+
+msgid "DHCP leases unavailable"
+msgstr "DHCP 租约暂不可用"
+
+msgid "Temperature sensor unavailable"
+msgstr "温度传感器不可用"
+
+msgid "Connection count unavailable"
+msgstr "连接数暂不可用"
+
+msgid "Timeout"
+msgstr "超时"
+
 msgid "WAN status"
 msgstr "WAN 状态"
 
@@ -427,8 +472,6 @@ msgstr "跟随系统"
 
 
 
-msgid "Your network"
-msgstr "我的网络"
 
 
 
@@ -794,9 +837,6 @@ msgstr "离线"
 msgid "Select matching devices"
 msgstr "全选筛选结果"
 
-msgid "Export CSV"
-msgstr "导出 CSV"
-
 msgid "Clear selection"
 msgstr "取消选择"
 
@@ -842,5 +882,302 @@ msgstr "导航置于顶部，为内容留出完整宽度。"
 msgid "Changes apply immediately."
 msgstr "更改即时生效。"
 
-msgid "Preview"
-msgstr "效果预览"
+msgid "Internet upload"
+msgstr "互联网上传"
+
+msgid "Internet download"
+msgstr "互联网下载"
+
+msgid "LAN upload"
+msgstr "局域网上传"
+
+msgid "LAN download"
+msgstr "局域网下载"
+
+msgid "Internet today"
+msgstr "今日互联网"
+
+msgid "Internet this month"
+msgstr "本月互联网"
+
+msgid "Internet total"
+msgstr "互联网累计"
+
+msgid "Internet daily traffic"
+msgstr "互联网每日流量"
+
+msgid "Device list: Internet traffic only. LAN rates are shown separately in device details."
+msgstr "列表仅统计互联网流量，局域网速率在设备详情中单独显示。"
+
+msgid "Internet counters start at collection or reset. This month includes retained daily records only. Legacy combined counters are excluded."
+msgstr "仅统计互联网流量，从开始采集或清零后累计；本月按已保留的每日记录汇总。旧混合记录不计入。"
+
+msgid "Zen"
+msgstr "Zen"
+
+msgid "Realtime"
+msgstr "实时"
+
+msgid "Analysis"
+msgstr "分析"
+
+msgid "Settings"
+msgstr "设置"
+
+msgid "Notification settings"
+msgstr "通知设置"
+
+msgid "Loading…"
+msgstr "正在加载…"
+
+msgid "Retry"
+msgstr "重试"
+
+msgid "Notification settings are unavailable. Install and enable luci-app-zen-traffic and zen-traffic."
+msgstr "通知设置不可用，请安装并启用 luci-app-zen-traffic 和 zen-traffic。"
+
+msgid "Unable to load versions. Please try again."
+msgstr "无法加载版本信息，请重试。"
+
+msgid "Reset counters…"
+msgstr "重置统计…"
+
+msgid "Select all devices"
+msgstr "全选设备"
+
+msgid "Device shares require the Zen theme. Usage and ranking remain available."
+msgstr "设备占比图需要 Zen 主题，用量与排名仍可使用。"
+
+msgid "Usage & devices"
+msgstr "用量与设备"
+
+msgid "Device shares"
+msgstr "设备占比"
+
+msgid "Past rates"
+msgstr "过去速率"
+
+msgid "System & interface details"
+msgstr "系统与接口详情"
+
+msgid "DHCP reload failed. The previous configuration was restored."
+msgstr "DHCP 重载失败，已恢复原配置"
+
+msgid "The IP address must belong to a LAN with DHCP enabled."
+msgstr "IP 地址不在启用 DHCP 的局域网内"
+
+msgid "IPv4 address"
+msgstr "IPv4 地址"
+
+msgid "↑ Upload"
+msgstr "↑ 上传"
+
+msgid "↑ Upload "
+msgstr "↑ 上传 "
+
+msgid "↓ Download"
+msgstr "↓ 下载"
+
+msgid "↓ Download "
+msgstr "↓ 下载 "
+
+msgid "● Online"
+msgstr "● 在线"
+
+msgid "Upload · Mbps"
+msgstr "上传 · Mbps"
+
+msgid "Download · Mbps"
+msgstr "下载 · Mbps"
+
+msgid "The router address cannot be reserved."
+msgstr "不能绑定路由器自身地址"
+
+msgid "Unlimited"
+msgstr "不限速"
+
+msgid "Internet"
+msgstr "互联网"
+
+msgid "Internet usage today"
+msgstr "今日互联网用量"
+
+msgid "Saving failed. The previous device policy was restored."
+msgstr "保存失败，已恢复原限速或拉黑状态"
+
+msgid "Another operation is in progress. Try again shortly."
+msgstr "其他操作正在进行，请稍后重试"
+
+msgid "The kernel device policy could not be updated."
+msgstr "内核策略更新失败"
+
+msgid "History analysis ↗"
+msgstr "历史分析 ↗"
+
+msgid "Remove limits"
+msgstr "取消限速"
+
+msgid "Device name updated."
+msgstr "名称已更新"
+
+msgid "Fixed IP"
+msgstr "固定 IP"
+
+msgid "Fixed IP "
+msgstr "固定 IP "
+
+msgid "IP reservation saved. It takes effect at the next DHCP renewal."
+msgstr "固定 IP 已绑定，下次 DHCP 续租生效"
+
+msgid "Multiple reservations match this device. Resolve them on the DHCP page."
+msgstr "存在重复绑定，请在 DHCP 页面处理"
+
+msgid "Current speed"
+msgstr "实时速率"
+
+msgid "LAN"
+msgstr "局域网"
+
+msgid "Rate limits removed."
+msgstr "已取消限速"
+
+msgid "Internet access restored."
+msgstr "已恢复设备互联网访问"
+
+msgid "Blocked"
+msgstr "已拉黑"
+
+msgid "Internet access blocked."
+msgstr "已禁止设备访问互联网"
+
+msgid "IP reservation removed."
+msgstr "已解除固定 IP 绑定"
+
+msgid "Hardware offload or the current interface state may bypass device policies."
+msgstr "当前硬件加速或接口状态可能绕过设备策略"
+
+msgid "Rollback failed. Check the DHCP configuration and service."
+msgstr "恢复失败，请检查 DHCP 配置及服务"
+
+msgid "Rollback failed. Check the device policy."
+msgstr "恢复失败，请检查设备策略"
+
+msgid "Restore Internet access for this device."
+msgstr "恢复此设备的互联网访问。"
+
+msgid "Block"
+msgstr "拉黑"
+
+msgid "Block device"
+msgstr "拉黑设备"
+
+msgid "Operation failed. Check permissions and services, then retry."
+msgstr "操作失败，请检查权限和服务后重试"
+
+msgid "Operation failed. Please retry."
+msgstr "操作失败，请重试"
+
+msgid "This IP address is already in use by another device."
+msgstr "此 IP 已被其他设备占用"
+
+msgid "This reservation is shared by multiple devices. Edit it on the DHCP page."
+msgstr "此绑定由多台设备共用，请在 DHCP 页面处理"
+
+msgid "Hardware offload or unavailable interfaces prevent this policy. Check the traffic service."
+msgstr "硬件加速或接口状态不支持此策略，请先检查流量服务"
+
+msgid "Confirm"
+msgstr "确认"
+
+msgid "Example data"
+msgstr "示例数据"
+
+msgid "Block Internet access for this device."
+msgstr "禁止此设备访问互联网。"
+
+msgid "Reserve IP"
+msgstr "绑定固定 IP"
+
+msgid "Unblock"
+msgstr "解除拉黑"
+
+msgid "Remove reservation"
+msgstr "解除绑定"
+
+msgid "Device name"
+msgstr "设备名称"
+
+msgid "Device actions"
+msgstr "设备常用操作"
+
+msgid "Device management"
+msgstr "设备管理"
+
+msgid "Device rate limits"
+msgstr "设备限速"
+
+msgid "Enter a valid IPv4 address."
+msgstr "请输入有效的 IPv4 地址"
+
+msgid "Enter valid rate limits."
+msgstr "请输入有效限速"
+
+msgid "Enter a device name."
+msgstr "请输入设备名称"
+
+msgid "Connection details"
+msgstr "连接信息"
+
+msgid "Some device settings could not be loaded."
+msgstr "部分管理状态读取失败"
+
+msgid "The configuration changed concurrently. Check DHCP settings."
+msgstr "配置已被其他操作修改，请检查 DHCP 配置"
+
+msgid "Rename"
+msgstr "重命名"
+
+msgid "Rate limit"
+msgstr "限速"
+
+msgid "Limit ↑ "
+msgstr "限速 ↑ "
+
+msgid "Device management permission is required."
+msgstr "需要设备管理权限"
+
+msgid "Rate limits saved."
+msgstr "限速设置已保存"
+
+msgid "Last active %s"
+msgstr "最后活动 %s"
+
+msgid "Connected %s"
+msgstr "已连接 %s"
+
+msgid "Connected for"
+msgstr "连接时长"
+
+msgid "Wi-Fi link rate"
+msgstr "无线协商速率"
+
+msgid "Port link rate"
+msgstr "端口协商速率"
+
+msgid "%d online · %d offline"
+msgstr "%d 台在线 · %d 台离线"
+
+msgid "Online"
+msgstr "在线"
+
+msgid "Yesterday"
+msgstr "昨天"
+
+msgid "Peak"
+msgstr "峰值"
+
+msgid "Current version"
+msgstr "当前版本"
+
+msgid "Capture"
+msgstr "抓包"

@@ -6,6 +6,7 @@ members = [
     "crates/zen-ubus-sys",
     "crates/zen-bpf",
     "crates/zen-trafficd",
+    "crates/zen-capture",
 ]
 
 [workspace.package]

@@ -20,7 +20,7 @@ const settle = page => page.waitForTimeout(300); // Finish drawer/navigation tra
   await page.goto(base+'/dev-preview/runtime.html?page=dashboard',{waitUntil:'networkidle'});
   await page.waitForSelector('[data-preview-ready]');
   await page.evaluate(()=>ZenAppearance.set({mode:'light',layout:'sidebar'})); await settle(page);
-  assert.equal(await page.locator('.zen-dash-dev-row').count(),4);
+  assert.equal(await page.locator('.zen-dash-dev-row').count(),5);
   await page.locator('.showSide').click(); await settle(page);
   assert.equal(Math.round((await page.locator('#mainmenu').boundingBox()).width),76);
   const category = page.locator('#mainmenu .nav > .slide > .menu').first();
@@ -32,24 +32,11 @@ const settle = page => page.waitForTimeout(300); // Finish drawer/navigation tra
   await page.locator('.showSide').click(); await settle(page);
   assert.equal(Math.round((await page.locator('#mainmenu').boundingBox()).width),224);
   const search=page.locator('.zen-device-search'), filter=page.getByRole('combobox',{name:'连接类型筛选'});
-  await filter.selectOption('wired'); assert.equal(await page.locator('.zen-dash-dev-row:visible').count(),2);
-  await page.getByRole('checkbox',{name:'全选筛选结果',exact:true}).check();
-  assert.match(await page.locator('.zen-device-bulkbar').innerText(),/已选 2 台/);
+  await filter.click();await page.getByRole('option',{name:'有线',exact:true}).click(); assert.equal(await page.locator('.zen-dash-dev-row:visible').count(),2);
   await search.fill('not-a-device'); assert.ok(await page.locator('.zen-device-empty').isVisible());
-  assert.ok(await page.getByRole('checkbox',{name:'全选筛选结果',exact:true}).isDisabled());
-  await search.fill(''); await filter.selectOption('all');
-  await page.evaluate(()=>previewModules['view.zen.zen-devices'].tick());
-  assert.equal(await page.locator('.zen-dash-dev-row.selected').count(),2);
-  const downloading=page.waitForEvent('download'); await page.getByRole('button',{name:'导出 CSV',exact:true}).click();
-  const csv=fs.readFileSync(await (await downloading).path(),'utf8');
-  assert.equal(csv.trim().split('\r\n').length,3); assert.ok(csv.includes('工作电脑')&&csv.includes('家庭 NAS')&&!csv.includes('小米手机'));
-  await page.evaluate(()=>{previewDevices[0].host=' =1+1';});
-  await page.evaluate(()=>previewModules['view.zen.zen-devices'].tick());
-  const escapedDownload=page.waitForEvent('download');await page.getByRole('button',{name:'导出 CSV',exact:true}).click();
-  assert.ok(fs.readFileSync(await (await escapedDownload).path(),'utf8').includes('"\' =1+1"'),'CSV neutralizes formula-like hostnames');
-  await page.evaluate(()=>{previewDevices[0].host='工作电脑';});await page.evaluate(()=>previewModules['view.zen.zen-devices'].tick());
-  await page.getByRole('button',{name:'取消选择',exact:true}).click();
-  assert.ok(await page.getByRole('button',{name:'导出 CSV',exact:true}).isDisabled());
+  await search.fill(''); await filter.click();await page.getByRole('option',{name:'全部连接',exact:true}).click();
+  assert.equal(await page.locator('.zen-device-bulkbar').count(),0,'Reset controls live in Analysis');
+  assert.equal(await page.getByRole('button',{name:'导出 CSV',exact:true}).count(),0);
   for(const width of [1440,1024,768,390,320]) {
    await page.setViewportSize({width,height:width>768?1000:844}); await settle(page);
    for(const mode of ['light','dark']) {
@@ -58,8 +45,9 @@ const settle = page => page.waitForTimeout(300); // Finish drawer/navigation tra
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),width+'/'+mode+' overflow');
     const first=page.locator('.zen-dash-dev-row').first(); await first.focus(); await page.keyboard.press('Enter'); await settle(page);
     await bounded('.zen-device-drawer'); await bounded('.zen-drawer-footer');
-    assert.equal(await page.locator('.zen-device-drawer .zen-dash-dev-detail').count(),1);
-    assert.equal(await page.locator('.zen-device-drawer .zen-dash-device-history svg').count(),1);
+    assert.equal(await page.locator('.zen-device-drawer .zen-dash-dev-detail').count(),0);
+    assert.equal(await page.locator('.zen-device-live [data-rate]').count(),4);
+    assert.equal(await page.locator('.zen-device-drawer .zen-dash-device-history svg').count(),0);
     assert.ok(await page.locator('.zen-device-drawer').evaluate(el=>el.scrollWidth<=el.clientWidth+1));
     if(width===1440&&mode==='light') {
      await page.evaluate(()=>{previewDevices[0].ip4='192.0.2.88';});await page.evaluate(()=>previewModules['view.zen.zen-devices'].tick());
@@ -70,7 +58,7 @@ const settle = page => page.waitForTimeout(300); // Finish drawer/navigation tra
     await shot('drawer-'+width+'-'+mode); await page.keyboard.press('Escape'); await settle(page);
     assert.equal(await page.locator('.zen-device-drawer').count(),0);
     assert.ok(await first.evaluate(el=>el===document.activeElement));
-    assert.equal(await first.locator('.zen-dash-dev-detail').count(),1);
+    assert.equal(await first.locator('.zen-dash-dev-detail').count(),0);
     await first.evaluate(el=>el.blur()); await shot('devices-'+width+'-'+mode);
    }
    if(width<=768) {
@@ -88,25 +76,25 @@ const settle = page => page.waitForTimeout(300); // Finish drawer/navigation tra
   const ipCell=await page.locator('.zen-dash-dev-row').first().locator('.zen-dash-dev-ip').boundingBox();
   assert.ok(Math.abs(ipHeader.x-ipCell.x)<=1,'Header aligns with its address column');
   await page.screenshot({path:path.join(out,'desktop-full.png'),fullPage:true});
-  await page.locator('.zen-dash-dev-row input[type=checkbox]').nth(0).check();
-  await page.locator('.zen-dash-dev-row input[type=checkbox]').nth(1).check();
-  await page.getByRole('button',{name:'重置统计',exact:true}).click();
+  await page.goto(base+'/dev-preview/runtime.html?page=history',{waitUntil:'networkidle'});await page.waitForSelector('[data-preview-ready]');
+  await page.getByRole('button',{name:'重置统计…',exact:true}).click();
   assert.equal(await page.evaluate(()=>previewRequests.filter(r=>r.method==='resetDevice').length),0);
   await page.getByRole('button',{name:'取消',exact:true}).click();
   assert.equal(await page.evaluate(()=>previewRequests.filter(r=>r.method==='resetDevice').length),0);
   await page.evaluate(()=>{window.previewAllowDeviceReset=true;window.previewResetFailures=[previewDevices[1].mac];});
-  await page.getByRole('button',{name:'重置统计',exact:true}).click(); await shot('batch-confirm-desktop');
+  await page.getByRole('button',{name:'重置统计…',exact:true}).click();
+  await page.getByRole('checkbox',{name:'选择设备: 工作电脑',exact:true}).check();
+  await page.getByRole('checkbox',{name:'选择设备: 家庭 NAS',exact:true}).check();await shot('batch-confirm-desktop');
   await page.locator('#modal_overlay').getByRole('button',{name:'重置统计',exact:true}).click();
   await page.locator('#modal_overlay [role=alert]').waitFor({state:'visible'});
-  assert.equal(await page.locator('.zen-batch-device-list li').count(),1,'Retry list contains only failed devices');
-  assert.equal(await page.locator('.zen-dash-dev-row.selected').count(),1);
-  await page.setViewportSize({width:320,height:640}); await settle(page); await bounded('#modal_overlay > .modal');
+  assert.equal(await page.locator('.zen-reset-devices p').count(),1,'Retry list contains only failed devices');
+  await page.setViewportSize({width:320,height:640});await settle(page);await bounded('#modal_overlay > .modal');
   assert.ok(await page.locator('#modal_overlay > .modal').evaluate(el=>el.scrollWidth<=el.clientWidth+1));
-  await shot('batch-confirm-mobile'); await page.evaluate(()=>{window.previewResetFailures=[];});
+  await shot('batch-confirm-mobile');await page.evaluate(()=>{window.previewResetFailures=[];});
   await page.locator('#modal_overlay').getByRole('button',{name:'重试失败设备',exact:true}).click();
   await page.waitForFunction(()=>!document.getElementById('modal_overlay'));
   assert.deepEqual(await page.evaluate(()=>previewRequests.filter(r=>r.method==='resetDevice').map(r=>r.args[0])),['02:00:00:00:00:00','02:00:00:00:00:01','02:00:00:00:00:01']);
-  assert.equal(await page.locator('.zen-dash-dev-row.selected').count(),0);
+  await page.goto(base+'/dev-preview/runtime.html?page=dashboard',{waitUntil:'networkidle'});await page.waitForSelector('[data-preview-ready]');
   await page.locator('.zen-dash-dev-row').first().click(); await settle(page);
   await page.locator('.zen-drawer-footer').getByRole('button',{name:'设备识别'}).click();
   assert.equal(await page.locator('.zen-device-drawer').count(),0); await bounded('#modal_overlay > .modal');
@@ -114,9 +102,9 @@ const settle = page => page.waitForTimeout(300); // Finish drawer/navigation tra
   await page.locator('#modal_overlay').getByRole('button',{name:'保存',exact:true}).click();
   assert.ok(await page.locator('.zen-identity-error').isVisible()); await shot('identity-mobile'); await page.keyboard.press('Escape');
   const readonly=await context.newPage(); await readonly.addInitScript(()=>{window.previewDeviceWriteAccess=false;});
-  await readonly.goto(base+'/dev-preview/runtime.html?page=dashboard',{waitUntil:'networkidle'}); await readonly.waitForSelector('[data-preview-ready]');
-  assert.ok(await readonly.locator('.zen-bulk-actions .cbi-button-negative').isHidden());
-  assert.ok(await readonly.getByRole('button',{name:'导出 CSV',exact:true}).isVisible()); await readonly.close();
+  await readonly.goto(base+'/dev-preview/runtime.html?page=history',{waitUntil:'networkidle'}); await readonly.waitForSelector('[data-preview-ready]');
+  assert.ok(await readonly.getByRole('button',{name:'重置统计…',exact:true}).isHidden());
+  assert.equal(await readonly.getByRole('button',{name:'导出 CSV',exact:true}).count(),0); await readonly.close();
   await page.setViewportSize({width:1440,height:1000});await settle(page);
   await page.locator('.showSide').click();await page.evaluate(()=>ZenAppearance.set({layout:'top'}));await settle(page);
   assert.ok(await page.locator('#mainmenu .nav > li > a > .zen-menu-label').first().isVisible(),'Collapsed preference preserves top-navigation labels');
@@ -128,6 +116,6 @@ const settle = page => page.waitForTimeout(300); // Finish drawer/navigation tra
    } else {await page.locator('.showSide').click();await page.keyboard.press('Escape');}
   }
   assert.deepEqual(errors,[]);
-  console.log('PASS: rail/mobile navigation, 5 widths × 2 modes, detail/history/focus, search/filter, selection, CSV, permissions, cancel, partial reset/retry and identity modal. Screenshots: '+out);
+  console.log('PASS: rail/mobile navigation, 5 widths × 2 modes, live detail/focus, search/filter, analysis reset, no export, permissions, cancel, partial reset/retry and identity modal. Screenshots: '+out);
  } finally {await browser.close();}
 })().catch(error=>{console.error(error);process.exit(1);});

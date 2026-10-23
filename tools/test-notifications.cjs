@@ -9,7 +9,7 @@ class Element {
  remove(){}
 }
 const E=(tag,attrs={},children=[])=>{const e=new Element(tag,attrs);if(Array.isArray(children))e.children=children;else e.textContent=children;return e;};
-const source=fs.readFileSync(path.join(__dirname,'../luci-app-zen-traffic/htdocs/luci-static/resources/view/zen-traffic/notifications.js'),'utf8');
+const source=fs.readFileSync(path.join(__dirname,'../luci-app-zen-traffic/htdocs/luci-static/resources/view/zen-traffic/notification-settings.js'),'utf8');
 const requests=[],polls=[];
 let config={enabled:false,feishu:{enabled:false,has_webhook:true,has_secret:true},wecom:{enabled:false,has_webhook:false,has_secret:false},daily_enabled:false,daily_time:'21:00',rules:[]};
 let saveError=false,delaySave;
@@ -19,7 +19,7 @@ const rpc={declare:s=>(...args)=>{requests.push({method:s.method,args});
  return Promise.resolve({json:'{"ok":true}'});
 }};
 const document={hidden:false,getElementById:()=>null,head:new Element('head')};
-const view=new Function('view','rpc','poll','trafficStyle','_','E','document',source)(
+const view=new Function('baseclass','rpc','poll','trafficStyle','_','E','document',source)(
  {extend:x=>x},rpc,{add:f=>polls.push(f)},{inject(){}},s=>s,E,document);
 (async()=>{
  view.render([{config,recent:[]},{dev:[{mac:'02:00:00:00:00:01',host:'NAS'}]}]);

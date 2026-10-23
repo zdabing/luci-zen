@@ -18,7 +18,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=zen-traffic
 PKG_VERSION:=0.2.3
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 PKG_MAINTAINER:=luci-zen maintainers
 PKG_LICENSE:=GPL-2.0
 
@@ -42,15 +42,22 @@ define Package/zen-traffic
   SECTION:=net
   CATEGORY:=Network
   TITLE:=zen-traffic device traffic daemon (eBPF + ubus + SQLite)
-  DEPENDS:=$(RUST_ARCH_DEPENDS) +libubus +libubox +kmod-sched-bpf +kmod-sched-core +curl +ca-bundle
+  DEPENDS:=$(RUST_ARCH_DEPENDS) +libubus +libubox +kmod-sched-bpf +kmod-sched-core +curl +ca-bundle +tcpdump
 endef
 
 define Package/zen-traffic/description
   Per-device traffic accounting via eBPF TC (MAC-keyed, LAN bridge hooks).
   Publishes ubus object "zen.traffic" (getDevices/getTotal/getHistory/...)
   consumed by luci-app-zen-traffic and probed by luci-theme-zen dashboard.
-  SQLite persistence for daily/monthly usage (batched checkpoint, no
-  per-second writes). No HTTP server, no TCP ports, no shell rpcd bridge.
+  Includes the independent zen-capture daemon (ubus "zen.capture") for
+  per-MAC tcpdump packet capture with time/size caps (see
+  docs/PACKET_CAPTURE.md). SQLite persistence for daily/monthly usage
+  (batched checkpoint, no per-second writes). No HTTP server, no TCP
+  ports, no shell rpcd bridge.
+endef
+
+define Package/zen-traffic/conffiles
+/etc/config/zen-traffic
 endef
 
 # ---- BPF 对象（Build/Configure：不干扰 RustBinPackage 的 Build/Compile）----
@@ -58,20 +65,25 @@ endef
 # 内核 UAPI 取自 bpf-headers，含 -D__TARGET_ARCH_$(BPF_KARCH) 与字节序旗标。
 BPF_SRC:=$(PKG_BUILD_DIR)/bpf/zen_traffic.bpf.c
 BPF_OBJ:=$(PKG_BUILD_DIR)/bpf/zen_traffic.bpf.o
+CAP_BPF_SRC:=$(PKG_BUILD_DIR)/bpf/zen_capture.bpf.c
+CAP_BPF_OBJ:=$(PKG_BUILD_DIR)/bpf/zen_capture.bpf.o
 
 define Build/Prepare
 	$(call Build/Prepare/Default)
 	$(CP) ./Cargo.toml ./crates ./bpf $(PKG_BUILD_DIR)/
+	if [ -f ./Cargo.lock ]; then $(CP) ./Cargo.lock $(PKG_BUILD_DIR)/; fi
 endef
 
 define Build/Configure
 	$(TARGET_CC) $(TARGET_CPPFLAGS) $(TARGET_CFLAGS) -I$(STAGING_DIR)/usr/include \
 		-c $(PKG_BUILD_DIR)/crates/zen-ubus-sys/abi-check.c -o $(PKG_BUILD_DIR)/ubus-abi-check.o
 	$(call CompileBPF,$(BPF_SRC))
+	$(call CompileBPF,$(CAP_BPF_SRC))
 endef
 
 define Build/Compile
 	$(call Build/Compile/Cargo,crates/zen-trafficd)
+	$(call Build/Compile/Cargo,crates/zen-capture)
 endef
 
 # build.rs 经 UBUS_LIB_DIR 链接 staging 的 libubus/libubox
@@ -80,14 +92,17 @@ export UBUS_LIB_DIR:=$(STAGING_DIR)/usr/lib
 define Package/zen-traffic/install
 	$(INSTALL_DIR) $(1)/usr/bin
 	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/bin/zen-trafficd $(1)/usr/bin/
+	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/bin/zen-capture $(1)/usr/bin/
 	$(INSTALL_DIR) $(1)/usr/libexec
 	$(INSTALL_BIN) ./files/usr/libexec/zen-traffic-check $(1)/usr/libexec/zen-traffic-check
 
 	$(INSTALL_DIR) $(1)/usr/share/zen-traffic
 	$(INSTALL_DATA) $(BPF_OBJ) $(1)/usr/share/zen-traffic/zen_traffic.bpf.o
+	$(INSTALL_DATA) $(CAP_BPF_OBJ) $(1)/usr/share/zen-traffic/zen_capture.bpf.o
 
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/etc/init.d/zen-traffic $(1)/etc/init.d/zen-traffic
+	$(INSTALL_BIN) ./files/etc/init.d/zen-capture $(1)/etc/init.d/zen-capture
 
 	$(INSTALL_DIR) $(1)/etc/config
 	$(INSTALL_CONF) ./files/etc/config/zen-traffic $(1)/etc/config/zen-traffic

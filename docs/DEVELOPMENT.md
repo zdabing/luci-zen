@@ -75,11 +75,36 @@ node tools/test-appearance-browser.cjs
 
 浏览器测试支持 `ZEN_PREVIEW_URL`、`ZEN_BROWSER_CHANNEL`（如 `msedge`）及
 `ZEN_SCREENSHOT_DIR`。浏览器依赖仅用于开发验收，不加入主题部署包。
-`node tools/test-console-browser.cjs` 验收图标导航、设备抽屉、筛选、批量选择、CSV 和批量重置。
+`node tools/test-console-browser.cjs` 验收图标导航、设备抽屉、筛选、批量选择、无导出入口和批量重置。
 默认截图保存在 `acceptance-out/console/`。预览默认拒绝写操作；该测试显式开启的设备重置
 只改内存样本，不连接生产设备。设备详情使用原生 dialog；批量确认和身份编辑沿用 LuCI 弹窗。
 Windows 未安装 GNU make 时，安装资产检查可把 `ZEN_TEST_BASH` 设为 Git Bash 的
 绝对路径，再运行 `python tools/test-package-assets.py`；测试仍执行包中的原安装配方。
+
+## 设备管理接口
+
+设备详情的重命名调用既有 `zen.traffic.setHostname`，名称存入 SQLite 并由后续设备快照恢复。
+限速和拉黑通过 `getDevicePolicy` / `setDevicePolicy` 管理；限速参数为十进制 kbit/s，0 表示不限速。
+策略在 SQLite 的 `device_policies_v1` 设置中持久化，启动时在接口挂载前恢复到 BPF map。
+保存失败会恢复先前内核策略；取消限速和解除拉黑各自保留另一项设置。
+这些策略由 `zen-traffic` 服务执行，停止服务会停止执行；硬件流量卸载或接口不可用时拒绝新增限制。
+不自动修改用户的硬件卸载设置，也不替换现有 SQM qdisc。限速使用丢包 policing，允许短时突发。
+
+固定 IPv4 使用 `zen.device.getBinding` / `setBinding` rpcd 插件。插件以独立 libuci delta 目录
+提交 DHCP 静态租约，只操作目标 MAC，检查启用 DHCP 的 LAN 子网、网关和占用冲突。
+dnsmasq 重载失败时恢复原配置；共享 MAC 租约拒绝直接改 IP，解除绑定仅移除目标 MAC。
+绑定在设备下次 DHCP 续租时生效，不伪造当前地址变化。四项写操作由独立
+`zen-device-management` ACL 控制，前端收到后端成功响应后才更新状态。
+
+本地 `refined.html` 使用同一正式控制模块及内存 RPC 样本，可验证交互，不修改路由器。
+
+`zen.device.getConnections` 为只读连接属性接口：通过本机 `iwinfo.devices/info/assoclist`
+读取客户端信号、连接时长及上/下行协商速率（kbit/s 转 Mbps）；通过桥接 FDB 匹配
+物理端口并读取 sysfs 协商速率。无法匹配、端口掉线或映射冲突时不填速率；不将
+路由器运行时间、DHCP 租约时长、FDB 老化时间作为有线终端的连接时长。
+接口不执行命令或主动扫描，不修改配置；主题每 15 秒读取一次，45 秒后丢弃过期属性。
+Wi-Fi 信息限于本机 AP 能报告的客户端；有线速率表示路由器对应端口，不能证明下级交换机
+后终端的协商速率。离线行使用已有持久化的最后活动时间。
 
 ## i18n 校验
 

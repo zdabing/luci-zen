@@ -36,6 +36,7 @@ pub struct Daemon {
     pub wan: crate::wan::WanUsage,
     pub timeline: crate::timeline::DeviceTimeline,
     pub notifications: crate::notifications::Notifications,
+    pub policies: crate::policy::Policies,
     pub wifi: crate::wifi::WifiCache,
     pub local_prefixes: Vec<(i32, Vec<u8>, u32)>,
 
@@ -78,6 +79,7 @@ impl Daemon {
         let db = Db::open(&cfg.db_path)?;
         let wan = crate::wan::WanUsage::load(&db, now)?;
         let notifications = crate::notifications::Notifications::load(&db)?;
+        let policies = crate::policy::Policies::load(&db)?;
 
         let mut devs: HashMap<MacKey, DevState> = HashMap::new();
         let mut user_hosts: HashMap<String, String> = HashMap::new();
@@ -150,6 +152,7 @@ impl Daemon {
             wan,
             timeline,
             notifications,
+            policies,
             local_prefixes: Vec::new(),
             last_tick_mono: 0,
             last_attr_mono: 0,
@@ -170,9 +173,10 @@ impl Daemon {
         };
 
         // 5) 全局速率基线 + 本地前缀
-        d.reconcile_interfaces()?;
         totals::detect_upstream(&mut d);
         let n = unsafe { netif::refresh(&mut d) }?;
+        d.policies.restore(&mut d.bpf)?;
+        d.reconcile_interfaces()?;
         println!("[zen-trafficd] local_prefixes 已写入 {n} 条");
 
         Ok(d)
