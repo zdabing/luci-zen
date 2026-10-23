@@ -300,7 +300,8 @@ pub fn start_session(
 ) -> Result<ProxyHandle, String> {
     runtime(); // 先装好 rustls provider，后面 ClientConfig::builder() 才不会 panic
     let (stop, stop_rx) = watch::channel(false);
-    let listener = std::net::TcpListener::bind(("127.0.0.1", 0))
+    // nft redirect 把包的 dst 改写为入口接口主地址（如 10.0.0.1），必须绑定全部本地地址
+    let listener = std::net::TcpListener::bind(("0.0.0.0", 0))
         .map_err(|e| {
             eprintln!("[zen-capture] 代理端口绑定失败: {e}");
             "spawn_failed".to_string()
