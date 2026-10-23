@@ -119,8 +119,11 @@ define Package/zen-traffic/postinst
 #!/bin/sh
 [ -n "$${IPKG_INSTROOT}" ] || {
 	/etc/init.d/zen-traffic enable 2>/dev/null || true
+	/etc/init.d/zen-capture enable 2>/dev/null || true
 	/etc/init.d/zen-traffic restart || \
 		logger -t zen-traffic 'Installed; service could not start. Run /usr/libexec/zen-traffic-check'
+	/etc/init.d/zen-capture restart 2>/dev/null || \
+		logger -t zen-capture 'Installed; capture service could not start'
 }
 exit 0
 endef
