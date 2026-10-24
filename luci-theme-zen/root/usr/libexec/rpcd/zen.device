@@ -1,0 +1,12 @@
+#!/bin/sh
+case "$1" in
+    list) printf '%s\n' '{"getConnections":{},"getBinding":{"mac":"String"},"setBinding":{"mac":"String","ip":"String","enabled":"Boolean"}}' ;;
+    call)
+        case "$2" in
+            getConnections) exec /usr/bin/ucode /usr/share/zen/device-connections.uc ;;
+            getBinding|setBinding) exec /usr/bin/ucode /usr/share/zen/device-binding.uc "$2" ;;
+            *) exit 1 ;;
+        esac
+        ;;
+    *) exit 1 ;;
+esac

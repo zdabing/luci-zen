@@ -7,6 +7,7 @@ let requests = [], deferred = null;
 class Element {
   constructor() { this.children=[]; this.attrs={}; this.style={}; this.clientWidth=772; this.clientHeight=240; }
   appendChild(child) { this.children.push(child); return child; }
+  replaceChildren(...children) { this.children=children; }
   setAttribute(key,value) { this.attrs[key]=value; }
   set textContent(value) { this.text=value; this.children=[]; }
   querySelector(selector) { this.nodes ||= {}; return this.nodes[selector] ||= new Element(); }
@@ -62,6 +63,15 @@ const dashboard = new Function('baseclass', 'rpc', 'fs', 'network', 'poll', 'fmt
   dashboard.positionHover(107);
   assert.equal(Number(dashboard.chartEl.querySelector('g.hover').querySelector('line.cross').attrs.x1),106,
     'Hover selects the nearest timestamp, using the same mapping as the curve');
+  dashboard.compactChart=true; dashboard.lastW=0;
+  dashboard.renderTraffic({});
+  assert.equal(dashboard.geom.bands.rx.max,dashboard.geom.bands.tx.max,
+    'An overview without axis labels must use a shared scale for upload and download');
+  const compactXs=dashboard.parts.lineRx.attrs.points.split(' ').map(point=>Number(point.split(',')[0]));
+  assert.equal(compactXs[0],4); assert.equal(compactXs.at(-1),768);
+  dashboard.positionHover(compactXs[1]+1);
+  assert.equal(Number(dashboard.chartEl.querySelector('g.hover').querySelector('line.cross').attrs.x1),compactXs[1],
+    'Compact overview hover must use the same inset as its visible curve');
   dashboard.trimRealtimeHistory(end+300001);
   assert.equal(dashboard.history.length,0,'A paused tab must expire all stale data');
   console.log('PASS: WAN restoration, timestamp conversion, one-time fetch, interface isolation and stale response protection');

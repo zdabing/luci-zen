@@ -14,7 +14,7 @@ new Function('baseclass', 'rpc', 'window', source)(
 	assert.equal(calls.length, 1, 'Do not commit when setting preferences failed');
 	fail = 'commit'; await assert.rejects(save({ mode: 'dark' }));
 	const acl = JSON.parse(fs.readFileSync(path.join(__dirname, '../luci-theme-zen/root/usr/share/rpcd/acl.d/luci-theme-zen.json'), 'utf8'))['luci-theme-zen'];
-	assert.deepEqual(acl.read.uci, ['zen']); assert.deepEqual(acl.write.uci, ['zen']);
+	assert.deepEqual(acl.read.uci, ['zen', 'dhcp']); assert.deepEqual(acl.write.uci, ['zen']);
 	assert.deepEqual(acl.write.ubus.uci, ['set', 'commit']);
 	console.log('PASS: native UCI save/commit order, error propagation and theme-scoped permissions');
 })().catch(error => { console.error(error); process.exitCode = 1; });

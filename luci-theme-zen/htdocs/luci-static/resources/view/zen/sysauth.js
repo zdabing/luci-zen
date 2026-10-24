@@ -67,7 +67,7 @@ return view.extend({
 		requestAnimationFrame(() => { if (pwd) pwd.focus(); });
 		return E('main', { 'class': 'zen-login-shell' }, [
 			E('div', { 'class': 'zen-login-topbar' }, [
-				E('span', { 'class': 'zen-login-brand' }, [E('span', { 'class': 'zen-login-mark', 'aria-hidden': 'true' }, 'Z'), 'OpenWrt']),
+				E('span', { 'class': 'zen-login-brand' }, [E('img', { 'class': 'zen-login-mark', src: L.env.media + '/logo.svg', alt: 'Zen', width: 32, height: 32 }), 'OpenWrt']),
 				E('div', { 'class': 'zen-header-actions' }, [quickMode, theme])
 			]),
 			E('section', { 'class': 'zen-login-card', 'aria-labelledby': 'zen-login-title' }, [

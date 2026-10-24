@@ -29,7 +29,6 @@
 			'Navigation layout': _('Navigation layout'), 'Left navigation': _('Left navigation'), 'Top navigation': _('Top navigation'),
 			'Keep pages within reach in the sidebar.': _('Keep pages within reach in the sidebar.'),
 			'Use the full width with navigation above.': _('Use the full width with navigation above.'),
-			'Your network': _('Your network'), 'Connected': _('Connected'), 'Preview': _('Preview'),
 			'Changes apply immediately.': _('Changes apply immediately.'),
 			'Saved in this browser': _('Saved in this browser'),
 			'Saved on router; applies across browsers': _('Saved on router; applies across browsers'),
@@ -135,20 +134,10 @@
 			choices('mode', 'Display mode', [['auto', 'Follow system'], ['light', 'Light mode'], ['dark', 'Dark mode']]),
 			choices('layout', 'Navigation layout', [['sidebar', 'Left navigation', 'Keep pages within reach in the sidebar.'], ['top', 'Top navigation', 'Use the full width with navigation above.']])
 		);
-		const preview = node('aside', 'zen-pref-preview'); preview.setAttribute('aria-label', tr('Preview'));
-		const canvas = node('div', 'zen-pref-canvas'); canvas.setAttribute('aria-hidden', 'true');
-		const rail = node('div', 'zen-pref-mini-rail'); for (let i = 0; i < 4; i++) rail.appendChild(node('i'));
-		const paper = node('div', 'zen-pref-mini-content'); paper.append(node('b', '', 'Your network'), node('span', 'zen-pref-mini-status', 'Connected'));
-		const chart = node('div', 'zen-pref-mini-chart'); for (const height of [28, 47, 35, 64, 53, 76, 58, 90, 70, 85]) {
-			const bar = node('i'); bar.style.height = height + '%'; chart.appendChild(bar);
-		}
-		paper.appendChild(chart); canvas.append(rail, paper);
-		preview.append(canvas, node('strong', '', 'Your network'), node('p', '', 'A quieter view of your network.'));
-		const body = node('div', 'zen-pref-grid'); body.append(controls, preview);
 		const footer = node('footer', 'zen-pref-footer');
 		const note = node('p', 'zen-pref-save-note'); note.setAttribute('role', 'status'); note.setAttribute('aria-live', 'polite');
 		const retryButton = node('button', 'zen-pref-retry', 'Retry saving'); retryButton.type = 'button'; retryButton.addEventListener('click', retry);
-		footer.append(note, retryButton); form.append(intro, body, footer); forms.add(form); sync(); return form;
+		footer.append(note, retryButton); form.append(intro, controls, footer); forms.add(form); sync(); return form;
 	}
 	function open(trigger) {
 		if (!modal) {

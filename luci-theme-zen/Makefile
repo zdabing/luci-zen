@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-theme-zen
 PKG_VERSION:=0.2.3
-PKG_RELEASE:=1
+PKG_RELEASE:=5
 
 PKG_MAINTAINER:=luci-zen maintainers
 PKG_LICENSE:=Apache-2.0
@@ -16,7 +16,7 @@ define Package/luci-theme-zen
   CATEGORY:=LuCI
   SUBMENU:=4. Themes
   TITLE:=Zen - LuCI network console
-  DEPENDS:=+luci-base +ucode +ucode-mod-fs +curl +ca-bundle
+  DEPENDS:=+luci-base +ucode +ucode-mod-fs +ucode-mod-uci +ucode-mod-ubus +rpcd-mod-iwinfo +curl +ca-bundle
   PKGARCH:=all
 endef
 
@@ -48,7 +48,7 @@ define Build/Compile
 	done
 	po2lmo $(CURDIR)/po/zh_Hans/theme.po $(PKG_BUILD_DIR)/zen.zh-cn.lmo
 	for script in $(CURDIR)/root/usr/share/zen/*.uc; do \
-		$(STAGING_DIR_HOSTPKG)/bin/ucode -c,dynlink=fs -o /dev/null "$$$$script" || exit $$$$?; \
+		$(STAGING_DIR_HOSTPKG)/bin/ucode -c,dynlink=fs,dynlink=uci,dynlink=ubus -o /dev/null "$$$$script" || exit $$$$?; \
 	done
 endef
 
@@ -59,6 +59,9 @@ define Package/luci-theme-zen/install
 	$(INSTALL_DATA) ./htdocs/luci-static/zen/theme.css $(1)/www/luci-static/zen/theme.css
 	$(INSTALL_DATA) ./htdocs/luci-static/zen/preferences.js $(1)/www/luci-static/zen/preferences.js
 	$(INSTALL_DATA) ./htdocs/luci-static/zen/custom.css $(1)/www/luci-static/zen/custom.css
+	$(INSTALL_DATA) ./htdocs/luci-static/zen/console.css $(1)/www/luci-static/zen/console.css
+	$(INSTALL_DATA) ./htdocs/luci-static/zen/console-layout.js $(1)/www/luci-static/zen/console-layout.js
+	$(INSTALL_DATA) ./htdocs/luci-static/zen/device-controls.css $(1)/www/luci-static/zen/device-controls.css
 	$(INSTALL_DATA) ./htdocs/luci-static/zen/logo.svg $(1)/www/luci-static/zen/logo.svg
 	$(INSTALL_DIR) $(1)/usr/share/licenses/luci-theme-zen
 	$(INSTALL_DATA) ./THIRD_PARTY_NOTICES.md $(1)/usr/share/licenses/luci-theme-zen/THIRD_PARTY_NOTICES.md
@@ -80,6 +83,7 @@ define Package/luci-theme-zen/install
 	$(INSTALL_BIN) ./root/etc/uci-defaults/30_luci-theme-zen $(1)/etc/uci-defaults/30_luci-theme-zen
 	$(INSTALL_DIR) $(1)/usr/libexec/rpcd $(1)/usr/share/zen
 	$(INSTALL_BIN) ./root/usr/libexec/rpcd/zen.update $(1)/usr/libexec/rpcd/zen.update
+	$(INSTALL_BIN) ./root/usr/libexec/rpcd/zen.device $(1)/usr/libexec/rpcd/zen.device
 	$(INSTALL_DATA) ./root/usr/share/zen/*.uc $(1)/usr/share/zen/
 
 	$(INSTALL_DIR) $(1)/usr/share/rpcd/acl.d

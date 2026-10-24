@@ -1,5 +1,18 @@
 # 测试
 
+## 按设备抓包 M1–M4（2026-10-24，未部署）
+
+独立 `zen-capture` 守护进程（zen-traffic 包第二个二进制，与 zen-trafficd 进程隔离）覆盖方案全部四期：
+
+- **M1 tcpdump fallback**：按 MAC 管理 tcpdump 会话（每接口一个子进程，网桥按成员口展开），1s tick 限额与收割；崩溃重启按持久化 pid 收割孤儿并标记 `interrupted`；孤儿 pcap/log 启动清理；`sessions.json` 原子落盘。
+- **M2 eBPF tap（默认模式）**：`zen_capture.bpf.o` 独立对象（capture_enable HASH + 1MiB RINGBUF），verdict 恒 `TC_ACT_UNSPEC` 继续过滤链；TCX（内核 ≥6.6）用 `TcxOrder(LinkOrder::first())` 插链首——先于恒返回 `TC_ACT_OK` 的 zen 会计程序，旧内核回落 netlink priority 1；启动按名清理残留 filter（`qdisc_detach_program`）。用户态每 tick 排空 ringbuf 直写 pcap（monotonic→epoch 每 tick 校准），并解析 DNS 查询与 TLS ClientHello SNI 产出「设备 → 域名」画像（getDomains，500 条上限）。
+- **M3 HTTP 透明代理**：nft 专属表 `inet zen_capture`，每会话独立 nat 链（`pre_<id>`，80 重定向到会话端口；结束 delete chain，无需追踪 rule handle），daemon 启动整体重建表清残留；tokio 后台线程手写 HTTP/1.1 透明代理（keep-alive、按 Content-Length 定长转发、chunked/无长度请求体显式断开），事件流 getEvents（最近 500）。
+- **M4 可选 HTTPS MITM**：decrypt 会话追加 443 重定向 + UDP/443 丢弃（逼退 QUIC）；CA（ECDSA P256，`/etc/zen-capture/ca.pem+ca.key` 0600）首用时生成、`getCA` 分发、重启不换证（`from_ca_cert_pem` 重载签发者）；先嗅 ClientHello SNI——命中 `decrypt_skip` 白名单（uci list，后缀匹配）直接 `copy_bidirectional` 透传，否则动态 leaf 签发（会话内缓存）rustls 终结 + 上游按 ca-bundle 校验转发，解密流解析 HTTP 头；上游校验失败（pinning）记 `tls_failed` 不静默。事件导出 HAR 1.2（getHar）。
+- `cargo test -p zen-capture`（CI）：MAC/参数/钳制/网桥展开/三模式状态机（注入时钟与假进程，http 会话不得因 pids 为空被误判）/重启恢复/孤儿清理/prune、DNS/SNI/HTTP 头解析、pcap 记录、域名与事件上限淘汰、rfc3339/HAR、init 参数钳制与 skip 去重。本机无 Rust 环境，编译与测试依赖 CI 的 `cargo check/test --workspace` 与 `clang -target bpf` 编译 `zen_capture.bpf.c`。
+- `node tools/test-zen-capture.cjs`：视图行为（URL `?mac=` 预选、模式/解密控件、tap 域名表与 http 事件表详情切换、HAR/CA 下载、上限钳制、错误码翻译、3s 轮询）与静态配方（菜单第四入口、ACL 扩展方法、BPF 对象编译与安装、init.d -B/-C/-N、UCI 默认值、workspace/依赖、CI 注册、设备抽屉抓包入口与探测）全部通过；`test-menu-routing`/`check-po`（两包）/`test-package-assets` 通过。
+- 实时页设备抽屉新增「抓包」动作：`session.access` 探测 `zen.capture` start 权限，跳转 `admin/zen/capture?mac=` 预选设备。
+- 待真机验收（下一节补充）：TCX 插队后会计与策略不受影响、tap 丢帧口径、nft 链建立/回收、MITM 与 pinning 直连、pcap/HAR 工具打开、rpcd file 读大 pcap 的内存表现。
+
 ## 本地预览缓存修复（2026-10-18）
 
 - 修复已缓存首页继续引用旧玻璃样式的问题：预览服务为 HTML、脚本和样式发送 `no-store`，静态资源与页间导航附带预览版本。
@@ -11,14 +24,14 @@
 - 外观实现已替换为 `theme.css` 与 `preferences.js`，原第三方材质、配色及其五套预设不再加载或打包；只保留显示模式和导航布局。测试确认页面没有请求旧外观文件，旧配色/材质偏好被忽略，明暗和布局偏好继续迁移。
 - `node tools/test-appearance-browser.cjs`：五个页面 × 五种宽度 × 两种布局 × 明暗两种模式共 100 组通过；设置弹窗尺寸与焦点恢复、自动跟随系统、刷新保留、跨标签同步和未保存通知表单保持通过。主要文字、次要文字和主按钮的对比度均达到 4.5:1。
 - `node tools/test-zen-settings-browser.cjs`：设置页 20 组布局/明暗/宽度通过，原生入口、键盘标签切换、版本模块懒加载和登录页设置通过。
-- `node tools/test-console-browser.cjs`：图标导航、顶部导航、手机菜单、设备抽屉及历史图、筛选/选择/导出、权限、重置取消、失败重试、设备识别弹窗通过；本地模拟重置只改内存。
+- `node tools/test-console-browser.cjs`：图标导航、顶部导航、手机菜单、设备抽屉及历史图、筛选/选择、权限、重置取消、失败重试、设备识别弹窗通过；本地模拟重置只改内存。
 - 偏好单测、原生 UCI 保存与失败传播、设备识别/排序、首页生命周期与用量计算、翻译检查通过；包安装配方确认所有新静态文件及依赖已打包。一键更新的模拟安装、失败/重试、只读与恢复回归通过。
 - 已视觉检查桌面和手机的明暗页面。截图保存于 `acceptance-out/mist/` 与 `acceptance-out/mist-console/`；本轮未执行 SDK 构建或生产路由器部署。此前 400 组旧配色/材质回归属于历史记录，不适用于当前已移除的预设。
 
 ## 导航与设备交互优化（2026-10-18，未部署）
 
-- 本地 Edge 使用生产 LuCI 模块与模拟 RPC 验收。`node tools/test-console-browser.cjs` 覆盖 1440/1024/768/390/320px 明暗模式：图标导航、手机抽屠菜单、设备详情和历史图、键盘焦点、搜索筛选、跨轮询选择、CSV 导出，以及身份编辑弹窗。
-- 批量重置验证权限不足时隐藏、取消不请求、逐设备调用、部分成功后仅重试失败项；模拟写操作需显式开启且仅修改预览内存，不连接路由器。CSV 对公式形式的设备名转义。
+- 本地 Edge 使用生产 LuCI 模块与模拟 RPC 验收。`node tools/test-console-browser.cjs` 覆盖 1440/1024/768/390/320px 明暗模式：图标导航、手机抽屠菜单、设备详情和历史图、键盘焦点、搜索筛选、跨轮询选择，以及身份编辑弹窗。
+- 批量重置验证权限不足时隐藏、取消不请求、逐设备调用、部分成功后仅重试失败项；模拟写操作需显式开启且仅修改预览内存，不连接路由器。设备导出功能已移除，当前断言检查无导出入口。
 - `node tools/test-appearance-browser.cjs` 原有 400 组配色、材质、明暗、导航和宽度组合通过，覆盖原有设置、通知未保存表单、跨标签同步与导航偏好。
 - 设备排序、识别、首页历史柱图、单设备重置、首页生命周期、外观偏好回归及翻译检查通过；`python tools/test-package-assets.py` 实际执行两个 LuCI 包安装配方，新抽屉模块及全部本地依赖均被打包。
 - 已打开桌面、手机及弹窗截图进行视觉检查；截图位于 `acceptance-out/console/`。本轮未执行 SDK 编译或生产路由器部署。
@@ -34,6 +47,9 @@
 ## 设备小时柱状图（2026-10-10，未部署）
 
 - `node tools/test-device-timeline.cjs`：全天小时位置、上传/下载堆叠和统一字节刻度、10 GB 示例、零记录与未来/当前/部分记录状态、23/25 小时、重复小时 UTC 偏移、设备/日期请求竞态、键盘选择及异常响应通过。
+- `node tools/test-date-picker.cjs`：闰日、跨月/跨年、夏令时日期导航、完整月历和日期上下界通过。自定义日历另以浏览器检查选日查询、月份切换、方向键、Escape 与焦点恢复。
+- `node tools/test-dashboard-network.cjs`：首页常显 WAN/LAN/IPv6 地址和系统运行时长；检查接口断开、地址消失后清除旧值、IPv4 网关/DNS 与零运行时间。浏览器另检查 320px/390px 设备 MAC 可见且页面无横向溢出。本地样例数据不代表路由器实测。
+- `node tools/test-zen-health.cjs`：thermal/hwmon 温度、连接跟踪零值与缺失值、固定目标 ICMP 结果及 30 秒缓存、IPv6 委派前缀、LAN DHCP 池去重/边界/无限期和过期租约、窄范围只读 ACL。需要在目标路由器验收实际传感器、rpcd 权限及 ICMP 可达性；本地 fixture 不能替代硬件实测。
 - `python tools/test-device-timeline.py`：生产 SQL 的累加、设备隔离与清零、失败回滚、保留边界、整桶配额裁剪、升级明细表清理和重复迁移通过；50 台设备连续 30 天的 36,000 条小时记录约 2.52 MiB，空闲页复用通过。
 - `node tools/test-device-timeline-browser.cjs`：本地 Edge 加载实际 LuCI 渲染代码和只读样本，1440/390/320px、明暗模式、悬浮、触摸、键盘、手机图表内滚动和提示框边界通过；已视觉检查桌面浅色及手机深色截图。需 Playwright、Edge 和本地 8770 HTTP 服务，可设置 `ZEN_PREVIEW_URL`、`ZEN_BROWSER_CHANNEL`、`ZEN_SCREENSHOT_DIR`。
 - 首页占比设备项跳转回归：桌面 Enter、手机点击可打开历史分析，自动选中对应 MAC、查询小时记录并定位到图表，固定页头不遮挡；页内提示为 30 天。合法 MAC 链接保留 LuCI 路由前缀，“其他设备”“未归属”不生成设备链接。
@@ -903,3 +919,42 @@ Zen 包阶段 2229 秒（含首次 Rust host 构建）、LuCI app 46 秒、theme
 - 包解析、兼容性与发布元数据测试、翻译和打包资源检查通过；浏览器更新页 200 组和设置页 100 组回归通过，覆盖后台目标不符时前端仍可更新、单独主题安装和读取失败。
 - 流量页面资源自包含，不依赖 Zen 主题。源码审查未发现自动修改网络/防火墙配置或软件源的行为。后台 TC 清理仅针对 Zen 程序。
 - 以上不代表任意 APK 可跨 CPU/内核安装：主题使用 ucode LuCI，后台需要匹配的二进制及 BPF 支持；旧 Lua LuCI、其他固件和架构仍需对应构建与实际安装验证。本轮未执行 SDK 构建或部署。
+
+设备互联网口径回归：`node tools/test-device-internet.cjs` 检查实时模块只读取实时 API、互联网/局域网分项、缺失字段以及零值；`node tools/test-device-sort.cjs` 检查互联网速率排序、缺失值与旧混合计数隔离。
+
+三入口重构：`test-home-view-lifecycle.cjs` / `test-traffic-view-lifecycle.cjs` 检查实时、分析、设置的菜单与旧地址、共享模块不初始化其他页面；`test-zen-settings.cjs` 检查通知和版本懒加载、切换保留表单、键盘与旧更新链接、可选插件缺失；`test-device-actions.cjs` 检查重置权限、取消、单台/多台选择及部分成功后只重试失败设备。旧首页每日图测试已移除，历史图仍由 `test-history-bars.cjs` 覆盖。
+
+本次三入口本地验收：CI 列出的 21 项 Node 前端回归、两包中文翻译校验、两包实际安装资源 staging 检查、主题/插件安装默认脚本检查通过。浏览器使用本地模拟 RPC 核对原版 1440px / 320px、柔雾 390px、设备 MAC 与分时锚点、设置输入保留、通知旧地址跳转、过去速率与统一占比范围。未构建或安装新的路由器 APK，未发送机器人消息或清空真实设备数据。
+
+### 设备管理（2026-10-22）
+
+- `tools/test-device-policy.c` 验证实际数据面共用的令牌桶运算；`tools/test-device-policy-kernel.c` 在隔离 Linux 内核中加载完整 BPF 对象，通过 verifier 和 TC test-run 验证 IPv4/IPv6 拉黑、局域网放行、独立上传限速及解除限制。测试不修改宿主接口或防火墙。
+- `node tools/test-device-binding.cjs` 检查地址边界、网关、占用冲突和共享租约；`python3 tools/test-device-binding-worker.py` 使用真实 ucode/libuci 和临时配置，检查保存、修改、解除、重载失败回滚及网络不可用时解除绑定。只有网络发现和 dnsmasq 命令使用样本。
+- 本地浏览器复用正式设备管理模块，验证重命名、双向限速、冲突 IP 拒绝、固定 IP 保存/解除、拉黑取消/确认/解除及手机布局。预览 RPC 写入仅修改内存样本。
+- 本轮通过 BPF 编译、Linux 内核执行、DHCP worker、Rust workspace/测试代码交叉检查、中文翻译及安装资源检查。未执行 OpenWrt SDK 出包或路由器部署。
+- Windows 上的临时 QEMU 环境未完成全量原生 `cargo test --workspace`，已停止该次运行，不计为通过；完整 Rust 单元测试已加入 CI 验证流程。
+
+### 设备连接属性与主题菜单（2026-10-22）
+
+- `python3 tools/test-device-connections.py` 使用真实 ucode、临时 sysfs 与 iwinfo 响应，验证 FDB 的高位端口号、signed dBm、连接秒数、速率单位换算、映射冲突、失去 carrier 与缺少无线服务的回退。三项实际解释器测试通过。
+- `node tools/test-device-connection-info.cjs` 验证属性时效、无线时长推进、有线端口速率标签、离线活动时间及缺失值。设备排序、互联网口径、中文翻译和资源 staging 检查通过。
+- 浏览器检查筛选/排序自定义菜单的选择、键盘打开与 Escape、离线筛选及响应式布局。预览数据仍为样本，未执行路由器部署。
+
+### 抓包 M1–M4 构建与真机验收（2026-10-24）
+
+- **本地回归（WSL2 Ubuntu 26.04）**：`cargo test --workspace` 72 项通过（zen-capture 29 /
+  zen-trafficd 36 / zen-bpf 多接口内核回归 6 等）；CI 等价 node/python/ucode 套件 49 项
+  通过；`zen_traffic.bpf.c` 与 `zen_capture.bpf.c` 以 CI 同参数 clang 编译通过；
+  `abi-check.c` 双架构（x86-64 gcc、aarch64 musl clang）布局检查通过；
+  `test-device-policy-kernel.c` 在 WSL 真实内核经 verifier 验证拉黑/限速/解除。
+- **包构建**：`tools/r5c-acceptance-build.sh` 按 10Wrt 固定 revisions 完成
+  rockchip/armv8 三包出包（zen-traffic 0.2.3-r5、luci-app-zen-traffic / luci-theme-zen
+  0.2.3-r5），SHA256SUMS 自校验通过。构建要点：BUILD_JOBS=4 + 8G swap 避免 OOM；
+  rust host 安装阶段必须使用不含 Windows `VS` 相对路径的 PATH。
+- **部署**：apk 升级安装后 zen-trafficd / zen-capture 双服务运行，`zen.capture` ubus
+  对象注册，会计 45 台设备 synced；升级前后 `BPF_PROG_QUERY` 会计挂载不变。
+- **真机验收**：M1/M2/M3/M4 详见 `docs/PACKET_CAPTURE.md` 验收记录。r3 真机发现 tap
+  停止后 egress capture 程序残留与 http 会话启动崩溃两处缺陷，修复为 r5 并复测通过。
+- **遗留**：M4 未在授权客户端安装 CA 做端到端解密验证（家庭网络设备未获授权），
+  后续由持有者自行执行；测试机 TUN 代理（fake-IP）使其自身 80/443 流量不出网卡，
+  M3 证据取自其他 LAN 设备真实请求。

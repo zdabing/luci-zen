@@ -2,6 +2,7 @@
 'require view';
 'require rpc';
 'require ui';
+'require view.zen-traffic.device-reset as deviceReset';
 'require view.zen-traffic.rate-history as rateHistory';
 'require view.zen-traffic.device-timeline as deviceTimeline';
 'require view.zen-traffic.style as trafficStyle';
@@ -44,7 +45,6 @@ const callAllHistory = rpc.declare({
 	reject: true
 });
 const callInternetHistory = rpc.declare({object:'zen.traffic',method:'getInternetHistory',params:['agg','mac'],reject:true});
-const callReset = rpc.declare({object:'zen.traffic',method:'resetDevice',params:['mac'],reject:true});
 
 function fmtBytes(n) {
 	n = Math.max(0, Number(n) || 0);
@@ -167,6 +167,10 @@ return view.extend({
 				])
 			]);
 
+		if(typeof window!=='undefined'&&window.ZenConsole?.enabled)
+			return L.require('view.zen-traffic.analysis-workspace').then(module=>Object.create(module).render(data))
+				.catch(error=>E('div',{class:'cbi-section'},E('p',{class:'alert-message warning'},error.message||_('Unable to load history. Please try again.'))));
+
 		/* 设备选择（单选 + 全设备） */
 		const sel = E('select', { id: 'zen-tf-history-device', 'class': 'cbi-input-select', 'change': L.bind(function (ev) {
 			this.mac = ev.target.value;
@@ -189,13 +193,14 @@ return view.extend({
 			this.refresh();
 		}}, [internetOption,E('option',{value:'all'},_('Internet + local (existing history)'))]);
 		scope.value = this.scope;
-		const reset = E('button', {type:'button','class':'cbi-button cbi-button-negative',click:()=>this.resetSelected()}, _('Reset selected device counters'));
+		this.resetView = Object.create(deviceReset);
+		const reset = this.resetView.build(devs, () => this.mac, () => this.refresh());
 		this.resetButton = reset;
 		this.rateView = Object.create(rateHistory);
 		this.timelineView = Object.create(deviceTimeline);
 
 		const root = E('div', { 'class': 'cbi-map zen-traffic-page', 'id': 'zen-traffic-history' }, [
-			E('h2', {}, _('History analysis')),
+			E('h2', {}, _('Analysis')),
 			E('div', { 'class': 'cbi-map-descr' },
 				_('Compare recorded usage by date and device, then inspect past internet rates. Current speeds are on Zen home.')),
 			E('div', { 'class': 'cbi-section zen-history-controls' }, [
@@ -211,12 +216,41 @@ return view.extend({
 				(this.chart = E('div', { 'class': 'zen-tf-chart' }, []))]),
 			this.timelineView.render(status),
 			E('section',{'class':'cbi-section'},[E('h3',{},_('Device usage ranking')),this.ranking = E('div')]),
-			this.rateView.render({data:{samples:[],interfaces:[],step:5}})
 		]);
 
 		this.sel = sel;
 		this.sel.value = this.mac;
-		this.rateView.query();
+		// Each analysis tool has one surface; hidden tabs do not query on entry.
+		const usage = E('section', {id:'zen-analysis-usage',role:'tabpanel','aria-labelledby':'zen-analysis-tab-usage'});
+		const heading = root.firstChild, description = heading.nextSibling;
+		while(description.nextSibling) usage.appendChild(description.nextSibling);
+		const shares = E('section',{id:'zen-analysis-shares',role:'tabpanel','aria-labelledby':'zen-analysis-tab-shares',hidden:true});
+		const rates = E('section',{id:'zen-analysis-rates',role:'tabpanel','aria-labelledby':'zen-analysis-tab-rates',hidden:true},this.rateView.render({data:{samples:[],interfaces:[],step:5}}));
+		const panels={usage,shares,rates}, buttons={}, names=['usage','shares','rates'];
+		let active='usage', usageStarted=false, sharesStarted=false, ratesStarted=false;
+		const select=(name,focus,remember)=>{
+			active=name;this.analysisActive=name;
+			for(const key of names){panels[key].hidden=key!==name;buttons[key].setAttribute('aria-selected',String(key===name));buttons[key].tabIndex=key===name?0:-1;}
+			if(focus)buttons[name].focus();
+			if(remember){const url=new URL(window.location.href);if(name==='usage')url.searchParams.delete('tab');else url.searchParams.set('tab',name);window.history.replaceState(null,'',url);}
+			if(name==='usage'&&!usageStarted){usageStarted=true;this.refresh();}
+			if(name==='rates'&&!ratesStarted){ratesStarted=true;this.rateView.query();}
+			if(name==='shares'&&!sharesStarted){
+				sharesStarted=true;shares.textContent=_('Loading internet usage…');
+				L.require('view.zen.zen-wan-share').then(module=>{shares.textContent='';return Object.create(module).mount(shares);}).catch(()=>{
+					sharesStarted=false;shares.textContent=_('Device shares require the Zen theme. Usage and ranking remain available.');
+				});
+			}
+		};
+		const labels=[_('Usage & devices'),_('Device shares'),_('Past rates')];
+		names.forEach((name,index)=>buttons[name]=E('button',{id:'zen-analysis-tab-'+name,type:'button',role:'tab','aria-controls':'zen-analysis-'+name,click:()=>select(name,false,true),keydown:event=>{
+			if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;
+			event.preventDefault();select(names[event.key==='Home'?0:event.key==='End'?2:(names.indexOf(active)+(event.key==='ArrowLeft'?-1:1)+3)%3],true,true);
+		}},labels[index]));
+		root.appendChild(E('div',{class:'zen-analysis-tabs zen-segmented',role:'tablist','aria-label':_('Analysis')},names.map(name=>buttons[name])));
+		root.appendChild(usage);root.appendChild(shares);root.appendChild(rates);
+		const requestedTab=new URLSearchParams(window.location.search).get('tab');
+		select(!this.jumpToHourly&&names.includes(requestedTab)?requestedTab:'usage');
 		if (this.resizeObserver) this.resizeObserver.disconnect();
 		if (typeof ResizeObserver !== 'undefined') {
 			this.resizeObserver = new ResizeObserver(() => {
@@ -225,11 +259,10 @@ return view.extend({
 			});
 			this.resizeObserver.observe(this.chart);
 		}
-		this.refresh();
 		// A page opened in a background tab skips refresh() while hidden; retry
 		// once when it becomes visible instead of leaving the chart blank.
 		this.visibilityHandler = () => {
-			if (!document.hidden && !this.lastResult)
+			if (!document.hidden && this.analysisActive === 'usage' && !this.lastResult)
 				this.refresh();
 		};
 		document.addEventListener('visibilitychange', this.visibilityHandler);
@@ -272,7 +305,6 @@ return view.extend({
 			}));
 		}
 		this.statusText.textContent = _('Loading history…');
-		this.resetButton.disabled = !this.mac;
 		this.scopeNote.textContent = this.scope === 'internet' ?
 			_('Internet-only daily records start when this version is installed and retain 90 days. Monthly bars sum these retained days. Older mixed records cannot be converted.') :
 			_('Existing history includes internet and local transfers: 90 days of daily records and 12 months of monthly records.');
@@ -293,17 +325,6 @@ return view.extend({
 			}
 			console.warn('zen-traffic history', e);
 		});
-	},
-
-	resetSelected() {
-		if (!this.mac) return;
-		const mac = this.mac, name = this.sel.selectedOptions[0].textContent;
-		ui.showModal(_('Reset counters'), [E('p',{},_('Reset all counters for %s?').format(name)),
-			E('div',{'class':'zen-tf-modal-actions'},[
-				E('button',{type:'button','class':'btn',click:ui.hideModal},_('Cancel')),
-				E('button',{type:'button','class':'btn cbi-button-negative',click:()=>{
-					ui.hideModal(); callReset(mac).then(()=>this.refresh()).catch(()=>ui.addNotification(null,E('p',{},_('Unable to reset device counters.'))));
-				}},_('Reset counters'))])]);
 	},
 
 	drawAnalysis(res) {

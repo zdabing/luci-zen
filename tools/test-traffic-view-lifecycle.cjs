@@ -9,6 +9,9 @@ const helperSource=fs.readFileSync(path.join(root,'htdocs/luci-static/resources/
 const helper=new Function('view','baseclass','rpc','trafficStyle','_',helperSource)(view,baseclass,rpc,{},s=>s);
 assert.equal(mounts.length,0,'Importing a shared rate component must not mount a LuCI page');
 assert.equal(typeof helper.render,'function');assert.equal(typeof helper.query,'function');
+const notifySource=fs.readFileSync(path.join(root,'htdocs/luci-static/resources/view/zen-traffic/notification-settings.js'),'utf8');
+new Function('view','baseclass','rpc',notifySource)(view,baseclass,rpc);
+assert.equal(mounts.length,0,'Embedded notification settings must not initialize a second LuCI view');
 for(const page of ['history']) {
  mounts=[];
  const source=fs.readFileSync(path.join(root,'htdocs/luci-static/resources/view/zen-traffic/'+page+'.js'),'utf8');
@@ -17,23 +20,20 @@ for(const page of ['history']) {
 }
 const menu={...JSON.parse(fs.readFileSync(path.join(root,'root/usr/share/luci/menu.d/luci-app-zen-traffic.json'),'utf8')),
  ...JSON.parse(fs.readFileSync(path.join(__dirname,'../luci-theme-zen/root/usr/share/luci/menu.d/luci-theme-zen.json'),'utf8'))};
-const visible=Object.entries(menu).filter(([key,value])=>key.startsWith('admin/status/zen-traffic/')&&value.title).sort((a,b)=>a[1].order-b[1].order);
-assert.deepEqual(visible.map(([key])=>key.split('/').at(-1)),['history','notifications','settings']);
+const visible=Object.entries(menu).filter(([key,value])=>key.startsWith('admin/zen/')&&value.title).sort((a,b)=>a[1].order-b[1].order);
+assert.deepEqual(visible.map(([key])=>key.split('/').at(-1)),['realtime','analysis','settings','capture']);
 for(const name of ['devices','realtime']) {
- assert.deepEqual(menu['admin/status/zen-traffic/'+name].action,{type:'alias',path:'admin/zen'});
+ assert.deepEqual(menu['admin/status/zen-traffic/'+name].action,{type:'alias',path:'admin/zen/realtime'});
  assert.equal(menu['admin/status/zen-traffic/'+name].title,undefined);
 }
-// Emulate HTML boolean-attribute presence, including disabled="false".
-const E=(tag,attrs={},children=[])=>({tag,attrs,disabled:Object.hasOwn(attrs,'disabled')&&attrs.disabled!=null,
- children:Array.isArray(children)?children:[children],value:attrs.value||'',textContent:'',
- appendChild(child){this.children.push(child);return child;}});
+const {E}=require('./test-ui-dom.cjs');
 const listeners={};
 const document={getElementById:()=>null,createElement:tag=>E(tag),head:E('head'),hidden:false,addEventListener(type,fn){listeners[type]=fn;},removeEventListener(type,fn){if(listeners[type]===fn)delete listeners[type];}};
 const historySource=fs.readFileSync(path.join(root,'htdocs/luci-static/resources/view/zen-traffic/history.js'),'utf8');
 const find=(node,predicate)=>predicate(node)?node:(node.children||[]).map(child=>child&&typeof child==='object'?find(child,predicate):null).find(Boolean);
 for(const available of [true,false]) {
- const history=new Function('view','rpc','trafficStyle','rateHistory','deviceTimeline','_','E','document','L','window',historySource)(
-  view,rpc,{inject(){}},{render:()=>E('div'),query(){}},{render:()=>E('section'),select(){}},s=>s,E,document,{bind:(f,c)=>f.bind(c)},{location:{search:''}});
+ const history=new Function('view','rpc','trafficStyle','rateHistory','deviceTimeline','_','E','document','L','window','deviceReset',historySource)(
+  view,rpc,{inject(){}},{render:()=>E('div'),query(){}},{render:()=>E('section'),select(){}},s=>s,E,document,{bind:(f,c)=>f.bind(c)},{location:{search:''}},{build:()=>E('button')});
  let refreshes=0;history.refresh=()=>{refreshes++;};
  const page=history.render([{wan_daily:available},{dev:[]}]);
  const scope=find(page,node=>node.attrs?.['aria-label']==='Traffic scope');
@@ -47,4 +47,4 @@ for(const available of [true,false]) {
   assert.equal(refreshes,3,'Both scope changes must refresh the selected history');
  }
 }
-console.log('PASS: shared chart imports do not mount pages; three entries; legacy alias; supported and unsupported internet scope');
+console.log('PASS: shared chart imports do not mount pages; four entries; legacy alias; supported and unsupported internet scope');

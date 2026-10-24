@@ -1,5 +1,26 @@
 # 更新记录
 
+## 0.2.3-r5（2026-10-24）
+
+- 抓包 zen-capture（M1–M4）在本版达到可构建、可测试、可部署：修复 rcgen 0.14 签发者
+  API、tokio `macros` feature 缺失、aya 链按方向 detach（旧实现导致 tap 停止后 egress
+  capture 程序残留）、以及主线程启动 http 会话时 `TcpListener::from_std` 脱离 tokio
+  上下文导致的进程崩溃。
+- 修复 tap 解析器两处真实缺陷：DNS qname 尾部多点、ClientHello 跳过 cipher/compression
+  字段时偏移错误（SNI 解析全部失效）；测试帧构造器同步修正（UDP 校验和宽度、SNI 扩展
+  缺列表长度字段、记录偏移），使单测覆盖真实线上格式。
+- tcpdump 会话与 tap 一致受 `max_bytes` 大小上限约束；域名排行同计数时按最近活跃排序。
+- `tools/r5c-acceptance-build.sh` 支持崩溃后重入（远端/包目录幂等）；rust host 安装阶段
+  要求纯净 PATH（Windows `VS` 相对路径条目会令 `find -execdir` 拒绝执行）。
+- 新增 `tools/validate-pcap.py`：验收侧 pcap 结构校验（magic/链路类型/记录头/时间戳
+  单调性/orig_len 语义）。
+- 真机验收（NanoPi R5C，OpenWrt 25.12-SNAPSHOT，内核 6.12）：M1 tcpdump 会话抓包
+  989 帧结构有效；M2 tap 域名画像命中真实 DNS/SNI 流量，TCX 插队顺序（capture 先于
+  会计程序）与停止后双向清空均经 BPF_PROG_QUERY 核实；M3 透明代理记录真实 LAN 客户端
+  HTTP 事件并可导出 HAR 1.2，会话链随停止回收；M4 解密会话生成 0600 根 CA、下发 443
+  重定向与 UDP/443 丢弃规则。WSL 本地全量回归（cargo 72 项 + node/python/ucode 49 项
+  + 两个真实内核 BPF 测试）通过。
+
 ## 0.2.3（2026-10-18）
 
 - 四个软件包统一升级为 `0.2.3-r1`，Rust workspace 同步为 `0.2.3`。

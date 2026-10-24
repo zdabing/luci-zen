@@ -23,7 +23,7 @@ const dash = { isConnected: false, appendChild() {} }; dashboard.build = () => d
 assert.equal(home.render(), dash); assert.equal(polls.length, 0, 'Render must return content for LuCI to insert');
 dash.isConnected = true; callbacks.shift()();
 assert.equal(polls.length, 1); assert.equal(polls[0].interval, 5); assert.equal(ticks, 1);
-assert.equal(deviceMounts, 1); assert.equal(shareMounts, 1);
+assert.equal(deviceMounts, 1); assert.equal(shareMounts, 0);
 dashboard.start(dash); assert.equal(polls.length, 1); assert.equal(deviceMounts, 1, 'Repeated start must not duplicate device collectors');
 document.hidden = true; polls[0].fn(); assert.equal(ticks, 1);
 document.hidden = false; dash.isConnected = false; polls[0].fn(); assert.equal(ticks, 1);
@@ -31,15 +31,16 @@ dash.isConnected = true; polls[0].fn(); assert.equal(ticks, 2);
 assert.equal(nativeView.content, 'Original OpenWrt status sections');
 assert.equal(home.handleSave, null); assert.equal(home.handleSaveApply, null); assert.equal(home.handleReset, null);
 const routes = JSON.parse(fs.readFileSync(path.join(root, 'root/usr/share/luci/menu.d/luci-theme-zen.json'), 'utf8'));
-assert.deepEqual(Object.keys(routes), ['admin/zen','admin/status/zen-traffic/settings','admin/system/zen'], 'Theme owns home and traffic settings, plus the hidden legacy alias');
-assert.deepEqual(routes['admin/status/zen-traffic/settings'].action, {type:'view',path:'zen/settings'});
-assert.equal(routes['admin/status/zen-traffic/settings'].order,4);
-assert.deepEqual(routes['admin/system/zen'].action, {type:'alias',path:'admin/status/zen-traffic/settings'});
-assert.equal(routes['admin/system/zen'].title,undefined,'Legacy address must not add a System menu entry');
-assert.ok(!source('view/zen/home.js').includes('zen-updates'), 'Home does not load the update component');
-assert.deepEqual(routes['admin/zen'].action, { type: 'view', path: 'zen/home' });
-assert.ok(routes['admin/zen'].order < 10, 'Zen home precedes the stock status menu for the default landing');
-assert.deepEqual(routes['admin/zen'].depends.acl, ['luci-theme-zen']);
+assert.deepEqual(routes['admin/zen'].action,{type:'firstchild'});
+assert.deepEqual(routes['admin/zen/realtime'].action,{type:'view',path:'zen/home'});
+assert.deepEqual(routes['admin/zen/settings'].action,{type:'view',path:'zen/settings'});
+for(const legacy of ['admin/system/zen','admin/status/zen-traffic/settings']){
+ assert.deepEqual(routes[legacy].action,{type:'alias',path:'admin/zen/settings'});
+ assert.equal(routes[legacy].title,undefined,'Old addresses must not add menu entries');
+}
+assert.ok(!source('view/zen/home.js').includes('zen-updates'));
+assert.ok(routes['admin/zen'].order<10);
+assert.deepEqual(routes['admin/zen/realtime'].depends.acl,['luci-theme-zen']);
 // Run the real menu initializer on the native overview, where the old injection happened.
 let imports = 0;
 const menuDocument = { body: { getAttribute: () => 'admin-status-overview' } };

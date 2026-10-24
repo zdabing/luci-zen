@@ -20,6 +20,7 @@ assert.equal(mod.aggregate(network,devices,'2026-10-04','week',names).interface_
  const [first,second]=await Promise.all([mod.load(usage),mod.load(usage)]);
  assert.equal(first,second,'Upload and download share one request batch');
  await mod.load(usage);assert.equal(calls,3,'Cache calendar histories instead of requesting all devices each poll');
+ const ledger=await mod.records(usage);assert.equal(ledger.network.days.length,3);assert.equal(ledger.devices.length,1);assert.equal(calls,3,'Analysis reuses the same measured history batch');
  assert.equal(first.day.dev[0].host,'Phone');
  console.log('PASS: calendar day/week/month boundaries, internet-only sums and shared cached requests');
 })().catch(e=>{console.error(e);process.exitCode=1});

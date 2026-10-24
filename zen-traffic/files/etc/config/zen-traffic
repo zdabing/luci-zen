@@ -15,3 +15,27 @@ config traffic 'traffic'
 	option offline_timeout '600'
 	option checkpoint_secs '300'
 	option db_path '/etc/zen-traffic/traffic.db'
+
+# 抓包段（zen-capture 独立进程；docs/PACKET_CAPTURE.md）
+#
+# enabled        抓包服务总开关（关掉仅禁用新会话的入口进程）
+# interface      监听接口（list；网桥自动展开为成员端口，默认 br-lan）
+# dir            pcap 输出目录（默认 /tmp/zen-capture；改路径需同步放宽 rpcd ACL）
+# max_sessions   并发会话上限（默认 2，范围 1–4）
+# max_duration   单会话时长上限秒（默认 600）
+# max_file_mb    单会话总大小上限 MB（默认 8，仅 tap 模式）
+# snaplen        每包捕获字节数（默认 256；tap 模式固定 256）
+# keep           磁盘保留的已完成会话数（默认 10）
+# ca_dir         MITM 根 CA 存储目录（默认 /etc/zen-capture）
+# decrypt_skip   MITM 直连白名单域名（list，后缀匹配；证书固定的银行类 App 建议加入）
+
+config capture 'capture'
+	option enabled '1'
+	list interface 'br-lan'
+	option dir '/tmp/zen-capture'
+	option max_sessions '2'
+	option max_duration '600'
+	option max_file_mb '8'
+	option snaplen '256'
+	option keep '10'
+	option ca_dir '/etc/zen-capture'

@@ -34,7 +34,7 @@ return baseclass.extend({
 
 		if (L.env.dispatchpath.length >= 3) {
 			for (let i = 0; i < 3 && node; i++) {
-				node = node.children[L.env.dispatchpath[i]];
+				node = node.children?.[L.env.dispatchpath[i]];
 				url = url + (url ? '/' : '') + L.env.dispatchpath[i];
 			}
 

@@ -48,13 +48,13 @@ return baseclass.extend({
 		const version = (id, label) => {
 			this.values[id] = E('strong', {}, _('Reading…'));
 			this.outputs[id] = E('div', { class: 'zen-version-status' });
-			return E('div', { class: 'zen-version-item' }, [E('div', { class: 'zen-version-label' }, [E('span', {}, label), this.values[id]]), this.outputs[id]]);
+			return E('div', { class: 'zen-version-item' }, [E('div', { class: 'zen-version-label' }, [E('span', {class:'zen-version-name'}, label), E('div',{class:'zen-version-current'},[E('span',{},_('Current version')),this.values[id]])]), this.outputs[id]]);
 		};
-		this.refresh = E('button', { class: 'btn', type: 'button', click: () => this.reload() }, _('Refresh versions'));
-		this.check = E('button', { class: 'btn cbi-button-action', type: 'button', disabled: true, click: () => this.checkUpdates() }, _('Check for updates'));
+		this.refresh = E('button', { class: 'btn zen-update-refresh', type: 'button', click: () => this.reload() }, _('Refresh versions'));
+		this.check = E('button', { class: 'btn cbi-button-action zen-update-check', type: 'button', disabled: true, click: () => this.checkUpdates() }, _('Check for updates'));
 		this.details = E('p', { class: 'zen-update-note' });
 		this.results = E('div', { class: 'zen-update-results', 'aria-live': 'polite', 'aria-atomic': 'true' }, _('Updates have not been checked.'));
-		this.links = E('div', { class: 'zen-update-actions' });
+		this.links = E('div', { class: 'zen-update-actions zen-update-links' });
 		this.updater = Object.create(packageUpdate);
 		const progress = this.updater.render(() => this.updateButtons(), async job => {
 			await this.reload();
@@ -65,9 +65,9 @@ return baseclass.extend({
 			}
 		});
 		this.panel = E('section', { id: 'zen-updates', class: 'zen-updates', 'aria-labelledby': 'zen-updates-title' }, [
-			E('div', { class: 'zen-update-heading' }, [E('div', {}, [E('h2', { id: 'zen-updates-title' }, _('Versions & updates')), E('p', { class: 'zen-update-note' }, _('Installed versions are read from this router.'))]), E('div', { class: 'zen-update-actions' }, [this.refresh, this.check])]),
+			E('div', { class: 'zen-update-heading' }, [E('h2', { id: 'zen-updates-title' }, _('Versions & updates')), E('div', { class: 'zen-update-actions' }, [this.refresh, this.check])]),
 			E('div', { class: 'zen-version-grid', 'aria-live': 'polite' }, model.PACKAGES.map((name, i) => version(name, titles()[i]))),
-			this.details, progress, this.results, this.links
+			E('div',{class:'zen-update-footer'},[this.details, progress, this.results, this.links])
 		]);
 		return this.panel;
 	},
@@ -149,7 +149,10 @@ return baseclass.extend({
 			const m = found.meta;
 			const file = m.packages.find(file => file.name === name), cmp = model.compare(current, file.version);
 			const state = !this.packages || cmp === null ? _('Unable to compare') : cmp < 0 ? _('Update available') : cmp === 0 ? _('Up to date') : _('Installed version is newer');
-			items.push(E('p', {}, state + (cmp < 0 && current ? ' · ' + current + ' → ' + file.version : '')));
+			items.push(E('div',{class:'zen-update-state-line'},[
+				E('span',{class:'zen-update-state','data-state':cmp===null?'unknown':cmp<0?'available':cmp===0?'current':'newer'},state),
+				...(cmp<0&&current?[E('span',{class:'zen-update-target'},file.version)]:[])
+			]));
 			if (current && cmp < 0) {
 				if (this.updater.available) {
 					const button = E('button', { class: 'btn cbi-button-action zen-update-install', type: 'button',

@@ -64,6 +64,35 @@ impl DevStats {
 unsafe impl Pod for MacKey {}
 unsafe impl Pod for DevStats {}
 
+/// ABI: device_policy.h, spin lock + blocked + six u64 fields (56 bytes).
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+pub struct DevicePolicy {
+    pub lock: u32,
+    pub blocked: u32,
+    pub upload_bps: u64,
+    pub download_bps: u64,
+    pub upload_tokens: u64,
+    pub download_tokens: u64,
+    pub upload_last: u64,
+    pub download_last: u64,
+}
+unsafe impl Pod for DevicePolicy {}
+
+pub fn set_device_policy(bpf: &mut Ebpf, mac: MacKey, value: Option<DevicePolicy>) -> Result<(), String> {
+    let map = bpf.map_mut("device_policies").ok_or("policy_map_missing")?;
+    let mut policies: HashMap<_, MacKey, DevicePolicy> = HashMap::try_from(map).map_err(|_| "policy_map_invalid")?;
+    match value {
+        // BPF_F_LOCK synchronizes userspace updates with packet processing.
+        Some(value) => policies.insert(mac, value, 4).map_err(|_| "policy_apply_failed".into()),
+        None => match policies.get(&mac, 4) {
+            Ok(_) => policies.remove(&mac).map_err(|_| "policy_apply_failed".into()),
+            Err(aya::maps::MapError::KeyNotFound) => Ok(()),
+            Err(_) => Err("policy_apply_failed".into()),
+        },
+    }
+}
+
 impl MacKey {
     pub fn to_str(&self) -> String {
         self.b.iter().map(|x| format!("{x:02x}")).collect::<Vec<_>>().join(":")

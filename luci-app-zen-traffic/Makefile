@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-zen-traffic
 PKG_VERSION:=0.2.3
-PKG_RELEASE:=1
+PKG_RELEASE:=5
 
 PKG_MAINTAINER:=luci-zen maintainers
 PKG_LICENSE:=Apache-2.0
@@ -47,13 +47,24 @@ define Package/luci-app-zen-traffic/install
 		$(1)/www/luci-static/resources/view/zen-traffic/style.js
 	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/zen-traffic/history.js \
 		$(1)/www/luci-static/resources/view/zen-traffic/history.js
+	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/zen-traffic/analysis-workspace.js \
+		$(1)/www/luci-static/resources/view/zen-traffic/analysis-workspace.js
 
 	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/zen-traffic/rate-history.js \
 		$(1)/www/luci-static/resources/view/zen-traffic/rate-history.js
 	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/zen-traffic/device-timeline.js \
 		$(1)/www/luci-static/resources/view/zen-traffic/device-timeline.js
+	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/zen-traffic/date-picker.js \
+		$(1)/www/luci-static/resources/view/zen-traffic/date-picker.js
 	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/zen-traffic/notifications.js \
 		$(1)/www/luci-static/resources/view/zen-traffic/notifications.js
+
+	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/zen-traffic/notification-settings.js \
+		$(1)/www/luci-static/resources/view/zen-traffic/notification-settings.js
+	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/zen-traffic/device-reset.js \
+		$(1)/www/luci-static/resources/view/zen-traffic/device-reset.js
+	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/zen-traffic/capture.js \
+		$(1)/www/luci-static/resources/view/zen-traffic/capture.js
 
 	$(INSTALL_DIR) $(1)/usr/share/luci/menu.d
 	$(INSTALL_DATA) ./root/usr/share/luci/menu.d/luci-app-zen-traffic.json \

@@ -29,9 +29,10 @@ function aggregate(network, devices, today, period, names) {
  return {since:network.since,interface_download:total.download,interface_upload:total.upload,
   dev:devices.map(([mac,data])=>({mac,host:names.get(mac),...sum(data.days,start,today)}))};
 }
-let cached, pending, refreshed = 0;
+let cached, ledger, pending, refreshed = 0;
 return baseclass.extend({
  startDate, aggregate,
+ async records(usage) { await this.load(usage); return ledger; },
  async load(usage) {
   if (pending) return pending;
   if (cached && Date.now()-refreshed < 60000) return cached;
@@ -47,6 +48,7 @@ return baseclass.extend({
     while(index < macs.length) {const mac=macs[index++]; devices.push([mac,decode(await history('day',mac))]);}
    }));
    const result = Object.fromEntries(['day','week','month'].map(period=>[period,aggregate(network,devices,today,period,names)]));
+   ledger={network,devices,today,names};
    cached=result;refreshed=Date.now();return result;
   })();
   try { return await pending; } finally { pending=null; }

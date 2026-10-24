@@ -28,6 +28,7 @@ mod ubus;
 mod wifi;
 mod wan;
 mod notifications;
+mod policy;
 
 use state::Config;
 

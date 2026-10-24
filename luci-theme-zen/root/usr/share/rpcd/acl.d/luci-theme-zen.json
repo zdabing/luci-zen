@@ -2,32 +2,168 @@
 	"luci-theme-zen": {
 		"description": "Grant dashboard stats for luci-theme-zen",
 		"read": {
-			"uci": [ "zen" ],
-			"cgi-io": [ "exec", "download" ],
+			"uci": [
+				"zen",
+				"dhcp"
+			],
+			"cgi-io": [
+				"exec",
+				"download"
+			],
 			"ubus": {
-				"zen.update": [ "status" ],
-				"uci": [ "get" ],
-				"file": [ "read" ],
-				"system": [ "info", "board" ],
-				"luci": [ "getMountPoints" ],
-				"luci-rpc": [ "getDHCPLeases", "getNetworkDevices", "getHostHints" ],
-				"network.device": [ "status" ],
-				"zen.traffic": [ "getStatus", "getDevices", "getTotal", "getHistory", "getRealtimeHistory", "getWanUsage", "getInternetHistory", "getNotifications" ]
+				"zen.update": [
+					"status"
+				],
+				"uci": [
+					"get"
+				],
+				"file": [
+					"read",
+					"list",
+					"exec"
+				],
+				"system": [
+					"info",
+					"board"
+				],
+				"luci": [
+					"getMountPoints"
+				],
+				"luci-rpc": [
+					"getDHCPLeases",
+					"getNetworkDevices",
+					"getHostHints"
+				],
+				"network.device": [
+					"status"
+				],
+				"zen.traffic": [
+					"getStatus",
+					"getDevices",
+					"getTotal",
+					"getHistory",
+					"getRealtimeHistory",
+					"getWanUsage",
+					"getInternetHistory",
+					"getNotifications",
+					"getDevicePolicy"
+				],
+				"zen.device": [
+					"getBinding",
+					"getConnections"
+				]
 			},
 			"file": {
-				"/proc/stat": [ "read" ],
-				"/usr/libexec/package-manager-call list-installed": [ "exec" ],
-				"/lib/apk/db/installed": [ "read" ],
-				"/usr/lib/opkg/status": [ "read" ]
+				"/proc/stat": [
+					"read"
+				],
+				"/proc/sys/net/netfilter/nf_conntrack_count": [
+					"read"
+				],
+				"/proc/sys/net/netfilter/nf_conntrack_max": [
+					"read"
+				],
+				"/sys/class/thermal": [
+					"list"
+				],
+				"/sys/class/thermal/thermal_zone*/temp": [
+					"read"
+				],
+				"/sys/class/thermal/thermal_zone*/type": [
+					"read"
+				],
+				"/sys/class/hwmon": [
+					"list"
+				],
+				"/sys/class/hwmon/hwmon*": [
+					"list"
+				],
+				"/sys/class/hwmon/hwmon*/name": [
+					"read"
+				],
+				"/sys/class/hwmon/hwmon*/temp*_input": [
+					"read"
+				],
+				"/sys/class/hwmon/hwmon*/temp*_label": [
+					"read"
+				],
+				"/sys/devices/*/thermal_zone*/temp": [
+					"read"
+				],
+				"/sys/devices/*/thermal_zone*/type": [
+					"read"
+				],
+				"/sys/devices/*/hwmon/hwmon*": [
+					"list"
+				],
+				"/sys/devices/*/hwmon/hwmon*/name": [
+					"read"
+				],
+				"/sys/devices/*/hwmon/hwmon*/temp*_input": [
+					"read"
+				],
+				"/sys/devices/*/hwmon/hwmon*/temp*_label": [
+					"read"
+				],
+				"/bin/ping -n -c 1 -W 1 1.1.1.1": [
+					"exec"
+				],
+				"/usr/libexec/package-manager-call list-installed": [
+					"exec"
+				],
+				"/lib/apk/db/installed": [
+					"read"
+				],
+				"/usr/lib/opkg/status": [
+					"read"
+				]
 			}
 		},
 		"write": {
-			"ubus": { "uci": [ "set", "commit" ] },
-			"uci": [ "zen" ]
+			"ubus": {
+				"uci": [
+					"set",
+					"commit"
+				]
+			},
+			"uci": [
+				"zen"
+			]
 		}
 	},
 	"luci-theme-zen-updates": {
 		"description": "Install verified updates for the three Zen components",
-		"write": { "ubus": { "zen.update": [ "start" ] } }
+		"write": {
+			"ubus": {
+				"zen.update": [
+					"start"
+				]
+			}
+		}
+	},
+	"zen-device-management": {
+		"description": "Rename devices, reserve DHCP addresses and manage per-device Internet policies",
+		"read": {
+			"ubus": {
+				"zen.traffic": [
+					"getDevicePolicy"
+				],
+				"zen.device": [
+					"getBinding",
+					"getConnections"
+				]
+			}
+		},
+		"write": {
+			"ubus": {
+				"zen.traffic": [
+					"setHostname",
+					"setDevicePolicy"
+				],
+				"zen.device": [
+					"setBinding"
+				]
+			}
+		}
 	}
 }

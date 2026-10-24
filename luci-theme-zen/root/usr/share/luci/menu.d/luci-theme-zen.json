@@ -1,23 +1,57 @@
 {
 	"admin/zen": {
-		"title": "Zen home",
+		"title": "Zen",
 		"order": 5,
+		"action": {
+			"type": "firstchild"
+		}
+	},
+	"admin/zen/realtime": {
+		"title": "Realtime",
+		"order": 1,
 		"action": {
 			"type": "view",
 			"path": "zen/home"
 		},
 		"depends": {
-			"acl": [ "luci-theme-zen" ]
+			"acl": [
+				"luci-theme-zen"
+			]
+		}
+	},
+	"admin/zen/settings": {
+		"title": "Settings",
+		"order": 3,
+		"action": {
+			"type": "view",
+			"path": "zen/settings"
+		},
+		"depends": {
+			"acl": [
+				"luci-theme-zen"
+			]
 		}
 	},
 	"admin/status/zen-traffic/settings": {
-		"title": "Zen settings",
-		"order": 4,
-		"action": { "type": "view", "path": "zen/settings" },
-		"depends": { "acl": [ "luci-theme-zen" ] }
+		"action": {
+			"type": "alias",
+			"path": "admin/zen/settings"
+		},
+		"depends": {
+			"acl": [
+				"luci-theme-zen"
+			]
+		}
 	},
 	"admin/system/zen": {
-		"action": { "type": "alias", "path": "admin/status/zen-traffic/settings" },
-		"depends": { "acl": [ "luci-theme-zen" ] }
+		"action": {
+			"type": "alias",
+			"path": "admin/zen/settings"
+		},
+		"depends": {
+			"acl": [
+				"luci-theme-zen"
+			]
+		}
 	}
 }

@@ -5,7 +5,7 @@
  * TC ingress/egress 每设备（MAC 为唯一 key）流量计数。
  *
  * 设计约束（docs/ARCHITECTURE.md §7）：
- *   - eBPF 层只负责 bytes / packets / last_seen，不做速率/统计/设备信息；
+ *   - 默认只观测；显式设备策略可对 Internet 包按方向限速或丢弃；
  *   - IPv4 与 IPv6 归并到同一 MAC 条目；
  *   - TC ingress（帧自设备进入 LAN 侧）= 设备上传；TC egress（帧发往设备）= 设备下载；
  *   - local_prefixes LPM map 保存本地 IPv4/IPv6 前缀（IPv4 以 v4-mapped 归一化进同一张
@@ -15,7 +15,7 @@
  *     不依赖目标内核 BTF（对象内 BTF 仅用于 BTF-defined maps，随 .o 自带）。
  *
  * 挂载点：LAN 桥设备（br-lan 等）的 clsact ingress/egress，cls_bpf direct-action，
- * verdict 恒为 TC_ACT_OK（旁路观测）。路由流量分析见 ARCHITECTURE.md §3。
+ * 无设备策略时 verdict 为 TC_ACT_OK；策略不影响本地前缀、ARP/NDP。
  */
 
 #include <linux/bpf.h>
@@ -26,6 +26,7 @@
 #include <linux/ipv6.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
+#include "device_policy.h"
 
 /* 部分 UAPI 头不导出 struct vlan_hdr（CI 实测），BPF 程序本地自带定义 */
 #ifndef VLAN_VID_MASK
@@ -63,6 +64,14 @@ struct {
 	__type(key, struct mac_key);
 	__type(value, struct dev_stats);
 } devices SEC(".maps");
+
+/* Only Internet packets are policed; local prefixes, ARP and NDP stay reachable. */
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(max_entries, MAX_DEVICES);
+	__type(key, struct mac_key);
+	__type(value, struct device_policy);
+} device_policies SEC(".maps");
 
 struct {
 	__uint(type, BPF_MAP_TYPE_LPM_TRIE);
@@ -123,19 +132,34 @@ static __always_inline struct dev_stats *dev_get_or_create(const __u8 *mac)
  * egress=0：帧来自设备（上传），key = eth->h_source，scope 取决于目的地址。
  * len：skb->len（TC 层为 L3 字节，GSO skb 已含聚合长度）。
  */
-static __always_inline void account(struct __sk_buff *skb, const __u8 *mac,
+static __always_inline int account(struct __sk_buff *skb, const __u8 *mac,
 				    int is_v6, const void *scope_addr, int egress)
 {
 	struct dev_stats *s = dev_get_or_create(mac);
 	__u64 len = skb->len;
+	__u64 now = bpf_ktime_get_ns();
+	struct mac_key key;
+	struct device_policy *policy;
+	int allowed = 1;
 	int local;
 
-	if (!s)
-		return;
-
-	s->last_seen = bpf_ktime_get_ns();
+	if (s)
+		s->last_seen = now;
 	local = is_v6 ? is_local_v6((const __u8 *)scope_addr)
 		      : is_local_v4(*(__be32 *)scope_addr);
+	if (!local) {
+		__builtin_memcpy(key.b, mac, 6);
+		policy = bpf_map_lookup_elem(&device_policies, &key);
+		if (policy) {
+			bpf_spin_lock(&policy->lock);
+			allowed = zen_policy_take(policy, now, len, egress);
+			bpf_spin_unlock(&policy->lock);
+		}
+	}
+	if (!allowed)
+		return TC_ACT_SHOT;
+	if (!s)
+		return TC_ACT_OK;
 
 	if (egress) {
 		if (local) {
@@ -154,6 +178,7 @@ static __always_inline void account(struct __sk_buff *skb, const __u8 *mac,
 			__sync_fetch_and_add(&s->wan_tx_p, 1);
 		}
 	}
+	return TC_ACT_OK;
 }
 
 static __always_inline int zen_account(struct __sk_buff *skb, int egress)
@@ -201,9 +226,9 @@ static __always_inline int zen_account(struct __sk_buff *skb, int egress)
 		 * 字节仍归属该设备，避免分片流量漏计。
 		 */
 		if (egress)
-			account(skb, mac, 0, &ip.saddr, egress);
+			return account(skb, mac, 0, &ip.saddr, egress);
 		else
-			account(skb, mac, 0, &ip.daddr, egress);
+			return account(skb, mac, 0, &ip.daddr, egress);
 	} else if (proto == ETH_P_IPV6) {
 		if (bpf_skb_load_bytes(skb, off, &ip6, sizeof(ip6)))
 			return TC_ACT_OK;
@@ -212,9 +237,9 @@ static __always_inline int zen_account(struct __sk_buff *skb, int egress)
 			return TC_ACT_OK;	/* IPv6 组播（含 NDP）跳过 */
 
 		if (egress)
-			account(skb, mac, 1, &ip6.saddr, egress);
+			return account(skb, mac, 1, &ip6.saddr, egress);
 		else
-			account(skb, mac, 1, &ip6.daddr, egress);
+			return account(skb, mac, 1, &ip6.daddr, egress);
 	}
 	/* 其余协议（ARP 等）不计 */
 
