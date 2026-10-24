@@ -3,8 +3,6 @@
 //! BPF 侧只负责按 MAC 过滤并搬帧；全部协议解析在用户态完成，纯函数可单测。
 //! 解析尽力而为：超出 snaplen（256B）的 ClientHello SNI 不可见，解析失败静默跳过。
 
-use std::net::Ipv4Addr;
-
 pub const PCAP_MAGIC: u32 = 0xa1b2_c3d4; // 小端微秒
 pub const LINKTYPE_ETHERNET: u32 = 1;
 
@@ -26,7 +24,7 @@ pub fn pcap_record(epoch_secs: u64, epoch_usecs: u32, orig_len: u32, data: &[u8]
     let mut out = Vec::with_capacity(16 + data.len());
     out.extend_from_slice(&(epoch_secs as u32).to_le_bytes());
     out.extend_from_slice(&epoch_usecs.to_le_bytes());
-    out.extend_from_slice(&data.len() as u32.to_le_bytes());
+    out.extend_from_slice(&(data.len() as u32).to_le_bytes());
     out.extend_from_slice(&orig_len.to_le_bytes());
     out.extend_from_slice(data);
     out
@@ -142,8 +140,10 @@ pub fn dns_query_name(frame: &[u8]) -> Option<String> {
             return None;
         }
         let label = std::str::from_utf8(&payload[off..off + len]).ok()?;
+        if !name.is_empty() {
+            name.push('.');
+        }
         name.push_str(&label.to_ascii_lowercase());
-        name.push('.');
         off += len;
         labels += 1;
     }
@@ -188,11 +188,16 @@ pub fn sni_from_record(payload: &[u8]) -> Option<String> {
     let mut off = 39;
     let sid_len = usize::from(hs[38]);
     off += sid_len;
-    if hs.len() < off + 4 {
+    if hs.len() < off + 2 {
         return None;
     }
     let cipher_len = usize::from(u16::from_be_bytes([hs[off], hs[off + 1]]));
-    off += cipher_len + 1; // + compression methods (1 字节长度)
+    off += 2 + cipher_len;
+    if hs.len() < off + 1 {
+        return None;
+    }
+    let comp_len = usize::from(hs[off]);
+    off += 1 + comp_len;
     if hs.len() < off + 2 {
         return None;
     }
@@ -224,7 +229,7 @@ pub fn sni_from_record(payload: &[u8]) -> Option<String> {
 }
 
 /// 请求/响应头解析结果（head 含结束 CRLFCRLF 的字节数）
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct HttpHead {
     pub head_len: usize,
     pub method: String,
@@ -373,6 +378,8 @@ pub fn rfc3339(epoch_secs: u64) -> String {
 /// 用于测试的帧构造器
 #[cfg(test)]
 pub mod test_frames {
+    use std::net::Ipv4Addr;
+
     pub fn eth_ip_udp53(payload: &[u8]) -> Vec<u8> {
         let mut frame = vec![0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x08, 0x00];
         frame.push(0x45);frame.push(0);frame.extend_from_slice(&(20 + 8 + payload.len() as u16).to_be_bytes());
@@ -382,7 +389,7 @@ pub mod test_frames {
         // UDP：sport 59770 → dport 53，length，checksum 0
         frame.extend_from_slice(&[0xe9, 0x7a, 0x00, 0x35]);
         frame.extend_from_slice(&(8 + payload.len() as u16).to_be_bytes());
-        frame.extend_from_slice(&[0, 0, 0, 0]);
+        frame.extend_from_slice(&[0, 0]);
         frame.extend_from_slice(payload);
         frame
     }
@@ -417,6 +424,8 @@ pub mod test_frames {
         let mut list = vec![0x00]; // name_type host
         list.extend_from_slice(&(sni.len() as u16).to_be_bytes());
         list.extend_from_slice(sni.as_bytes());
+        // server_name_list：list 总长(2) + name_type(1) + name 长度(2) + name
+        ext.extend_from_slice(&((list.len() as u16 + 2).to_be_bytes()));
         ext.extend_from_slice(&(list.len() as u16).to_be_bytes());
         ext.extend_from_slice(&list);
 
@@ -441,6 +450,7 @@ pub mod test_frames {
 #[cfg(test)]
 mod tests {
     use super::test_frames::*;
+    use super::*;
 
     #[test]
     fn pcap_headers_are_little_endian_and_record_carries_orig_len() {
@@ -475,12 +485,12 @@ mod tests {
         assert_eq!(tls_record_len(&hello), Some(hello.len()));
         assert_eq!(tls_record_len(&hello[..3]), None);
         let mut not_hello = client_hello("a.com");
-        not_hello[14 + 20] = 0x17; // application data
+        not_hello[14 + 20 + 20] = 0x17; // application data
         assert_eq!(tls_sni(&eth_ip_tcp443(&not_hello)), None);
-        assert_eq!(sni_from_record(&not_hello[14 + 20..]), None);
+        assert_eq!(sni_from_record(&not_hello[14 + 20 + 20..]), None);
         let mut server = client_hello("a.com");
-        server[14 + 20] = 0x16;
-        server[14 + 20 + 5] = 0x02; // ServerHello
+        server[14 + 20 + 20] = 0x16;
+        server[14 + 20 + 20 + 5] = 0x02; // ServerHello
         assert_eq!(tls_sni(&eth_ip_tcp443(&server)), None);
     }
 

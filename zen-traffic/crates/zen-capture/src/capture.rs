@@ -85,7 +85,7 @@ pub struct Session {
     pub proxy_stop: Option<watch::Sender<bool>>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct DomainStat {
     pub count: u64,
     pub last_ts: u64,
@@ -148,7 +148,7 @@ impl SessionShared {
             .lock()
             .map(|d| d.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
             .unwrap_or_default();
-        rows.sort_by(|a, b| b.1.count.cmp(&a.1.count).then(a.0.cmp(&b.0)));
+        rows.sort_by(|a, b| b.1.count.cmp(&a.1.count).then(b.1.last_ts.cmp(&a.1.last_ts)).then(a.0.cmp(&b.0)));
         rows.truncate(limit);
         rows
     }
@@ -273,8 +273,11 @@ pub fn expand_ifaces(configured: &[String]) -> Result<Vec<String>, String> {
             return Ok(None);
         }
         let entries = fs::read_dir(&path).map_err(|e| format!("读取 {path:?}: {e}"))?;
-        Ok(Some(entries.map(|e| e.map(|e| e.file_name().to_string_lossy().into_owned()))
-            .collect::<Result<Vec<_>, _>>()?))
+        let ports = entries
+            .map(|e| e.map(|e| e.file_name().to_string_lossy().into_owned()))
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| format!("读取 {path:?}: {e}"))?;
+        Ok(Some(ports))
     })
 }
 
@@ -653,7 +656,7 @@ impl Manager {
             let Some(session) = self.sessions.iter().find(|s| s.id == id) else { continue };
             let pending = if disk_short { Some("disk") }
                 else if now >= session.started.saturating_add(session.seconds) { Some("time") }
-                else if mode == Mode::Tap && file_bytes(&session.files) >= session.max_bytes { Some("size") }
+                else if mode != Mode::Http && file_bytes(&session.files) >= session.max_bytes { Some("size") }
                 else { None };
             match mode {
                 Mode::Tcpdump => {
@@ -887,7 +890,7 @@ mod tests {
             "aa:bb:cc:dd:ee", "aa:bb:cc:dd:ee:fg", "aa-bb-cc-dd-ee-ff", ""] {
             assert!(!valid_mac(mac), "{mac}");
         }
-        assert_eq!(mac_bytes("aa:bb:cc:dd:ee:ff").as_slice(), &[0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff]);
+        assert_eq!(mac_bytes("aa:bb:cc:dd:ee:ff"), Some([0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff]));
         assert_eq!(mac_bytes("zz:bb:cc:dd:ee:ff"), None);
     }
 
@@ -971,7 +974,7 @@ mod tests {
         let top = shared.top_domains(10);
         assert_eq!(top.len(), 10);
         assert_eq!(top[0].1.count, 1);
-        assert_eq!(top[0].0, "d599.example", "计数相同按域名序稳定");
+        assert_eq!(top[0].0, "d599.example", "计数相同按最近活跃排序");
     }
 
     #[test]
@@ -1111,7 +1114,8 @@ mod tests {
         {
             let (mut manager, _handle) = started(&dir);
             manager.start_with(&request("aa:bb:cc:dd:ee:01"), 1000, FINDER).unwrap();
-            manager.stop(manager.sessions()[0].id.as_str()).unwrap();
+            let id = manager.sessions()[0].id.clone();
+            manager.stop(&id).unwrap();
         }
         let stray = dir.join("stray-eth0.pcap");
         let stray_log = dir.join("stray-eth0.log");

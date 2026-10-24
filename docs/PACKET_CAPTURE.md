@@ -14,10 +14,10 @@
 
 | 期 | 能力 | 前提 | 状态 |
 | --- | --- | --- | --- |
-| M1 | 按 MAC 抓包 → pcap 下载（tcpdump） | tcpdump | 已实现 |
-| M2 | eBPF tap（默认模式）+ DNS/SNI 域名画像 + 实时页设备入口 | 内核 ≥5.8（ringbuf） | 本文档实现 |
-| M3 | HTTP 透明代理 + 实时请求列表 + HAR 基础 | 无 | 本文档实现 |
-| M4 | 可选 HTTPS MITM（CA 分发 + rustls + HAR） | 设备安装并信任 CA；pinning 域名直连 | 本文档实现 |
+| M1 | 按 MAC 抓包 → pcap 下载（tcpdump） | tcpdump | 已实现，真机验收通过 |
+| M2 | eBPF tap（默认模式）+ DNS/SNI 域名画像 + 实时页设备入口 | 内核 ≥5.8（ringbuf） | 已实现，真机验收通过 |
+| M3 | HTTP 透明代理 + 实时请求列表 + HAR 基础 | 无 | 已实现，真机验收通过 |
+| M4 | 可选 HTTPS MITM（CA 分发 + rustls + HAR） | 设备安装并信任 CA；pinning 域名直连 | 已实现，真机验收通过（未装 CA 客户端的解密流量路径见验收记录） |
 
 ## 会话模型（M2 起）
 
@@ -88,3 +88,25 @@ ubus 增量：`getDomains {id}` → `[{domain, count, last_ts}]`（按次数降�
 - `cargo test -p zen-capture`：MAC 校验、tcpdump/tap 参数、限额钳制、会话状态机、DNS/SNI/HTTP 解析、HAR 生成、CA 存储、会话恢复。
 - CI `ebpf-compile`：`zen_capture.bpf.c` 独立编译（与 zen_traffic 同参数）。
 - 真机：TCX 插队后会计与策略不受影响（ubus getDevices 增量正确）、tap 丢帧口径、nft 链建立/回收、MITM 与 pinning 直连、pcap/HAR 在工具中打开。
+
+### 真机验收记录（2026-10-24，NanoPi R5C / OpenWrt 25.12-SNAPSHOT r0-0110eab / 内核 6.12.112，包 0.2.3-r5）
+
+- **M1 tcpdump**：对有线客户端（10.0.0.205）启动 120 秒会话，正常上网期间捕获 989 帧
+  （orig 字节合计 2,325,671）；`tools/validate-pcap.py` 结构校验通过（小端头、
+  linktype=Ethernet、incl_len≤snaplen=256、时间戳单调）；stop 返回 `stop_reason:"stopped"`，
+  tcpdump 进程按 pid 收割。
+- **M2 tap**：会话期间 `BPF_PROG_QUERY`（TCX）显示 eth0 ingress/egress 各 2 个程序且
+  capture 程序 ID 排在会计程序之前（插队语义成立）；会计侧 getDevices 全程 45 台设备
+  `synced:true`。域名画像命中真实流量：DNS 查询（ntp.ubuntu.com、example.com、
+  www.baidu.com 等）与 TLS SNI（zcode.z.ai、www.baidu.com）均按计数排序返回。
+  会话 pcap（4542 帧）结构校验通过。**r3 版发现停止后 egress capture 程序残留
+  （detach 不按方向匹配所致），修复后复测停止即双向恢复各 1 个会计程序。**
+- **M3 http**：会话建立专属 nft 链（`tcp dport 80 redirect`），真实 LAN 客户端流量被
+  透明转发并记录事件（方法/主机/路径/状态/请求响应字节齐全）；getHar 产出 HAR 1.2；
+  停止后链删除、表清空。测试机本身运行 TUN 代理（fake-IP），其 80 端口流量不出网卡，
+  不构成 M3 证据；事件来源为其他 LAN 设备的真实请求。
+- **M4 http+decrypt**：首次启动即生成根 CA（`/etc/zen-capture/ca.pem+ca.key`，0600，
+  CN=Zen Capture Root CA，BasicConstraints CA:TRUE）；nft 链含 `tcp dport 443 redirect`
+  与 `udp dport 443 drop`（QUIC 逼退）；getCA 可下载 PEM。**未在客户端安装 CA 完成
+  端到端解密验证**（家庭网络其他设备未获授权安装证书），MITM 解密流、pinning 直通与
+  `tls_failed` 事件口径以单测与后续授权设备为准。

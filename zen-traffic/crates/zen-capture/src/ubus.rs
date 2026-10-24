@@ -211,7 +211,7 @@ unsafe extern "C" fn handle_get_events(ctx: *mut ubus::ubus_context, _obj: *mut 
 unsafe extern "C" fn handle_get_ca(ctx: *mut ubus::ubus_context, _obj: *mut ubus::ubus_object,
     req: *mut ubus::ubus_request_data, _method: *const c_char, _msg: *mut ubus::blob_attr) -> c_int {
     let Some(reply) = with_manager(|m| {
-        crate::proxy::CaStore::new(&m.cfg.ca_dir).cert_pem().map(|pem| json!({"ok": true, "pem": pem}))
+        crate::proxy::CaStore::new(&m.cfg.ca_dir).cert_pem().ok().map(|pem| json!({"ok": true, "pem": pem}))
     }) else { return ubus::UBUS_STATUS_NOT_SUPPORTED };
     match reply {
         Some(value) => send_json(ctx, req, value),

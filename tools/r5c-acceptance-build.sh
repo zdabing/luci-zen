@@ -57,7 +57,8 @@ phase() {
 
 git init acceptance-openwrt
 cd acceptance-openwrt
-git remote add origin https://github.com/openwrt/openwrt.git
+git remote add origin https://github.com/openwrt/openwrt.git 2>/dev/null \
+    || git remote set-url origin https://github.com/openwrt/openwrt.git
 git fetch --depth=1 origin "$openwrt_rev"
 git checkout --detach FETCH_HEAD
 test "$(git rev-parse HEAD)" = "$openwrt_rev"
@@ -69,6 +70,8 @@ EOF
 test "$(git -C feeds/packages rev-parse HEAD)" = "$packages_rev"
 test "$(git -C feeds/luci rev-parse HEAD)" = "$luci_rev"
 ./scripts/feeds install luci-base
+# Idempotent re-runs (crash recovery): replace package copies wholesale, never nest.
+rm -rf package/zen-traffic package/luci-app-zen-traffic package/luci-theme-zen
 if [[ $scope == all ]]; then
     ./scripts/feeds install rust
     cp -r "$zen_root/zen-traffic" "$zen_root/luci-app-zen-traffic" package/

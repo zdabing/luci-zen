@@ -81,7 +81,7 @@ pub fn table_reset() -> Result<(), String> {
 }
 
 /// 每会话独立 nat 链：建立/回收一步到位，不追踪 rule handle。
-pub fn chain_add(id: &str, mac: &str, port: u16, decrypt: bool) -> Result<(), String> {
+pub fn chain_add(id: &str, _mac: &str, port: u16, decrypt: bool) -> Result<(), String> {
     let mut script = format!(
         "add table inet zen_capture\n\
          add chain inet zen_capture pre_{id} {{ type nat hook prerouting priority dstnat; }}\n\
@@ -155,7 +155,8 @@ impl CaStore {
         if self.is_ready() {
             let cert_pem = self.cert_pem()?;
             let key_pem = std::fs::read_to_string(self.key_path()).map_err(|_| "ca_unavailable")?;
-            return Ok(CaMaterial { cert_pem, cert_der: pem_to_der(&cert_pem)?, key_pem });
+            let cert_der = pem_to_der(&cert_pem)?;
+            return Ok(CaMaterial { cert_pem, cert_der, key_pem });
         }
         let key = rcgen::KeyPair::generate().map_err(|e| format!("ca_unavailable: {e}"))?;
         let mut params = rcgen::CertificateParams::new(Vec::<String>::new())
@@ -204,11 +205,10 @@ fn issuer(store: &CaStore) -> Result<&'static Mutex<Option<rcgen::Issuer<'static
     let cell = ISSUER.get_or_init(|| Mutex::new(None));
     let mut guard = cell.lock().map_err(|_| "mitm_unavailable")?;
     if guard.is_none() {
-        let params = rcgen::CertificateParams::from_ca_cert_pem(&material.cert_pem)
+        let key = rcgen::KeyPair::from_pem(&material.key_pem)
             .map_err(|e| format!("mitm_unavailable: {e}"))?;
-        let key = rcgen::KeyPair::from_pkcs8_pem(&material.key_pem)
-            .map_err(|e| format!("mitm_unavailable: {e}"))?;
-        *guard = Some(rcgen::Issuer::new(params, key));
+        *guard = Some(rcgen::Issuer::from_ca_cert_pem(&material.cert_pem, key)
+            .map_err(|e| format!("mitm_unavailable: {e}"))?);
     }
     Ok(cell)
 }
@@ -307,11 +307,15 @@ pub fn start_session(
             "spawn_failed".to_string()
         })?;
     let port = listener.local_addr().map_err(|_| "spawn_failed")?.port();
-    let listener = tokio::net::TcpListener::from_std(listener)
-        .map_err(|e| {
+    // from_std 必须在 tokio 上下文中调用（向当前 reactor 注册）；主线程/ubus 处理器
+    // 没有运行时，手动 enter 后转换，句柄随 listener 保存，spawn 后照常使用。
+    let listener = {
+        let _guard = runtime().enter();
+        tokio::net::TcpListener::from_std(listener).map_err(|e| {
             eprintln!("[zen-capture] 代理监听迁移失败: {e}");
             "spawn_failed".to_string()
-        })?;
+        })?
+    };
     let rt = SessionRuntime {
         decrypt,
         skip: Arc::new(skip),
@@ -336,7 +340,9 @@ async fn session_loop(
         tokio::select! {
             _ = stop.changed() => break,
             accepted = listener.accept() => match accepted {
-                Ok((stream, _)) => tokio::spawn(handle_conn(stream, rt.clone())),
+                Ok((stream, _)) => {
+                    tokio::spawn(handle_conn(stream, rt.clone()));
+                }
                 Err(_) => break,
             },
         }
@@ -354,7 +360,7 @@ async fn handle_conn(stream: tokio::net::TcpStream, rt: SessionRuntime) {
     if first.first() == Some(&0x16) {
         tls_conn(stream, first, rt).await;
     } else {
-        let _ = conversation(&mut stream, first, &rt, "http", 80).await;
+        let _ = plain_conversation(&mut stream, first, &rt).await;
     }
 }
 
@@ -395,7 +401,7 @@ async fn tls_conn(mut stream: tokio::net::TcpStream, mut buf: Vec<u8>, rt: Sessi
         match tokio::net::TcpStream::connect((sni.as_str(), 443)).await {
             Ok(mut upstream) => {
                 let (sent, got) = tokio::io::copy_bidirectional(&mut stream, &mut upstream)
-                    .map(|(a, b)| (a as u64, b as u64))
+                    .await
                     .unwrap_or((0, 0));
                 rt.shared.push_event(event("passthrough", 0, sent, got));
             }
@@ -556,7 +562,7 @@ where
         && (response.content_length.is_some() || !response.chunked);
     let forwarded = match response.content_length {
         Some(len) => copy_n(upstream, client, len).await,
-        None => splice(upstream, client, HEAD_LIMIT * 64).await,
+        None => splice(upstream, client, HEAD_LIMIT as u64 * 64).await,
     }?;
     received += forwarded;
     rt.shared.push_event(Event {

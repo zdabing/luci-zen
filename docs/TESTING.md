@@ -939,3 +939,22 @@ Zen 包阶段 2229 秒（含首次 Rust host 构建）、LuCI app 46 秒、theme
 - `python3 tools/test-device-connections.py` 使用真实 ucode、临时 sysfs 与 iwinfo 响应，验证 FDB 的高位端口号、signed dBm、连接秒数、速率单位换算、映射冲突、失去 carrier 与缺少无线服务的回退。三项实际解释器测试通过。
 - `node tools/test-device-connection-info.cjs` 验证属性时效、无线时长推进、有线端口速率标签、离线活动时间及缺失值。设备排序、互联网口径、中文翻译和资源 staging 检查通过。
 - 浏览器检查筛选/排序自定义菜单的选择、键盘打开与 Escape、离线筛选及响应式布局。预览数据仍为样本，未执行路由器部署。
+
+### 抓包 M1–M4 构建与真机验收（2026-10-24）
+
+- **本地回归（WSL2 Ubuntu 26.04）**：`cargo test --workspace` 72 项通过（zen-capture 29 /
+  zen-trafficd 36 / zen-bpf 多接口内核回归 6 等）；CI 等价 node/python/ucode 套件 49 项
+  通过；`zen_traffic.bpf.c` 与 `zen_capture.bpf.c` 以 CI 同参数 clang 编译通过；
+  `abi-check.c` 双架构（x86-64 gcc、aarch64 musl clang）布局检查通过；
+  `test-device-policy-kernel.c` 在 WSL 真实内核经 verifier 验证拉黑/限速/解除。
+- **包构建**：`tools/r5c-acceptance-build.sh` 按 10Wrt 固定 revisions 完成
+  rockchip/armv8 三包出包（zen-traffic 0.2.3-r5、luci-app-zen-traffic / luci-theme-zen
+  0.2.3-r5），SHA256SUMS 自校验通过。构建要点：BUILD_JOBS=4 + 8G swap 避免 OOM；
+  rust host 安装阶段必须使用不含 Windows `VS` 相对路径的 PATH。
+- **部署**：apk 升级安装后 zen-trafficd / zen-capture 双服务运行，`zen.capture` ubus
+  对象注册，会计 45 台设备 synced；升级前后 `BPF_PROG_QUERY` 会计挂载不变。
+- **真机验收**：M1/M2/M3/M4 详见 `docs/PACKET_CAPTURE.md` 验收记录。r3 真机发现 tap
+  停止后 egress capture 程序残留与 http 会话启动崩溃两处缺陷，修复为 r5 并复测通过。
+- **遗留**：M4 未在授权客户端安装 CA 做端到端解密验证（家庭网络设备未获授权），
+  后续由持有者自行执行；测试机 TUN 代理（fake-IP）使其自身 80/443 流量不出网卡，
+  M3 证据取自其他 LAN 设备真实请求。

@@ -331,7 +331,8 @@ const devices = [{mac: 'aa:bb:cc:dd:ee:01', host: 'Laptop', ip4: '192.168.1.10'}
  const proxySource = fs.readFileSync('zen-traffic/crates/zen-capture/src/proxy.rs', 'utf8');
  
  assert.match(proxySource, /copy_bidirectional/, 'passthrough splices both directions concurrently');
- assert.match(proxySource, /Issuer::new/, 'CA issuer is reused across leaves');
+ assert.match(proxySource, /static ISSUER: OnceLock/, 'CA issuer is cached and reused across leaves');
+ assert.match(proxySource, /Issuer::from_ca_cert_pem/, 'issuer is rebuilt from the stored CA (rcgen 0.14)');
  assert.match(proxySource, /meta l4proto udp udp dport 443 drop/, 'QUIC is forced back to TCP for decrypt sessions');
  assert.match(proxySource, /domain_skipped/, 'decrypt_skip passthrough exists');
 

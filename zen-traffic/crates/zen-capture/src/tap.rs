@@ -12,7 +12,7 @@ use aya::maps::ring_buf::RingBuf;
 use aya::maps::{HashMap, MapData};
 use aya::programs::links::LinkOrder;
 use aya::programs::tc::{NlOptions, SchedClassifierLinkId, TcAttachOptions};
-use aya::programs::{SchedClassifier, TcAttachType, TcError};
+use aya::programs::{SchedClassifier, TcAttachType};
 use aya::{Ebpf, EbpfLoader, Pod};
 
 pub const CAP_FRAME_DATA: u32 = 256;
@@ -79,22 +79,14 @@ impl TapEngine {
     /// 在接口上挂载 ingress/egress 两个 capture 程序；部分失败时回滚本接口已挂的。
     pub fn attach_iface(&mut self, iface: &str) -> Result<(), String> {
         self.detach_iface(iface);
-        qdisc_ensure(iface)?;
-        let mut attached: Vec<SchedClassifierLinkId> = Vec::new();
+        zen_bpf::qdisc_ensure(iface).map(|_| ())?;
         for (name, ty) in
             [("zen_cap_ingress", TcAttachType::Ingress), ("zen_cap_egress", TcAttachType::Egress)]
         {
-            let result = self.attach_program(name, iface, ty);
-            match result {
-                Ok(link) => {
-                    attached.push(link);
-                    self.links.push((iface.to_string(), ty, link));
-                }
+            match self.attach_program(name, iface, ty) {
+                Ok(link) => self.links.push((iface.to_string(), ty, link)),
                 Err(error) => {
-                    for link in attached.drain(..) {
-                        detach_link(&mut self.bpf, link);
-                    }
-                    self.links.retain(|(ifname, _, _)| ifname != iface);
+                    self.detach_iface(iface);
                     return Err(error);
                 }
             }
@@ -139,15 +131,15 @@ impl TapEngine {
             .links
             .extract_if(.., |(name, _, _)| name == iface)
             .collect::<Vec<_>>();
-        for (_, _, link) in rest {
-            detach_link(&mut self.bpf, link);
+        for (_, ty, link) in rest {
+            detach_link(&mut self.bpf, ty, link);
         }
     }
 
     pub fn detach_all(&mut self) {
         let links = std::mem::take(&mut self.links);
-        for (_, _, link) in links {
-            detach_link(&mut self.bpf, link);
+        for (_, ty, link) in links {
+            detach_link(&mut self.bpf, ty, link);
         }
     }
 
@@ -179,15 +171,16 @@ impl TapEngine {
     }
 }
 
-fn detach_link(bpf: &mut Ebpf, link: SchedClassifierLinkId) {
-    for name in ["zen_cap_ingress", "zen_cap_egress"] {
-        let Some(program) = bpf.program_mut(name) else { continue };
-        let typed = match <&mut SchedClassifier>::try_from(program) {
-            Ok(typed) => typed,
-            Err(_) => continue,
-        };
-        let _ = typed.detach(link);
-        return;
+fn detach_link(bpf: &mut Ebpf, ty: TcAttachType, link: SchedClassifierLinkId) {
+    // 方向由调用方的会话记录给出，直接定位程序，避免在错误的程序上消耗 LinkId
+    let name = match ty {
+        TcAttachType::Ingress => "zen_cap_ingress",
+        TcAttachType::Egress | TcAttachType::Custom(_) => "zen_cap_egress",
+    };
+    if let Some(program) = bpf.program_mut(name) {
+        if let Ok(typed) = <&mut SchedClassifier>::try_from(program) {
+            let _ = typed.detach(link);
+        }
     }
 }
 
