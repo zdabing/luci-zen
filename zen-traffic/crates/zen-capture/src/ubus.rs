@@ -329,7 +329,7 @@ pub unsafe fn arm_tick_only() {
 }
 
 /// 信号处理（SIGTERM/SIGINT）：置位 + 写 uloop 取消标志（≤1s 退出）
-pub unsafe extern "C" fn on_signal(_sig: c_int) {
+pub extern "C" fn on_signal(_sig: c_int) {
     SHUTDOWN.store(true, std::sync::atomic::Ordering::SeqCst);
-    ubus::uloop_cancelled = true;
+    unsafe { ubus::uloop_cancelled = true; }
 }

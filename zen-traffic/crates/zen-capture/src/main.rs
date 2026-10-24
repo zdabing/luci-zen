@@ -11,6 +11,9 @@
 #![allow(unsafe_op_in_unsafe_fn)]
 
 mod capture;
+mod parse;
+mod proxy;
+mod tap;
 mod ubus;
 
 use capture::Config;
@@ -59,7 +62,7 @@ fn main() {
     };
 
     println!(
-        "[zen-capture] running: dir={:?} ifaces={:?} sessions={} duration={}s max_file={}MB snap={} keep={}",
+        "[zen-capture] running: dir={:?} ifaces={:?} sessions={:?} duration={:?}s max_file={:?}MB snap={:?} keep={:?}",
         ubus::with_manager(|m| m.cfg.dir.to_string_lossy().into_owned()),
         ubus::with_manager(|m| m.cfg.ifaces.clone()),
         ubus::with_manager(|m| m.cfg.max_sessions),

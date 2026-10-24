@@ -105,7 +105,7 @@ pub struct Event {
 }
 
 /// 会话内被代理线程与主线程共享的数据（事件 / 域名画像）。
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct SessionShared {
     events: Mutex<Vec<Event>>,
     domains: Mutex<BTreeMap<String, DomainStat>>,
@@ -267,7 +267,7 @@ pub fn clamp_snap(requested: Option<u32>, default: u32) -> u32 {
 
 /// 与 zen-trafficd topology 同款：网桥展开为成员端口（DSA 硬件交换下 br-lan 看不到端口间转发）。
 pub fn expand_ifaces(configured: &[String]) -> Result<Vec<String>, String> {
-    expand_with(configured, |name| {
+    expand_with(configured, &|name| {
         let path = Path::new("/sys/class/net").join(name).join("brif");
         if !path.exists() {
             return Ok(None);
@@ -391,7 +391,7 @@ impl Manager {
     /// 目录里没有会话记录引用的 pcap/log 是异常退出残留，直接清理。
     fn sweep_orphans(&mut self) {
         let referenced: BTreeSet<PathBuf> = self.sessions.iter()
-            .flat_map(|s| s.files.iter().chain(s.files.iter().map(|f| f.with_extension("log"))).cloned())
+            .flat_map(|s| s.files.iter().flat_map(|f| [f.clone(), f.with_extension("log")]))
             .chain([self.store_path()]).collect();
         let Ok(entries) = fs::read_dir(&self.cfg.dir) else { return };
         for entry in entries.flatten() {
@@ -564,8 +564,9 @@ impl Manager {
         if self.sessions[index].state == State::Running {
             return Err("session_running".into());
         }
-        for file in self.sessions[index].files.iter()
-            .chain(self.sessions[index].files.iter().map(|f| f.with_extension("log"))) {
+        let mut paths: Vec<PathBuf> = self.sessions[index].files.clone();
+        paths.extend(self.sessions[index].files.iter().map(|f| f.with_extension("log")));
+        for file in paths {
             let _ = fs::remove_file(file);
         }
         self.sessions.remove(index);
