@@ -1,0 +1,137 @@
+/* Zen workspace: reviewed settings and traffic-analysis layouts. */
+
+.zen-console body{background:var(--bg-base)}
+.zen-console #maincontent,.zen-console #maincontent>.container{max-width:none}
+.zen-console .main-right{padding:0 24px 24px}
+.zc-app-nav{display:flex;gap:16px;align-items:center;min-height:48px;border-bottom:1px solid var(--line);margin:0 -24px 18px;padding:0 24px;background:var(--bg-panel)}
+.zc-app-nav a{display:flex;align-items:center;min-height:48px;padding:10px 12px;border-bottom:2px solid transparent;color:var(--text-secondary);font-size:14px}
+.zc-app-nav a[aria-current=page]{border-color:var(--accent);color:var(--accent);font-weight:600}
+.zen-console .rf-page-head{margin:0 0 14px;min-height:36px;gap:20px}
+.zen-console .rf-page-head h1{flex:none;font-size:26px;font-weight:700}
+.zen-console .cbi-section{backdrop-filter:none;box-shadow:none}
+.zen-console .btn,.zen-console .cbi-button{border-radius:var(--radius-control);min-height:38px;font-size:13px;padding:8px 14px;background:var(--bg-panel);border:1px solid var(--line);color:var(--text-secondary)}
+.zen-console .cbi-button.important{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.zen-console .cbi-button:hover{border-color:var(--accent);color:var(--accent)}
+.zen-console .cbi-button.important:hover{background:var(--accent-strong);color:var(--on-accent)}
+.zen-console :is(button,input,select):focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.zen-console button:disabled{opacity:.5;cursor:default}
+/* Settings: category rail and a single selected notification channel. */
+.zen-console #zen-settings{display:grid;grid-template-columns:184px minmax(0,1fr);gap:18px;align-items:start;max-width:none}
+.zen-console #zen-settings .zen-settings-tabs{display:flex;flex-direction:column;grid-template-columns:none;gap:4px;width:100%;margin:0;padding:8px;border:1px solid var(--line);border-radius:16px;background:var(--bg-panel);box-shadow:none}
+.zen-console #zen-settings .zen-settings-tabs button{width:100%;min-height:44px;padding:11px 16px;text-align:left;border:0;border-radius:9px;background:transparent;font-size:14px;font-weight:500;color:var(--text-secondary);white-space:nowrap}
+.zen-console #zen-settings .zen-settings-tabs button[aria-selected=true]{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.zc-settings-content{min-width:0}
+.zen-console #zen-notifications{display:grid;gap:14px;margin:0;padding:0;min-width:0}
+.zen-console #zen-notifications .cbi-section{margin:0;padding:18px 20px;border:1px solid var(--line);border-radius:16px;background:var(--bg-panel);min-width:0}
+.zen-console #zen-notifications h3{font-size:17px;line-height:1.4;font-weight:650;margin:0 0 16px;padding:0;border:0}
+.zen-console .zc-master{padding:12px 20px!important}
+.zc-master .zen-notify-toggle{display:flex;flex-direction:row-reverse;justify-content:space-between;margin:0;font-size:16px;font-weight:600;min-height:36px}
+.zen-console .zen-notify-toggle input{appearance:none;-webkit-appearance:none;width:40px!important;height:23px;min-height:0;min-width:40px;padding:0;border:0;background:var(--line-strong);border-radius:15px;position:relative;cursor:pointer;box-shadow:none;flex:none}
+.zen-notify-toggle input::after{content:'';position:absolute;top:3px;left:3px;width:17px;height:17px;background:#fff;border-radius:50%;transition:transform .15s}
+.zen-console .zen-notify-toggle input:checked{background:var(--accent)}
+.zen-notify-toggle input:checked::after{transform:translateX(17px)}
+.zc-form-row{display:grid;grid-template-columns:132px minmax(0,1fr);align-items:center;gap:16px;margin:10px 0;max-width:840px;font-size:14px}
+.zen-console #zen-notifications :is(input:not([type=checkbox]),select){width:100%;max-width:none;min-width:0;min-height:40px;height:40px;background:var(--bg-input);border:1px solid var(--line);border-radius:9px;padding:8px 11px;box-shadow:none;color:var(--text);font:inherit;font-size:14px}
+.zc-secret-input{display:flex;align-items:center;position:relative;min-width:0}
+.zen-console #zen-notifications .zc-secret-input input{padding-right:60px}
+.zc-reveal{position:absolute;right:5px;top:3px;min-height:34px;padding:5px 8px;border:0;background:transparent;color:var(--text-secondary);border-radius:6px;font:inherit;font-size:12px;cursor:pointer}
+.zc-channel-actions{display:flex;align-items:center;justify-content:flex-end;gap:12px;max-width:840px;margin-top:10px}
+.zen-console #zen-notifications .zen-notify-result{margin:0;font-size:12px;line-height:1.5;min-width:0;overflow-wrap:anywhere;color:var(--accent)}
+.zen-console #zen-notifications .zen-notify-result.zen-notify-error{color:var(--danger)}
+.zc-card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.zen-console #zen-notifications .zc-card-head h3{margin:0}
+.zen-console .zen-notify-rule{display:grid;grid-template-columns:80px minmax(0,1.5fr) minmax(0,1fr) minmax(0,1.1fr) auto;gap:12px;padding:12px 0;align-items:end;border-top:1px solid var(--line);border-bottom:0}
+.zen-console .zen-notify-rule .zen-notify-toggle{font-size:12px;gap:6px;margin:0;flex-wrap:wrap;align-self:center}
+.zen-console .zen-notify-rule .zen-notify-field{gap:6px;margin:0;min-width:0;font-size:12px}
+.zen-console .zen-notify-amount{gap:6px;min-width:0}
+.zen-console #zen-notifications .zen-notify-amount input{width:60%;min-width:0}
+.zen-console #zen-notifications .zen-notify-amount select{width:40%;padding:8px 5px}
+.zen-console .zen-notify-rule .cbi-button-negative{color:var(--danger);padding-inline:9px}
+.zc-daily-row{display:flex;justify-content:space-between;align-items:center;gap:18px;max-width:840px}
+.zc-daily-row .zen-notify-toggle{margin:0;font-size:14px;gap:16px;flex-direction:row-reverse}
+.zc-time-field{display:flex;align-items:center;gap:18px;font-size:14px}
+.zen-console #zen-notifications .zc-time-field input{width:160px}
+.zen-console .zc-recent .zen-notify-log{min-height:38px;font-size:12px;overflow-x:auto}
+.zen-console .zc-recent .zen-app-muted{margin:14px 0;text-align:center;font-size:13px;color:var(--text-secondary)}
+.zc-savebar{position:sticky;bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:16px;border:1px solid var(--line);border-radius:12px;background:var(--bg-panel);padding:12px 16px;z-index:6;box-shadow:0 4px 16px #17241d08}
+.zc-save-feedback{display:grid;gap:3px;min-width:0}.zc-save-state{font-size:13px}.zc-save-actions{display:flex;gap:8px;flex:none}
+.zen-console .zen-pref-intro{display:none}
+.zen-console .zen-preferences{padding:20px;margin:0;border-radius:16px}
+.zen-console .zen-pref-controls{grid-template-columns:minmax(0,1fr);gap:18px}
+.zen-console .zen-pref-field{padding:16px;margin:0;border-radius:12px;border:1px solid var(--line);background:var(--bg-panel)}
+.zen-console .zen-pref-choice{border-radius:10px;padding:12px 14px;min-height:50px;background:var(--bg-input)}
+.zen-console .zen-pref-choice small{display:none}
+.zen-console .zen-pref-footer{margin-top:16px}
+.zen-console #zen-updates{padding:20px;margin:0;border-radius:16px}
+.zen-console .zen-version-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.zen-console .zen-version-item{padding:16px;border-radius:12px}
+/* Analysis: compact totals above a linked table and hour chart. */
+.zen-console #za-workspace{gap:14px;padding-bottom:12px;font-family:inherit}
+.zen-console .za-usage-view{gap:14px}
+.zen-console .za-panel{padding:18px 20px;border-radius:16px;border:1px solid var(--line);background:var(--bg-panel)}
+.zen-console .za-filterbar{margin-bottom:14px;gap:12px}
+.zen-console #za-workspace .za-modes,.zen-console .rf-page-head .za-modes{width:auto;margin:0;flex:none}
+.zen-console .za-modes{display:inline-flex;padding:3px;gap:3px;background:var(--bg-nested);border-radius:10px;border:1px solid var(--line)}
+.zen-console .za-modes button{min-height:34px;padding:7px 16px;border:0;border-radius:7px;background:transparent;color:var(--text-secondary);font:inherit;font-size:13px;cursor:pointer;white-space:nowrap}
+.zen-console .za-modes button[aria-selected=true]{background:var(--bg-panel);color:var(--accent);font-weight:600}
+.zen-console #za-workspace .zu-periods{padding:3px;border-radius:10px;width:auto;margin:0}
+.zen-console #za-workspace .zu-periods button{min-height:32px;padding:6px 15px;font-size:13px;border-radius:7px}
+.zen-console .za-stat-line{margin-bottom:12px;align-items:center;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:12px 0;display:grid;grid-template-columns:1fr 2fr}
+.zen-console .za-total-label{font-size:12px;margin-bottom:4px}
+.zen-console .za-total{font-size:32px;letter-spacing:-.7px;line-height:1.2;white-space:nowrap}
+.zen-console .za-total small{font-size:13px;margin-left:6px}
+.zen-console .za-totals-directions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;margin:0}
+.zen-console .za-totals-directions>div{border-left:1px solid var(--line);padding-left:24px}
+.zen-console .za-totals-directions span{font-size:12px;margin-bottom:4px}
+.zen-console .za-totals-directions strong{font-size:27px;font-weight:600;white-space:nowrap}
+.zen-console .za-chart{height:140px}
+.zen-console .za-chart-head{margin-bottom:3px}
+.zen-console .za-chart-readout{min-height:0;margin-top:2px;font-size:11px}
+.zc-analysis-lower{display:grid;grid-template-columns:minmax(400px,.95fr) minmax(0,1.05fr);align-items:stretch;gap:14px;min-width:0}
+.zen-console #za-workspace h2{font-size:17px}.zen-console #za-workspace h3{font-size:16px}
+.zen-console .za-devices-head{margin-bottom:12px;gap:8px}
+.zen-console .za-device-layout{display:block;min-width:0}
+.zen-console .za-table-tools{gap:8px;margin-bottom:10px}
+.zen-console #za-workspace .za-table-tools .zen-picker{flex-basis:110px}
+.zen-console #za-workspace .za-search{font-size:12px;min-height:38px;padding:8px 10px}
+.zen-console #za-workspace .za-table-tools .zen-picker-trigger{font-size:12px;min-height:38px;height:38px}
+.zen-console .za-device-table-head,.zen-console #za-workspace .za-device-row{grid-template-columns:minmax(90px,1.5fr) minmax(52px,.8fr) minmax(52px,.8fr) minmax(52px,.8fr) 12px;gap:6px}
+.zen-console .za-device-table-head{font-size:11px;padding:0 5px 8px}
+.zen-console .za-device-table-head>span:not(:first-child){text-align:right}
+.zen-console #za-workspace .za-device-row{min-height:52px;padding:9px 5px;border-radius:0;font-size:12px}
+.zen-console #za-workspace .za-device-name strong{font-size:12px;font-weight:550}
+.zen-console .za-device-name small{font-size:10px}
+.zen-console .za-device-name{gap:6px}
+.zen-console .za-device-amount{font-size:11px}.zen-console .zc-total{color:var(--text);font-weight:600}
+.zen-console .za-row-arrow{font-size:12px}.zen-console .za-list-footer{padding-top:8px;font-size:11px}
+.zen-console .za-detail{grid-column:auto;border-top:1px solid var(--line);margin:0;padding:18px 20px;scroll-margin-top:74px}
+.zen-console .za-detail-head{margin-bottom:10px}
+.zen-console .za-detail-meta{font-size:11px;margin-top:3px}
+.zen-console .za-detail .za-close{display:none}
+.zen-console .za-detail-tools{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin:0 0 10px}
+.zen-console .za-hourly-device,.zen-console .za-hourly-date{width:auto;min-width:0;gap:0}
+.zen-console .za-hourly-device>span:first-child,.zen-console .za-hourly-date>span:first-child{display:none}
+.zen-console #za-workspace .za-hourly-device .zen-picker-trigger{height:38px;min-height:38px;font-size:12px;padding:0 9px}
+.zen-console .za-detail-tools .zen-date-picker{width:100%;min-width:0}
+.zen-console .za-detail-tools .zen-date-trigger{font-size:12px;min-height:38px;padding:8px}
+.zen-console #za-workspace .za-detail .zen-rt-summary{grid-column:1/-1;display:flex;justify-content:space-between;gap:8px;width:100%;padding:2px 0;margin:2px 0 0;min-width:0}
+.zen-console #za-workspace .za-detail .zen-rt-summary>div{min-width:0}
+.zen-console #za-workspace .za-detail .zen-rt-summary span{font-size:10px;line-height:1.4}
+.zen-console #za-workspace .za-detail .zen-rt-summary strong{font-size:14px;white-space:nowrap;line-height:1.5}
+.zen-console .za-detail>.za-chart-head{display:none}
+.zen-console .za-detail .zen-timeline-frame{padding:6px 0 0;border:0;background:none;box-shadow:none;border-radius:0}
+.zen-console #za-workspace .za-detail .zen-timeline-chart{min-width:0;width:100%;height:200px}
+.zen-console .za-detail .zen-tf-legend{display:flex;gap:12px;font-size:11px;margin:4px 0}
+.zen-console .za-detail .zen-timeline-scroll-hint{display:none}
+.zen-console .za-detail .zen-timeline-readout{padding:10px;background:var(--bg-nested);border-radius:9px;font-size:12px;line-height:1.5;min-height:38px;margin:8px 0 0}
+.zen-console .za-detail>p:empty{display:none}
+.zen-console #za-workspace .za-rate-raw{margin-top:0;padding:0 18px;border:1px solid var(--line);border-radius:12px}
+.zen-console #za-workspace .za-rate-raw>summary{min-height:38px;font-size:12px}
+@media(max-width:1200px){.zc-analysis-lower{grid-template-columns:minmax(0,1fr)}.zen-console .zen-notify-rule{grid-template-columns:72px minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) auto}.zen-console .zc-form-row{grid-template-columns:110px minmax(0,1fr)}}
+@media(max-width:768px){.zen-console .main-right{padding:0 12px 18px}.zc-app-nav{margin:0 -12px 14px;padding:0 12px;gap:6px;min-height:44px}.zc-app-nav a{min-height:44px;font-size:13px;padding:9px 12px}.zen-console .rf-page-head{gap:12px;flex-wrap:wrap;margin-bottom:12px}.zen-console .rf-page-head h1{font-size:23px}.zen-console #zen-settings{display:block}.zen-console #zen-settings .zen-settings-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3px;padding:4px;margin-bottom:12px;border-radius:11px}.zen-console #zen-settings .zen-settings-tabs button{font-size:12px;min-height:44px;padding:10px 4px;text-align:center}.zen-console #zen-notifications{gap:12px}.zen-console #zen-notifications .cbi-section{padding:15px;border-radius:14px}.zen-console #zen-notifications h3{font-size:16px;margin-bottom:12px}.zen-console .zc-form-row{grid-template-columns:minmax(0,1fr);gap:6px;margin:12px 0;font-size:13px}.zen-console #zen-notifications :is(input:not([type=checkbox]),select){height:44px;min-height:44px;font-size:16px}.zc-channel-actions{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;margin-top:14px}.zc-channel-actions button{width:100%;min-height:44px}.zen-console .zen-notify-rule{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}.zen-console .zen-notify-rule .zen-notify-device{grid-column:1/-1}.zen-console .zen-notify-rule .zen-notify-toggle{grid-column:1/-1;flex-wrap:nowrap;gap:8px;min-height:30px}.zen-console .zen-notify-rule>button{min-height:44px;justify-self:stretch;grid-column:2}.zen-console .zen-notify-rule .zen-notify-amount input{font-size:15px}.zen-console .zen-notify-rule .zen-notify-amount select{font-size:13px}.zc-daily-row{align-items:flex-start;flex-direction:column;gap:14px}.zc-time-field{display:grid;grid-template-columns:1fr 1fr;width:100%;font-size:13px}.zen-console #zen-notifications .zc-time-field input{width:100%}.zc-savebar{bottom:8px;padding:10px;gap:8px}.zc-save-actions{gap:6px}.zc-save-actions .cbi-button{padding:8px 12px;min-height:44px;font-size:12px}.zc-save-state{font-size:12px}.zc-save-feedback{max-width:45%}.zen-console .zen-version-grid{grid-template-columns:minmax(0,1fr)}.zen-console .zen-pref-field{padding:12px}.zen-console .zen-preferences{padding:14px}.zen-console .zen-pref-choice{padding:10px 8px;min-height:56px}.zen-console .zen-pref-choice strong{font-size:12px}.zen-console #zen-updates{padding:16px}.zen-console .zen-update-heading{flex-wrap:wrap}.zen-console .zen-update-heading h2{font-size:18px}.zen-console .za-panel{padding:15px;border-radius:14px}.zen-console .za-filterbar{flex-wrap:wrap;gap:8px;margin-bottom:10px}.zen-console #za-workspace .zu-periods{display:flex;width:100%;order:1}.zen-console #za-workspace .zu-periods button{flex:1;padding:8px 6px;min-height:38px}.zen-console .za-stat-line{grid-template-columns:1fr 2fr;padding:12px 0;gap:8px}.zen-console .za-total{font-size:25px;letter-spacing:-.5px}.zen-console .za-total small{font-size:11px;margin-left:3px}.zen-console .za-totals-directions>div{padding-left:10px}.zen-console .za-totals-directions strong{font-size:18px}.zen-console .za-totals-directions span,.zen-console .za-total-label{font-size:11px}.zen-console .za-chart{height:125px}.zen-console #za-workspace .za-device-row{min-height:56px}.zen-console .za-detail{padding:15px}.zen-console .za-detail-tools{gap:8px}.zen-console #za-workspace .za-detail .zen-timeline-chart{height:160px}.zen-console .za-detail .zen-timeline-readout{font-size:11px}.zen-console #za-workspace .za-device-row,.zen-console .za-device-table-head{grid-template-columns:minmax(78px,1.4fr) minmax(48px,.8fr) minmax(48px,.8fr) minmax(48px,.8fr) 8px;gap:3px}.zen-console .za-device-name{gap:4px}.zen-console .za-device-name strong{font-size:11px}.zen-console .za-device-name small{font-size:9px}.zen-console .za-device-amount{font-size:10px}.zen-console .za-swatch{width:5px;height:5px}.zen-console .za-table-tools{gap:6px}.zen-console #za-workspace .za-table-tools .zen-picker{flex-basis:104px}.zen-console .za-modes button{min-height:36px;padding:8px 14px}}
+@media(max-width:360px){.zen-console .za-stat-line{gap:4px}.zen-console .za-total{font-size:23px}.zen-console .za-totals-directions strong{font-size:16px}.zen-console .za-totals-directions>div{padding-left:7px}.zen-console .za-device-name small{font-size:8px}.zen-console .za-device-name strong{font-size:10px}.zen-console .za-device-amount{font-size:9px}.zen-console .za-device-row,.zen-console .za-device-table-head{letter-spacing:-.2px}}
+
+.zen-console #zen-notifications .zen-notify-rule{background:transparent;border-radius:0}
+.zen-console #zen-notifications .zc-savebar{margin-top:0}
+
+.zen-console #zen-settings>.zen-settings-title{display:none}

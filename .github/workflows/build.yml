@@ -1,5 +1,5 @@
 # OpenWrt 25 SDK 正式编译：tag（v*）或手动触发。
-# 单个 SDK 构建四个包，统一发布到 GitHub Releases；主题独立发布见 theme-apk.yml。
+# 单个 SDK 构建两个包，统一发布到 GitHub Releases；前端独立发布见 theme-apk.yml。
 #
 # 只打 .apk 包（OpenWrt 25 默认 apk 包管理器）。必须走 SDK 交叉编译（rust-package.mk 导出 target cargo/linker、
 # bpf.mk 走 llvm-bpf 工具链），不允许用普通 Linux binary 代替。
@@ -36,7 +36,7 @@ defaults:
     shell: bash
 
 jobs:
-  zen-traffic:
+  luci-zen:
     name: "SDK build Zen suite (${{ matrix.sdk_target }})"
     runs-on: ubuntu-24.04
     timeout-minutes: 240
@@ -112,14 +112,10 @@ jobs:
       - name: Install packages & configure
         working-directory: ${{ env.SDK_DIR }}
         run: |
-          cp -r "$GITHUB_WORKSPACE/zen-traffic" package/
-          cp -r "$GITHUB_WORKSPACE/luci-app-zen-traffic" package/
-          cp -r "$GITHUB_WORKSPACE/zen-full" package/
-          cp -r "$GITHUB_WORKSPACE/luci-theme-zen" package/
-          echo 'CONFIG_PACKAGE_zen-traffic=m' >> .config
-          echo 'CONFIG_PACKAGE_luci-app-zen-traffic=m' >> .config
-          echo 'CONFIG_PACKAGE_zen-full=m' >> .config
-          echo 'CONFIG_PACKAGE_luci-theme-zen=m' >> .config
+          cp -r "$GITHUB_WORKSPACE/luci-zen" package/
+          cp -r "$GITHUB_WORKSPACE/luci-app-zen" package/
+          echo 'CONFIG_PACKAGE_luci-zen=m' >> .config
+          echo 'CONFIG_PACKAGE_luci-app-zen=m' >> .config
           make defconfig
 
       - name: Restore Rust host toolchain cache
@@ -176,15 +172,15 @@ jobs:
 
       - name: Build
         working-directory: ${{ env.SDK_DIR }}
-        run: make package/zen-traffic/compile package/luci-app-zen-traffic/compile package/zen-full/compile package/luci-theme-zen/compile V=s -j"$(nproc)"
+        run: make package/luci-zen/compile package/luci-app-zen/compile V=s -j"$(nproc)"
 
       - name: Collect artifacts
         working-directory: ${{ env.SDK_DIR }}
         run: |
           mkdir -p "$GITHUB_WORKSPACE/out"
-          find bin/packages -type f \( -name 'zen-traffic-*.apk' -o -name 'luci-app-zen-traffic-*.apk' -o -name 'zen-full-*.apk' -o -name 'luci-theme-zen-*.apk' \) \
+          find bin/packages -type f \( -name 'luci-zen-*.apk' -o -name 'luci-app-zen-*.apk' \) \
             -exec cp {} "$GITHUB_WORKSPACE/out/" \;
-          test "$(find "$GITHUB_WORKSPACE/out" -maxdepth 1 -type f -name '*.apk' | wc -l)" -eq 4
+          test "$(find "$GITHUB_WORKSPACE/out" -maxdepth 1 -type f -name '*.apk' | wc -l)" -eq 2
           ls -la "$GITHUB_WORKSPACE/out"
 
       - name: Prepare target-specific release assets
@@ -193,7 +189,7 @@ jobs:
           for file in out/*.apk; do
             mv "$file" "${file%.apk}-${suffix}.apk"
           done
-          python3 tools/make-release-metadata.py --assets out --target "$SDK_TARGET" \
+          python3 scripts/make-release-metadata.py --assets out --target "$SDK_TARGET" \
             --sdk-version "$SDK_VERSION" --tag "$RELEASE_TAG" --notes build-metadata-notes.md \
             --filename-suffix "$suffix"
 
@@ -222,7 +218,7 @@ jobs:
           build_tag="feed-build-${SDK_VERSION}-${SDK_TARGET//\//-}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           export APK_PACKAGE_BASE="https://github.com/${GITHUB_REPOSITORY}/releases/download/${build_tag}"
           printf '%s\n' "$build_tag" > repository/build-tag.txt
-          bash tools/build-apk-repository.sh "$SDK_DIR/staging_dir/host/bin/apk" "$key" repository
+          bash scripts/build-apk-repository.sh "$SDK_DIR/staging_dir/host/bin/apk" "$key" repository
 
       - uses: actions/upload-artifact@v7
         if: inputs.publish_repository
@@ -233,7 +229,7 @@ jobs:
 
   publish:
     name: Publish APKs to Releases
-    needs: [zen-traffic]
+    needs: [luci-zen]
     if: (github.event_name == 'workflow_dispatch' && inputs.publish_release) || startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-24.04
     steps:
@@ -248,7 +244,7 @@ jobs:
         run: |
           count=$(find release-assets -mindepth 2 -maxdepth 2 -name zen-update.json | wc -l)
           test "$count" -eq "${{ inputs.sdk_target && inputs.sdk_target != 'both' && 1 || 2 }}"
-          test "$(find release-assets -type f -name '*.apk' | wc -l)" -eq "$((count * 4))"
+          test "$(find release-assets -type f -name '*.apk' | wc -l)" -eq "$((count * 2))"
           find release-assets -type f -name '*.apk' -print
 
       - name: Prepare release notes
@@ -266,11 +262,11 @@ jobs:
               f"- OpenWrt SDK: {os.environ['RELEASE_SDK']}\n"
               f"- Target: {os.environ['RELEASE_TARGET']}\n"
               f"- Commit: {os.environ['GITHUB_SHA']}\n\n"
-              "Kernel modules for zen-traffic must match the firmware build.\n"
+              "Kernel modules for luci-zen must match the firmware build.\n"
           )
           Path('release-notes.md').write_text(notes + metadata, encoding='utf-8')
           PY
-          python3 tools/make-release-metadata.py --assets release-assets --merge-builds --tag "$RELEASE_TAG" --notes release-notes.md
+          python3 scripts/make-release-metadata.py --assets release-assets --merge-builds --tag "$RELEASE_TAG" --notes release-notes.md
           (cd release-assets && find . -type f -name '*.apk' -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
 
       - name: Publish release
@@ -291,7 +287,7 @@ jobs:
 
   repository:
     name: "Publish signed APK feed (${{ matrix.sdk_target }})"
-    needs: [zen-traffic]
+    needs: [luci-zen]
     if: github.event_name == 'workflow_dispatch' && inputs.publish_repository
     runs-on: ubuntu-24.04
     strategy:
@@ -318,7 +314,7 @@ jobs:
           [[ "$SDK_TARGET" =~ ^[a-z0-9_-]+/[a-z0-9_-]+$ ]]
           tag="feed-openwrt-${SDK_VERSION}-${SDK_TARGET//\//-}"
           printf 'Zen APK feed for OpenWrt %s, target %s. Kernel modules come from the matching firmware feed.\n' "$SDK_VERSION" "$SDK_TARGET" > feed-notes.md
-          python3 tools/make-release-metadata.py --assets repository --target "$SDK_TARGET" --sdk-version "$SDK_VERSION" --tag "$tag" --notes feed-notes.md
+          python3 scripts/make-release-metadata.py --assets repository --target "$SDK_TARGET" --sdk-version "$SDK_VERSION" --tag "$tag" --notes feed-notes.md
           previous=$(mktemp -d)
           trap 'rm -rf "$previous"' EXIT
           channel_exists=false
@@ -327,7 +323,7 @@ jobs:
             gh release view "$tag" --json assets --jq '.assets[].name' --repo "$GITHUB_REPOSITORY" > "$previous/assets"
             if grep -qx zen-update.json "$previous/assets"; then
               gh release download "$tag" --pattern zen-update.json --dir "$previous" --repo "$GITHUB_REPOSITORY"
-              python3 tools/check-feed-update.py repository/zen-update.json "$previous/zen-update.json"
+              python3 scripts/check-feed-update.py repository/zen-update.json "$previous/zen-update.json"
             elif grep -qx packages.adb "$previous/assets"; then
               echo 'Active feed has no version record; refusing unsafe replacement'; exit 1
             fi
@@ -346,7 +342,7 @@ jobs:
           if [ "$channel_exists" = false ]; then
             gh release create "$tag" --target "$GITHUB_SHA" --title "$tag" --notes-file feed-notes.md --prerelease --latest=false --repo "$GITHUB_REPOSITORY"
           fi
-          gh release upload "$tag" repository/zen-repository.pem tools/install-zen.sh --clobber --repo "$GITHUB_REPOSITORY"
+          gh release upload "$tag" repository/zen-repository.pem scripts/install-zen.sh --clobber --repo "$GITHUB_REPOSITORY"
           gh release upload "$tag" repository/packages.adb repository/zen-update.json --clobber --repo "$GITHUB_REPOSITORY"
           printf 'Public key SHA256: %s\n' "$(sha256sum repository/zen-repository.pem | cut -d ' ' -f1)" >> feed-notes.md
           gh release edit "$tag" --notes-file feed-notes.md --repo "$GITHUB_REPOSITORY"

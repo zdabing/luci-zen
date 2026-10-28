@@ -1,0 +1,55 @@
+{
+	"zen-traffic": {
+		"description": "zen-traffic daemon ubus access",
+		"read": {
+			"ubus": {
+				"zen.traffic": [
+					"getStatus",
+					"getDevices",
+					"getTotal",
+					"getHistory",
+					"getRealtimeHistory",
+					"getWanUsage",
+					"getInternetHistory",
+					"getNotifications",
+					"getDeviceTimeline"
+				]
+			}
+		},
+		"write": {
+			"ubus": {
+				"zen.traffic": [
+					"setHostname",
+					"resetDevice",
+					"reloadPrefixes",
+					"setNotifications",
+					"testNotification"
+				]
+			}
+		}
+	},
+	"zen-device-management": {
+		"description": "Rename devices, reserve DHCP addresses and manage per-device Internet policies",
+		"read": {
+			"ubus": {
+				"zen.traffic": [
+					"getDevicePolicy"
+				],
+				"zen.device": [
+					"getBinding"
+				]
+			}
+		},
+		"write": {
+			"ubus": {
+				"zen.traffic": [
+					"setHostname",
+					"setDevicePolicy"
+				],
+				"zen.device": [
+					"setBinding"
+				]
+			}
+		}
+	}
+}

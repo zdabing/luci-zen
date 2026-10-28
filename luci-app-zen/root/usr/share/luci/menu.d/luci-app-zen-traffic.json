@@ -1,0 +1,77 @@
+{
+	"admin/zen": {
+		"title": "Zen",
+		"order": 5,
+		"action": {
+			"type": "firstchild"
+		}
+	},
+	"admin/zen/analysis": {
+		"title": "Analysis",
+		"order": 2,
+		"action": {
+			"type": "view",
+			"path": "zen-traffic/history"
+		},
+		"depends": {
+			"acl": [
+				"luci-app-zen-traffic"
+			]
+		}
+	},
+	"admin/status/zen-traffic": {
+		"action": {
+			"type": "alias",
+			"path": "admin/zen/analysis"
+		},
+		"depends": {
+			"acl": [
+				"luci-app-zen-traffic"
+			]
+		}
+	},
+	"admin/status/zen-traffic/history": {
+		"action": {
+			"type": "alias",
+			"path": "admin/zen/analysis"
+		},
+		"depends": {
+			"acl": [
+				"luci-app-zen-traffic"
+			]
+		}
+	},
+	"admin/status/zen-traffic/devices": {
+		"action": {
+			"type": "alias",
+			"path": "admin/zen/realtime"
+		},
+		"depends": {
+			"acl": [
+				"luci-app-zen-traffic"
+			]
+		}
+	},
+	"admin/status/zen-traffic/realtime": {
+		"action": {
+			"type": "alias",
+			"path": "admin/zen/realtime"
+		},
+		"depends": {
+			"acl": [
+				"luci-app-zen-traffic"
+			]
+		}
+	},
+	"admin/status/zen-traffic/notifications": {
+		"action": {
+			"type": "view",
+			"path": "zen-traffic/notifications"
+		},
+		"depends": {
+			"acl": [
+				"luci-app-zen-traffic"
+			]
+		}
+	}
+}

@@ -89,7 +89,7 @@ jobs:
           from pathlib import Path
           root = Path.cwd()
           assets = root / 'release-assets'
-          spec = importlib.util.spec_from_file_location('metadata', root / 'tools/make-release-metadata.py')
+          spec = importlib.util.spec_from_file_location('metadata', root / 'scripts/make-release-metadata.py')
           module = importlib.util.module_from_spec(spec)
           spec.loader.exec_module(module)
           metadata = module.merge_builds(root, assets, os.environ['RELEASE_TAG'])
@@ -97,8 +97,8 @@ jobs:
           if {build['target'] for build in builds} != {'x86/64', 'rockchip/armv8'}:
               raise SystemExit('Both supported targets are required')
           files = sorted(assets.glob('*/*.apk'), key=lambda file: file.name)
-          if len(files) != 8 or len({file.name for file in files}) != 8:
-              raise SystemExit('Expected eight distinct APKs')
+          if len(files) != 4 or len({file.name for file in files}) != 4:
+              raise SystemExit('Expected four distinct APKs')
           body = json.dumps(metadata, ensure_ascii=False, separators=(',', ':'))
           (assets / 'zen-update.json').write_text(body + '\n', encoding='utf-8')
           import hashlib
@@ -110,10 +110,10 @@ jobs:
           notes += '\n\n## 构建信息\n\n- OpenWrt SDK: ' + sdk
           notes += '\n- Target: x86/64, rockchip/armv8\n- Commit: `' + os.environ['BUILD_SHA'] + '`'
           notes += '\n- Source build: ' + os.environ['BUILD_RUN_ID']
-          notes += '\n\nKernel modules for zen-traffic must match the firmware build.\n'
+          notes += '\n\nKernel modules for luci-zen must match the firmware build.\n'
           notes += '\n<!-- zen-update-metadata\n' + body + '\n-->\n'
           (root / 'release-notes.md').write_text(notes, encoding='utf-8')
-          print('Verified eight APKs and both target metadata')
+          print('Verified four APKs and both target metadata')
           PY
 
       - name: Publish existing tag release

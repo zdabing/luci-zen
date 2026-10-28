@@ -1,4 +1,4 @@
-name: Theme APK release
+name: Frontend APK release
 
 on:
   workflow_dispatch:
@@ -7,10 +7,10 @@ on:
         description: OpenWrt SDK version
         default: '25.12.5'
       sdk_target:
-        description: SDK target/subtarget (theme output is architecture all)
+        description: SDK target/subtarget (frontend output is architecture all)
         default: x86/64
       publish_release:
-        description: Publish a stable theme release after a successful build
+        description: Publish a stable frontend release after a successful build
         type: boolean
         default: false
 
@@ -47,60 +47,61 @@ jobs:
           test -n "$SDK_DIR"
           echo "SDK_DIR=$SDK_DIR" >> "$GITHUB_ENV"
 
-      - name: Build theme APK
+      - name: Build frontend APK
         working-directory: ${{ env.SDK_DIR }}
         run: |
           ./scripts/feeds update -a
-          ./scripts/feeds install luci-base
-          cp -R "$GITHUB_WORKSPACE/luci-theme-zen" package/
-          echo 'CONFIG_PACKAGE_luci-theme-zen=m' >> .config
+          ./scripts/feeds install luci-base rust libubus libubox bpf-headers
+          cp -R "$GITHUB_WORKSPACE/luci-app-zen" "$GITHUB_WORKSPACE/luci-zen" package/
+          echo 'CONFIG_PACKAGE_luci-zen=m' >> .config
+          echo 'CONFIG_PACKAGE_luci-app-zen=m' >> .config
           make defconfig
-          make package/luci-theme-zen/compile V=s -j"$(nproc)"
+          make package/luci-app-zen/compile V=s -j"$(nproc)"
 
       - name: Verify APK and prepare release metadata
         id: package
         run: |
           mkdir out
-          find "$SDK_DIR/bin/packages" -type f -name 'luci-theme-zen-*.apk' -exec cp {} out/ \;
+          find "$SDK_DIR/bin/packages" -type f -name 'luci-app-zen-*.apk' -exec cp {} out/ \;
           test "$(find out -name '*.apk' | wc -l)" -eq 1
           python3 - <<'PY'
           import os, re
           from pathlib import Path
-          source = Path('luci-theme-zen/Makefile').read_text()
+          source = Path('luci-app-zen/Makefile').read_text()
           version = re.search(r'^PKG_VERSION:=(.+)$', source, re.M)[1].strip()
           revision = re.search(r'^PKG_RELEASE:=(\d+)$', source, re.M)[1]
-          tag = f'theme-v{version}-r{revision}'
+          tag = f'frontend-v{version}-r{revision}'
           with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
               output.write(f'tag={tag}\nversion={version}-r{revision}\n')
           Path('release-notes.md').write_text(
-              f'Zen 主题 {version}-r{revision}，APK 架构为 `all`。\n\n'
-              '- 版本页提供路由器一键更新：下载、校验、安装三个 Zen 组件并显示进度；页面重载后恢复后台任务。\n'
+              f'Zen 页面 {version}-r{revision}，APK 架构为 `all`。\n\n'
+              '- 版本页提供路由器一键更新：下载、校验、安装两个 Zen 组件并显示进度；页面重载后恢复后台任务。\n'
               '- 安装权限独立于外观设置，只允许固定仓库、已安装的 Zen 包和更高版本。\n'
               '- 更新由独立后台任务执行；服务包升级后重启并检查运行状态。\n\n'
-              '旧主题尚无安装接口，需手动安装一次本版，之后即可在页面点击“更新”。\n\n'
+              '从旧包名升级需先按 README 的迁移步骤安装两个新包。\n\n'
               '安装：下载 APK，在 OpenWrt 软件包页面上传安装，然后选择 Zen 主题。需要 ucode LuCI。\n\n'
               f'源码提交：`{os.environ["GITHUB_SHA"]}`\n', encoding='utf-8')
           Path('out/sources.tsv').write_text(
               f'Zen\t{os.environ["GITHUB_SHA"]}\nSDK\t{os.environ["SDK_VERSION"]}\nTarget\t{os.environ["SDK_TARGET"]}\n')
           PY
           TAG=$(sed -n 's/^tag=//p' "$GITHUB_OUTPUT")
-          python3 tools/make-release-metadata.py --assets out --target "$SDK_TARGET" \
-            --sdk-version "$SDK_VERSION" --tag "$TAG" --notes release-notes.md --packages luci-theme-zen
+          python3 scripts/make-release-metadata.py --assets out --target "$SDK_TARGET" \
+            --sdk-version "$SDK_VERSION" --tag "$TAG" --notes release-notes.md --packages luci-app-zen
           (cd out && sha256sum ./*.apk > SHA256SUMS && sha256sum -c SHA256SUMS)
 
       - uses: actions/upload-artifact@v7
         with:
-          name: zen-theme-apk-${{ github.run_id }}
+          name: zen-frontend-apk-${{ github.run_id }}
           path: out/
           if-no-files-found: error
 
-      - name: Publish stable theme release
+      - name: Publish stable frontend release
         if: inputs.publish_release
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.package.outputs.tag }}
           target_commitish: ${{ github.sha }}
-          name: Zen theme ${{ steps.package.outputs.version }}
+          name: Zen interface ${{ steps.package.outputs.version }}
           prerelease: false
           body_path: release-notes.md
           files: |

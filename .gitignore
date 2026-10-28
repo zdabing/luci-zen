@@ -1,39 +1,65 @@
-# 第三方参考代码（luci-app-bandix / luci-theme-round 等），仅供本地对照，不入库
+# Local documentation, prototypes, previews and verification tools
+/doc/
+/docs/
+/dev-preview/
+/poc/
+/tools/
 /reference/
+/.zcode/
+/.zcodeignore
+/.codex/
+/.vscode/
+/.idea/
+/.github/workflows/r5c-acceptance.yml
 
-# 发布说明和公开开发文档上传；研究、计划及参考文档仍保留在本地
+# Standalone tests and fixtures stay local; production source stays tracked
+**/test/
+**/tests/
+**/__tests__/
+**/fixtures/
+test-*
+*_test.*
+*.test.*
+*.spec.*
+/test-results/
+/playwright-report/
+/coverage/
+
+# Publish only the project overview, release notes and required license notices
 *.md
 !/README.md
 !/CHANGELOG.md
-!/docs/ARCHITECTURE.md
-!/docs/DEVELOPMENT.md
-!/docs/TESTING.md
-!/docs/REALTIME-HISTORY.md
-!/docs/TRAFFIC_PAGES_AND_NOTIFICATIONS.md
-!/docs/VERSIONS_AND_UPDATES.md
-!/docs/APK-DISTRIBUTION.md
-!/luci-theme-zen/THIRD_PARTY_NOTICES.md
-!/poc/README.md
-!/poc/rust-spike/README.md
+!/luci-app-zen/THIRD_PARTY_NOTICES.md
+*.doc
+*.docx
+*.pdf
 
-# 研究文档：参考项目分析与实施方案（含第三方实现细节），仅本地保留
-/docs/PHASE1-ANALYSIS.md
-
-# ZCode 工作区
-/.zcode/
-
-# Rust / cargo
+# Build outputs, local runtimes and generated packages
 target/
-**/*.rs.bk
+build/
+dist/
+node_modules/
 __pycache__/
+*.py[cod]
 /acceptance-openwrt/
 /acceptance-out/
-
-# eBPF 编译产物
-*.bpf.o
+*.apk
+*.ipk
 *.o
+*.so
+*.zip
+*.tar.gz
+*.tar.zst
 
-# 本地开发临时文件
+# Local settings, credentials and temporary files
+.env
+.env.*
+!.env.example
+*.rs.bk
+*.bak
+*.before
+*.orig
+*.rej
 *.log
 .DS_Store
 Thumbs.db

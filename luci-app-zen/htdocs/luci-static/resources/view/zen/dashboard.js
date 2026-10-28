@@ -1,0 +1,1040 @@
+'use strict';
+'require baseclass';
+'require rpc';
+'require fs';
+'require network';
+'require poll';
+'require view.zen.zen-format as fmt';
+'require view.zen.zen-devices as devices';
+'require view.zen.zen-health as health';
+
+/*
+ * view.zen.dashboard — Zen 首页的数据与组件，供 admin/zen 的独立视图使用。
+ *
+ * 结构：状态条(主机名·型号·运行时间) + 系统四卡(负载/CPU/RAM/根文件系统，环形进度)
+ *       + 网络状态卡(WAN 状态/WAN IPv4/WAN IPv6/LAN IP/在线客户端/DHCP 租约)
+ *       + 全局实时流量卡(实时/累计 + 迷你曲线) + 设备流量模块(zen.traffic 探测)。
+ *
+ * 性能规范（与 ARCHITECTURE.md 一致）：DOM 一次构建缓存；轮询只更新 textContent /
+ * class / SVG 属性；曲线滑动窗口；模块间 Promise 相互隔离，单个 RPC 失败不影响其他卡。
+ */
+
+// poll.add() 以秒为单位；5s 与官方 status 页一致，60 个样本覆盖 ~5 分钟。
+const POLL_SECS = 5;
+const MIN_REFRESH_MS = 1000;
+const HISTORY = 60;
+const HISTORY_MS = 300000;
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const RING_R = 46;
+const RING_C = 2 * Math.PI * RING_R;
+const SKIP_IFACE = /^(lo|ifb\d*|teql\d*|sit\d*|gre\d*|gretap\d*|erspan\d*|dummy\d*|tun\d*|tap\d*|ip6tnl\d*|ip6gre\d*|veth)/;
+
+const callSystemInfo = rpc.declare({
+	object: 'system',
+	method: 'info'
+});
+
+const callRealtimeHistory = rpc.declare({ object: 'zen.traffic', method: 'getRealtimeHistory', params: ['iface', 'limit'] });
+
+const callSystemBoard = rpc.declare({ object: 'system', method: 'board' });
+
+const callDevStatus = rpc.declare({
+	object: 'network.device',
+	method: 'status'
+});
+
+const callDhcpLeases = rpc.declare({
+	object: 'luci-rpc',
+	method: 'getDHCPLeases',
+	expect: { '': {} }
+});
+const callDHCPConfig = rpc.declare({ object: 'uci', method: 'get', params: ['config'] });
+
+const callMountPoints = rpc.declare({
+	object: 'luci',
+	method: 'getMountPoints',
+	expect: { result: [] }
+});
+
+const callNetworkDevices = rpc.declare({
+	object: 'luci-rpc',
+	method: 'getNetworkDevices',
+	expect: { '': {} }
+});
+
+function svg(name, attrs, children) {
+	const el = document.createElementNS(SVG_NS, name);
+	for (const key in attrs)
+		el.setAttribute(key, attrs[key]);
+	(children || []).forEach((child) => el.appendChild(child));
+	return el;
+}
+
+function cpuFromStat(line) {
+	if (!line)
+		return null;
+	const parts = line.trim().split(/\s+/);
+	if (parts[0] !== 'cpu')
+		return null;
+	const nums = parts.slice(1).map((v) => parseInt(v, 10) || 0);
+	const idle = (nums[3] || 0) + (nums[4] || 0);
+	const total = nums.slice(0, 8).reduce((s, v) => s + v, 0);
+	return { idle, total };
+}
+
+function addrsOf(net, v6) {
+	if (!net)
+		return [];
+	try {
+		const fn = v6 ? net.getIP6Addrs : net.getIPAddrs;
+		if (typeof fn === 'function') {
+			const addrs = fn.call(net) || [];
+			return addrs
+				.map((a) => (typeof a === 'string' ? a : (a && (a.address || a.addr)) || ''))
+				.filter(Boolean);
+		}
+	} catch (e) { /* ignore */ }
+	return [];
+}
+
+function settled(value, fallback) {
+	try {
+		return Promise.resolve(value).then((v) => (v == null ? fallback : v), () => fallback);
+	} catch (e) {
+		return Promise.resolve(fallback);
+	}
+}
+
+return baseclass.extend({
+	start(dash) {
+		if (!dash) return;
+		if (this.dash === dash) return;
+		if (this._poll) poll.remove(this._poll);
+		this.prevCpu = null;
+		this.refreshAt = null;
+		this.prevNet = null;
+		this.prevAt = 0;
+		this.history = [];
+		this.historyClockOffset = 0;
+		this.historyEnd = null;
+		this.iface = 'all';
+		this.dash = dash;
+		if (!this.dash)
+			return;
+		this._poll = () => {
+			if (!document.hidden && this.dash.isConnected) return this.tick();
+		};
+		poll.add(this._poll, POLL_SECS);
+		this.ready = this.tick();
+
+		// 设备流量模块独立探测（zen.traffic 缺失时仅显示提示，不影响其他卡）
+		try {
+			this.devicesReady = devices.mount(this.dash).catch((e) => console.warn('zen-devices', e));
+		} catch (e) { /* 模块缺失不阻塞首页 */ }
+	},
+
+	buildRing(key, label) {
+		const arc = svg('circle', {
+			'class': 'arc',
+			cx: '60',
+			cy: '60',
+			r: String(RING_R),
+			'stroke-dasharray': RING_C.toFixed(2),
+			'stroke-dashoffset': RING_C.toFixed(2)
+		});
+		const pct = svg('text', { 'class': 'pct', x: '60', y: '63' }, []);
+		pct.textContent = '0%';
+
+		const attrs = { 'class': 'zen-dash-card zen-dash-card-action', 'data-gauge': key, 'data-level': 'ok' };
+		if (key === 'disk') {
+			attrs.type = 'button';
+			attrs.click = () => this.showDiskInfo();
+		} else {
+			attrs.href = L.url('admin', 'status', 'processes');
+			attrs.title = _('Open process list');
+		}
+		return E(key === 'disk' ? 'button' : 'a', attrs, [
+			E('div', { 'class': 'zen-dash-meta' }, [
+				E('div', { 'class': 'zen-dash-label' }, label),
+				E('div', { 'class': 'zen-dash-value' }, fmt.MISSING),
+				E('div', { 'class': 'zen-dash-sub' }, fmt.MISSING)
+			]),
+			E('div', { 'class': 'zen-dash-ring' }, [
+				svg('svg', { viewBox: '0 0 120 120', 'aria-hidden': 'true' }, [
+					svg('circle', { 'class': 'track', cx: '60', cy: '60', r: String(RING_R) }),
+					arc,
+					pct
+				])
+			])
+		]);
+	},
+
+	showDiskInfo() {
+		const disk = this.diskInfo;
+		const dialog = E('dialog', { 'class': 'zen-dash-disk-dialog' }, [
+			E('h3', {}, _('Storage')),
+			E('p', {}, disk ? _('Used %s').format(fmt.fmtBytes(disk.used)) : fmt.MISSING),
+			E('p', {}, disk ? _('Total %s').format(fmt.fmtBytes(disk.total)) : fmt.MISSING)
+		]);
+		const close = E('button', { type: 'button' }, _('Close'));
+		close.addEventListener('click', () => dialog.close());
+		dialog.appendChild(close);
+		dialog.addEventListener('close', () => dialog.remove());
+		document.body.appendChild(dialog);
+		dialog.showModal();
+	},
+
+	buildSystemItem(key, label, paths) {
+		const attrs = { 'data-system': key };
+		if (key === 'uptime') attrs['data-uptime'] = 'value';
+		if (key === 'startup') attrs['data-restart'] = 'value';
+		return E('div', { 'class': 'zen-dash-system-item' }, [
+			svg('svg', { viewBox: '0 0 24 24', 'aria-hidden': 'true' }, paths.map(d => svg('path', { d }))),
+			E('div', {}, [E('span', { 'class': 'zen-dash-system-label' }, label),
+				E('strong', attrs, fmt.MISSING)])
+		]);
+	},
+
+	setSystemInfo(board, info) {
+		const release = board.release || {};
+		const hardware = (board.system || '') + ' ' + (release.target || '');
+		let arch = release.target || board.system;
+		if (/x86\/64|x86_64/i.test(hardware)) arch = 'x86_64 · ' + _('64-bit');
+		else if (/aarch64|ARMv8|\/armv8/i.test(hardware)) arch = 'ARMv8 · ' + _('64-bit');
+		else if (/ARMv7/i.test(hardware)) arch = 'ARMv7 · ' + _('32-bit');
+		this.setText(this.dash, '[data-system="host"]', fmt.orDash(board.hostname));
+		this.setText(this.dash, '[data-system="architecture"]', fmt.orDash(arch));
+		const firmware = release.version ? [release.distribution, release.version].filter(Boolean).join(' ') : release.description;
+		this.setText(this.dash, '[data-system="firmware"]', fmt.orDash(firmware));
+		this.dash.querySelector('[data-system="firmware"]').title = release.description || firmware || '';
+		let time = fmt.MISSING;
+		if (info.localtime != null && Number.isFinite(Number(info.localtime))) {
+			const date = new Date(Number(info.localtime) * 1000);
+			if (Number.isFinite(date.getTime())) time = date.toISOString().slice(0, 19).replace('T', ' ');
+		}
+		this.setText(this.dash, '[data-system="time"]', time);
+	},
+
+	buildNetworkRow(key, label) {
+		return E('tr', { 'data-network': key }, [
+			E('th', { scope: 'row' }, label),
+			E('td', { 'data-network-field': 'protocol' }, fmt.MISSING),
+			E('td', { 'data-network-field': 'address' }, fmt.MISSING),
+			E('td', {}, [
+				E('span', { 'class': 'zen-dash-net-status' }, [
+					E('span', { 'class': 'zen-dash-ov-dot down', 'aria-hidden': 'true' }),
+					E('span', { 'data-network-field': 'status' }, fmt.MISSING)
+				])
+			])
+		]);
+	},
+
+	buildConnectionSummary() {
+		return E('section', { 'class': 'zen-dash-connections', 'aria-label': _('Network') }, [
+			...[['wan', _('WAN IPv4')], ['wan6', _('WAN IPv6')], ['lan', _('LAN IP')], ['uptime', _('Uptime')]].map(([key, label]) =>
+				E('div', { 'class': 'zen-dash-connection' }, [
+					E('span', { 'class': 'zen-dash-connection-label' }, [label, key === 'wan' ?
+						E('span', { 'class': 'zen-dash-connection-state', 'data-connection': 'state', role: 'status' }, fmt.MISSING) : null].filter(Boolean)),
+					E('strong', { 'data-connection': key }, fmt.MISSING),
+					E('span', { 'class': 'zen-dash-connection-note', 'data-connection': key + '-detail' }, fmt.MISSING)
+				])),
+			E('div', { 'class': 'zen-dash-health' }, [['temperature', _('Temperature')], ['connections', _('Connections')], ['latency', _('Latency')]].map(([key, label]) =>
+				E('div', { 'class': 'zen-dash-health-metric', 'data-health-metric': key }, [
+					E('span', {}, label), E('strong', { 'data-health': key }, fmt.MISSING),
+					key !== 'latency' ? E('span', { 'class': 'zen-dash-health-track' }, E('i', { 'data-health-bar': key })) : null
+				].filter(Boolean))))
+		]);
+	},
+
+	build() {
+		const iface = E('select', { id: 'zen-dash-iface', 'aria-label': _('Interface') }, [
+			E('option', { value: 'all' }, _('All'))
+		]);
+		iface.addEventListener('change', () => {
+			this.historyLoadedFor = null;
+			this.historyRequest = (this.historyRequest || 0) + 1;
+			this.ifaceChosen = true;
+			this.iface = iface.value || 'all';
+			this.history = [];
+			this.historyClockOffset = 0;
+			this.historyEnd = null;
+			this.prevNet = null;
+			this.prevAt = 0;
+			this.renderTraffic({
+				rxRate: 0, txRate: 0, rxTotal: 0, txTotal: 0, names: this.lastNames || ['all']
+			});
+		});
+
+		const chart = svg('svg', { viewBox: '0 0 640 220', 'class': 'zen-dash-svg' }, [
+			svg('g', { 'class': 'grid' }),
+			svg('g', { 'class': 'yaxis' }),
+			svg('g', { 'class': 'xaxis' }),
+			svg('path', { 'class': 'fill rx' }),
+			svg('path', { 'class': 'fill tx' }),
+			svg('polyline', { 'class': 'line rx' }),
+			svg('polyline', { 'class': 'line tx' }),
+			svg('g', { 'class': 'hover', style: 'display:none' }, [
+				svg('line', { 'class': 'cross' }),
+				svg('circle', { 'class': 'dot rx', r: '3.5' }),
+				svg('circle', { 'class': 'dot tx', r: '3.5' })
+			]),
+			svg('rect', { 'class': 'overlay', x: '0', y: '0', width: '100%', height: '100%' })
+		]);
+		const tip = E('div', { 'class': 'zen-dash-tip', style: 'display:none' });
+		this.chartEl = chart;
+		this.tipEl = tip;
+		this.parts = {
+			grid: chart.querySelector('g.grid'),
+			yaxis: chart.querySelector('g.yaxis'),
+			xaxis: chart.querySelector('g.xaxis'),
+			lineRx: chart.querySelector('polyline.line.rx'),
+			lineTx: chart.querySelector('polyline.line.tx'),
+			fillRx: chart.querySelector('path.fill.rx'),
+			fillTx: chart.querySelector('path.fill.tx')
+		};
+		this.lastW = 0;
+		this.lastH = 0;
+		this.yLabels = [];
+		chart.addEventListener('pointermove', (ev) => this.onChartHover(ev));
+		chart.addEventListener('pointerdown', (ev) => this.onChartHover(ev));
+		chart.addEventListener('click', (ev) => this.onChartHover(ev));
+		chart.addEventListener('pointerleave', () => this.hideHover());
+
+		const root = E('div', { id: 'zen-dashboard' }, [
+			E('div', { 'class': 'zen-dash-strip' }, [
+				E('div', { 'class': 'zen-dash-system-info' }, [
+					this.buildSystemItem('host', _('Hostname'), ['M3 10 12 3l9 7v11H3z', 'M8 13v2m4-2v2m4-2v2M10 21v-4h4v4']),
+					this.buildSystemItem('architecture', _('Architecture'), ['M6 6h12v12H6zM9 9h6v6H9z', 'M9 2v4m6-4v4M9 18v4m6-4v4M2 9h4m-4 6h4m12-6h4m-4 6h4']),
+					this.buildSystemItem('firmware', _('Firmware version'), ['M4 9h16v12H4z', 'M8 9V6a4 4 0 0 1 8 0v3M12 13v4']),
+					this.buildSystemItem('time', _('System time'), ['M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18', 'M12 7v5l3 2']),
+					this.buildSystemItem('uptime', _('Uptime'), ['M5 5a9 9 0 1 1-2 9M3 3v5h5M12 7v5l3 2']),
+					this.buildSystemItem('startup', _('Startup time'), ['M12 3v9M7 5a9 9 0 1 0 10 0'])
+				]),
+			]),
+			E('div', { 'class': 'zen-dash-gauges' }, [
+				this.buildRing('load', _('Load')),
+				this.buildRing('cpu', 'CPU'),
+				this.buildRing('ram', 'RAM'),
+				this.buildRing('disk', _('Storage'))
+			]),
+			E('div', { 'class': 'zen-dash-body' }, [
+				E('section', { 'class': 'zen-dash-panel zen-dash-overview' }, [
+					E('h3', {}, _('Network')),
+					E('table', { 'class': 'zen-dash-network-table' }, [
+						E('thead', {}, E('tr', {}, [_('Interface'), _('Protocol'), _('Address'), _('Status')].map(label =>
+							E('th', { scope: 'col' }, label)))),
+						E('tbody', {}, [
+							this.buildNetworkRow('wan', 'WAN'),
+							this.buildNetworkRow('lan', 'LAN'),
+							this.buildNetworkRow('wan6', 'WAN6')
+						])
+					]),
+					E('dl', { 'class': 'zen-dash-network-extra' }, [
+						E('div', {}, [E('dt', {}, _('WAN IPv4 gateway')), E('dd', { 'data-network-extra': 'gateway' }, fmt.MISSING)]),
+						E('div', {}, [E('dt', {}, _('WAN IPv4 DNS')), E('dd', { 'data-network-extra': 'dns' }, fmt.MISSING)])
+					])
+				]),
+				E('section', { 'class': 'zen-dash-panel zen-dash-traffic' }, [
+					E('header', { 'class': 'zen-dash-traffic-head' }, [
+						E('h3', {}, [_('Realtime Traffic'), E('span', { 'class': 'zen-dash-hint' }, _('Last 5 minutes') + ' · ' + _('5-second updates'))]),
+						E('label', { 'class': 'zen-dash-iface-control' }, [E('span', {}, _('Interface')), iface])
+					]),
+					E('div', { 'class': 'zen-dash-traffic-stats' }, [
+						E('div', { 'class': 'zen-dash-stat tx' }, [
+							E('span', { 'class': 'k' }, '↑ ' + _('Upload')),
+							E('span', { 'class': 'v', 'data-k': 'txRate' }, fmt.MISSING)
+						]),
+						E('div', { 'class': 'zen-dash-stat rx' }, [
+							E('span', { 'class': 'k' }, '↓ ' + _('Download')),
+							E('span', { 'class': 'v', 'data-k': 'rxRate' }, fmt.MISSING)
+						]),
+						E('div', { 'class': 'zen-dash-stat total-tx' }, [
+							E('span', { 'class': 'k' }, '↑ ' + _('Total sent')),
+							E('span', { 'class': 'v', 'data-k': 'txTotal' }, fmt.MISSING)
+						]),
+						E('div', { 'class': 'zen-dash-stat total-rx' }, [
+							E('span', { 'class': 'k' }, '↓ ' + _('Total received')),
+							E('span', { 'class': 'v', 'data-k': 'rxTotal' }, fmt.MISSING)
+						])
+					])
+				]),
+				E('section', { 'class': 'zen-dash-panel zen-dash-trend' }, [
+					E('div', { 'class': 'zen-dash-chart-legend' }, [
+						E('span', { 'class': 'ul' }, [E('span', { 'class': 'swatch', 'aria-hidden': 'true' }), _('Upload (dashed)')]),
+						E('span', { 'class': 'dl' }, [E('span', { 'class': 'swatch', 'aria-hidden': 'true' }), _('Download (solid)')]),
+						E('span', {}, _('Independent scales'))
+					]),
+					E('div', { 'class': 'zen-dash-chart' }, [chart, tip])
+				])
+			])
+		]);
+		// Low-frequency system metadata stays available without occupying the first screen.
+		const body = root.querySelector('.zen-dash-body');
+		const traffic = root.querySelector('.zen-dash-traffic');
+		const details = E('details', { 'class': 'zen-dash-system-details' }, [
+			E('summary', {}, _('System & interface details'))
+		]);
+		for (const selector of ['.zen-dash-strip', '.zen-dash-gauges', '.zen-dash-overview'])
+			details.appendChild(root.querySelector(selector));
+		const totals = E('div', { 'class': 'zen-dash-interface-totals' });
+		for (const el of traffic.querySelectorAll('.total-tx, .total-rx')) totals.appendChild(el);
+		details.appendChild(totals);
+		traffic.appendChild(root.querySelector('.zen-dash-trend'));
+		traffic.classList.add('zen-dash-focus-traffic');
+		body.classList.add('zen-dash-focus-body');
+		root.insertBefore(this.buildConnectionSummary(), body);
+		root.appendChild(details);
+		return root;
+
+	},
+
+	async loadRealtimeHistory() {
+		const iface = this.iface;
+		if (!this.wanDevice || iface !== this.wanDevice || this.historyLoadedFor === iface) return;
+		this.historyLoadedFor = iface;
+		const request = this.historyRequest = (this.historyRequest || 0) + 1;
+		try {
+			// Let the router choose its recent window; browser clock skew must not reject it.
+			const data = await callRealtimeHistory(iface, HISTORY);
+			if (request !== this.historyRequest || this.iface !== iface) return;
+			this.history = ((data && data.samples) || []).filter(sample => Number.isFinite(sample.time))
+				.map(sample => ({ t: sample.time * 1000, rx: Number(sample.download) || 0, tx: Number(sample.upload) || 0 })).slice(-HISTORY);
+			this.historyClockOffset = Number.isFinite(data && data.end) ? data.end * 1000 - Date.now() : 0;
+			this.trimRealtimeHistory(Number.isFinite(data && data.end) ? data.end * 1000 : (this.history.at(-1) || {}).t);
+		} catch (e) { /* Older/unavailable daemon: continue collecting the browser's live samples. */ }
+	},
+
+	trimRealtimeHistory(end) {
+		if (!Number.isFinite(end)) return;
+		this.historyEnd = end;
+		this.history = this.history.filter(sample => Number.isFinite(sample.t) && sample.t >= end - HISTORY_MS && sample.t <= end)
+			.sort((a, b) => a.t - b.t);
+	},
+
+	setText(root, selector, text) {
+		const el = root.querySelector(selector);
+		if (el)
+			el.textContent = text;
+	},
+
+	setGauge(key, label, value, sub, pct) {
+		const card = this.dash.querySelector('[data-gauge="%s"]'.format(key));
+		if (!card)
+			return;
+		pct = fmt.clampPct(pct);
+		card.setAttribute('data-level', fmt.levelFor(pct));
+		this.setText(card, '.zen-dash-label', label);
+		this.setText(card, '.zen-dash-value', value);
+		this.setText(card, '.zen-dash-sub', sub);
+		this.setText(card, 'text.pct', '%d%%'.format(Math.round(pct)));
+		const arc = card.querySelector('circle.arc');
+		if (arc)
+			arc.setAttribute('stroke-dashoffset', (RING_C * (1 - pct / 100)).toFixed(2));
+	},
+
+	setOverview(key, value, sub, dotState) {
+		const cell = this.dash.querySelector('[data-ov="%s"]'.format(key));
+		if (!cell)
+			return;
+		this.setText(cell, '.zen-dash-ov-value', fmt.orDash(value));
+		/* sub 为 null 时置空文本，由 CSS :empty 隐藏，不渲染无意义的 “—” */
+		this.setText(cell, '.zen-dash-ov-sub', sub == null ? '' : sub);
+		if (dotState != null) {
+			const dot = cell.querySelector('.zen-dash-ov-dot');
+			if (dot)
+				dot.className = 'zen-dash-ov-dot ' + (dotState ? 'up' : 'down');
+		}
+	},
+
+	setNetworkRow(key, net, ipv6) {
+		const row = this.dash.querySelector('[data-network="%s"]'.format(key));
+		if (!row)
+			return;
+		const addresses = addrsOf(net, !!ipv6);
+		const up = !!net && (typeof net.isUp === 'function' ? net.isUp() : !!addresses.length);
+		this.setText(this.dash, '[data-connection="' + key + '"]', addresses.join('\n') || fmt.MISSING);
+		if (key === 'wan') {
+			this.setText(this.dash, '[data-connection="state"]', up ? _('Connected') : _('Down'));
+			const state = this.dash.querySelector('[data-connection="state"]');
+			if (state) state.setAttribute('data-state', up ? 'connected' : 'down');
+			this.setText(this.dash, '[data-network-extra="gateway"]', net && typeof net.getGatewayAddr === 'function' ? net.getGatewayAddr() || fmt.MISSING : fmt.MISSING);
+			const dns = net && typeof net.getDNSAddrs === 'function' ? net.getDNSAddrs() || [] : [];
+			this.setText(this.dash, '[data-network-extra="dns"]', dns.join('\n') || fmt.MISSING);
+		}
+		const proto = net && typeof net.getProtocol === 'function' ? net.getProtocol() : null;
+		const protocols = { dhcp: _('DHCP client'), static: _('Static address'), dhcpv6: 'DHCPv6', pppoe: 'PPPoE' };
+		this.setText(row, '[data-network-field="protocol"]', proto ? (protocols[proto] || proto) : fmt.MISSING);
+		this.setText(row, '[data-network-field="address"]', addresses.join('\n') || fmt.MISSING);
+		row.querySelector('[data-network-field="address"]').title = addresses.join('\n');
+		row.classList.toggle('zen-dash-net-ipv6', !!ipv6);
+		let status = up ? (key === 'lan' ? _('Running') : _('Connected')) : _('Down');
+		const uptime = net && typeof net.getUptime === 'function' ? Number(net.getUptime()) : 0;
+		if (up && key === 'wan' && uptime > 0) {
+			status += ' ' + fmt.fmtUptime(uptime);
+		}
+		this.setText(row, '[data-network-field="status"]', status);
+		if (key === 'wan') this.setText(this.dash, '[data-connection="wan-detail"]', [proto ? (protocols[proto] || proto) : '', status].filter(Boolean).join(' · '));
+		if (key === 'wan6') {
+			const delegated = health.prefixes(net);
+			this.setText(this.dash, '[data-connection="wan6-detail"]', delegated.length ? _('Prefix %s').format(delegated.join('\n')) : _('No delegated prefix'));
+		}
+		row.querySelector('.zen-dash-net-status').setAttribute('data-state', up ? (key === 'lan' ? 'running' : 'connected') : 'down');
+		row.querySelector('.zen-dash-ov-dot').className = 'zen-dash-ov-dot ' + (up ? 'up' : 'down');
+	},
+
+	setUptime(sec, localtime) {
+		let value = fmt.MISSING;
+		let restart = fmt.MISSING;
+		if (sec != null && sec !== '' && Number.isFinite(Number(sec)) && Number(sec) >= 0) {
+			value = fmt.fmtUptime(sec);
+			if (localtime != null && Number.isFinite(Number(localtime)) && Number(localtime) >= Number(sec)) {
+				// procd localtime already includes the router's timezone offset.
+				// UTC formatting preserves that wall clock without applying the browser's offset again.
+				const date = new Date((Number(localtime) - Number(sec)) * 1000);
+				if (Number.isFinite(date.getTime()))
+					restart = date.toISOString().slice(0, 19).replace('T', ' ');
+			}
+		}
+		this.setText(this.dash, '[data-uptime]', value);
+		this.setText(this.dash, '[data-connection="uptime"]', value);
+		this.setText(this.dash, '[data-restart]', restart);
+		this.setText(this.dash, '[data-connection="uptime-detail"]', restart === fmt.MISSING ? restart : _('Restarted %s').format(restart));
+	},
+
+	setHealth(data, dhcp) {
+		const temp = data.temperature;
+		this.setText(this.dash, '[data-health="temperature"]', temp ? temp.celsius.toFixed(1).replace(/\.0$/, '') + ' °C' : fmt.MISSING);
+		const temperature = this.dash.querySelector('[data-health="temperature"]');
+		if (temperature) temperature.title = temp ? temp.sensor + ' · ' + temp.path : _('Temperature sensor unavailable');
+		this.setText(this.dash, '[data-health="connections"]', data.connections == null ? fmt.MISSING : Number(data.connections).toLocaleString());
+		const connections = this.dash.querySelector('[data-health="connections"]');
+		if (connections) connections.title = data.connections == null ? _('Connection count unavailable') : String(data.connections) + ' / ' + (data.connectionLimit || fmt.MISSING);
+		for (const [key, percent] of [['temperature', temp ? temp.celsius : 0], ['connections', data.connectionLimit ? data.connections / data.connectionLimit * 100 : 0]]) {
+			const bar = this.dash.querySelector('[data-health-bar="' + key + '"]');
+			if (bar) bar.style.width = Math.max(0, Math.min(100, Number(percent) || 0)) + '%';
+		}
+		const latency = data.latency || {};
+		this.setText(this.dash, '[data-health="latency"]', latency.state === 'ok' ? (latency.lessThan ? '<' : '') + latency.ms + ' ms' : latency.state === 'timeout' ? _('Timeout') : fmt.MISSING);
+		const probe = this.dash.querySelector('[data-health="latency"]');
+		if (probe) { probe.title = 'ICMP · ' + (latency.target || '1.1.1.1'); probe.setAttribute('data-state', latency.state || 'unavailable'); }
+		this.setText(this.dash, '[data-connection="lan-detail"]', dhcp.state === 'ok' ? _('DHCP leases %s / %s').format(dhcp.used, dhcp.total) : dhcp.state === 'disabled' ? _('DHCP disabled') : dhcp.state === 'static' ? _('Static DHCP leases only') : _('DHCP leases unavailable'));
+	},
+
+	setStrip(host, model) {
+		this.setText(this.dash, '[data-strip="host"]', fmt.orDash(host));
+		this.setText(this.dash, '[data-strip="model"]', fmt.orDash(model));
+	},
+
+	countable(devs) {
+		const members = new Set();
+		for (const name in devs) {
+			const list = (devs[name] && (devs[name]['bridge-members'] || devs[name].bridge_members)) || [];
+			list.forEach((m) => members.add(m));
+		}
+
+		const all = {};
+		const listed = [];
+		for (const name in devs) {
+			if (SKIP_IFACE.test(name))
+				continue;
+			const d = devs[name];
+			if (d && d.present === false)
+				continue;
+			listed.push(name);
+			if (!members.has(name))
+				all[name] = d;
+		}
+		listed.sort();
+		return { all, listed };
+	},
+
+	sumStats(devs) {
+		let rx = 0, tx = 0;
+		for (const name in devs) {
+			const d = devs[name] || {};
+			const st = d.statistics || d.stats || {};
+			rx += Number(st.rx_bytes) || 0;
+			tx += Number(st.tx_bytes) || 0;
+		}
+		return { rx, tx };
+	},
+
+	pickStats(devs, iface) {
+		const counted = this.countable(devs);
+		const src = (iface && iface !== 'all') ? (devs[iface] ? { tmp: devs[iface] } : {}) : counted.all;
+		const stats = this.sumStats(src);
+		stats.listed = counted.listed;
+		return stats;
+	},
+
+	selectWanDevice(wan, devs) {
+		// PPPoE virtual counters may omit accelerated packets. The physical WAN
+		// device includes those packets and both IP families without counting twice.
+		for (const method of ['getDevice', 'getL3Device']) {
+			const device = wan && typeof wan[method] === 'function' ? wan[method]() : null;
+			const name = device && device.getName();
+			if (name && devs[name]) return name;
+		}
+		return null;
+	},
+
+	syncIfaceSelect(names) {
+		const sel = this.dash.querySelector('#zen-dash-iface');
+		if (!sel)
+			return;
+		const wanted = Array.from(new Set(['all'].concat(this.wanDevice ? [this.wanDevice] : [], names)));
+		const have = Array.from(sel.options).map((o) => o.value);
+		const current = this.iface;
+		if (have.join('\0') !== wanted.join('\0')) {
+			sel.textContent = '';
+			wanted.forEach(name => sel.appendChild(E('option', { value: name }, name)));
+		}
+		Array.from(sel.options).forEach(option => {
+			option.textContent = option.value === 'all' ? _('All') :
+				(option.value === this.wanDevice ? 'WAN · ' + this.wanDevice : option.value);
+		});
+		sel.value = wanted.indexOf(current) >= 0 ? current : 'all';
+		this.iface = sel.value;
+	},
+
+	renderTraffic(t) {
+		this.lastTraffic = t;
+		this.lastNames = t.names || [];
+		this.syncIfaceSelect(this.lastNames);
+		this.setText(this.dash, '[data-k="txRate"]', fmt.fmtRate(t.txRate));
+		this.setText(this.dash, '[data-k="rxRate"]', fmt.fmtRate(t.rxRate));
+		if (this.compactChart) {
+			for (const [key, value] of [['tx',t.txRate],['rx',t.rxRate]]) {
+				const node=this.dash.querySelector('[data-k="'+key+'Rate"]');
+				if (node) { const [number,...units]=fmt.fmtRate(value).split(' ');node.replaceChildren(E('span',{class:'rf-number'},number),E('small',{class:'rf-unit'},units.join(' '))); }
+				const peak=this.dash.querySelector('[data-peak="'+key+'"]');
+				if(peak)peak.textContent=_('Peak')+' '+fmt.fmtRate(Math.max(0,...this.history.map(row=>Number(row[key])||0)));
+			}
+		}
+		this.setText(this.dash, '[data-k="txTotal"]', fmt.fmtBytes(t.txTotal));
+		this.setText(this.dash, '[data-k="rxTotal"]', fmt.fmtBytes(t.rxTotal));
+
+		const chart = this.chartEl;
+		const host = this.dash.querySelector('.zen-dash-chart');
+		const parts = this.parts;
+		if (!chart || !host || !parts)
+			return;
+
+		const w = Math.max(host.clientWidth || 0, 320);
+		const h = Math.max(host.clientHeight || 0, 160);
+
+		// Compact overview charts omit axis labels and compare both rates on one scale.
+		const padL = this.compactChart ? 4 : 86, padR = this.compactChart ? 4 : 86,
+			padT = this.compactChart ? 10 : 26, padB = this.compactChart ? 14 : 28;
+		const innerW = Math.max(w - padL - padR, 10);
+		const innerH = Math.max(h - padT - padB, 10);
+		const samples = this.history;
+		const bands = {};
+		for (const key of ['tx', 'rx']) {
+			const peak = samples.reduce((value, sample) => Math.max(value, sample[key] || 0), 0);
+			const unit = Math.pow(10, Math.floor(Math.log10(Math.max(peak, 1)))) / 5;
+			bands[key] = { top: padT,
+				max: Math.max(64, Math.ceil(peak * 1.05 / unit) * unit) };
+		}
+		if (this.compactChart) {
+			const sharedMax = Math.max(bands.tx.max, bands.rx.max);
+			bands.tx.max = bands.rx.max = sharedMax;
+		}
+		// History and live polling may have different intervals. Use timestamps,
+		// rather than sample indexes, for the fixed five-minute window.
+		const end = this.historyEnd || (samples.at(-1) || {}).t || Date.now();
+		const start = end - HISTORY_MS;
+
+		// 网格线只在容器尺寸变化时重建 DOM；Y 轴刻度每帧只改文本。
+		const DIV = 4;
+		if (w !== this.lastW || h !== this.lastH || this.yLabels.length !== 2 * (DIV + 1)) {
+			// viewBox 用容器真实像素，坐标 1:1，避免拉伸变形。
+			chart.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
+			parts.grid.textContent = '';
+			parts.yaxis.textContent = '';
+			parts.xaxis.textContent = '';
+			parts.xaxis.appendChild(svg('text', {
+				x: String(padL), y: String(h - 6), 'text-anchor': 'start'
+			}, [document.createTextNode(_('5 minutes ago'))]));
+			parts.xaxis.appendChild(svg('text', {
+				x: String(padL + innerW), y: String(h - 6), 'text-anchor': 'end'
+			}, [document.createTextNode(_('Now'))]));
+			this.yLabels = [];
+			for (const key of ['tx', 'rx']) {
+				const axisX = key === 'tx' ? padL - 8 : padL + innerW + 8;
+				const anchor = key === 'tx' ? 'end' : 'start';
+				parts.yaxis.appendChild(svg('text', { x: String(axisX), y: String(padT - 10), 'text-anchor': anchor, 'class': 'axis-direction ' + key },
+					[document.createTextNode(key === 'tx' ? _('Upload') : _('Download'))]));
+			for (let i = 0; i <= DIV; i++) {
+				const gy = bands[key].top + (innerH * i) / DIV;
+				if (key === 'tx') parts.grid.appendChild(svg('line', {
+					x1: String(padL),
+					x2: String(padL + innerW),
+					y1: gy.toFixed(1),
+					y2: gy.toFixed(1)
+				}));
+				const label = svg('text', { x: String(axisX), y: (gy + 4).toFixed(1), 'text-anchor': anchor, 'class': 'axis-direction ' + key }, []);
+				parts.yaxis.appendChild(label);
+				this.yLabels.push(label);
+			}
+			}
+			this.lastW = w;
+			this.lastH = h;
+		}
+		for (const [index, key] of ['tx', 'rx'].entries())
+			for (let i = 0; i <= DIV; i++)
+				this.yLabels[index * (DIV + 1) + i].textContent = fmt.fmtRate(bands[key].max * (1 - i / DIV));
+
+		const count = samples.length;
+		const xAt = (i) => padL + innerW * (samples[i].t - start) / HISTORY_MS;
+		const yAt = (v, key) => bands[key].top + innerH * (1 - Math.min(v, bands[key].max) / bands[key].max);
+
+		function series(key) {
+			if (!count)
+				return { line: '', fill: '' };
+			const y0 = bands[key].top + innerH;
+			const pts = samples.map((s, i) => xAt(i).toFixed(1) + ',' + yAt(s[key], key).toFixed(1));
+			const line = pts.join(' ');
+			let fill = '';
+			if (count > 1)
+				fill = 'M' + xAt(0).toFixed(1) + ',' + y0.toFixed(1) +
+					' L' + pts.join(' L') +
+					' L' + xAt(count - 1).toFixed(1) + ',' + y0.toFixed(1) + ' Z';
+			return { line, fill };
+		}
+
+		const rx = series('rx');
+		const tx = series('tx');
+		parts.lineRx.setAttribute('points', rx.line);
+		parts.lineTx.setAttribute('points', tx.line);
+		parts.fillRx.setAttribute('d', rx.fill);
+		parts.fillTx.setAttribute('d', tx.fill);
+
+		this.geom = { padL, padT, innerW, innerH, start, end, bands, count };
+
+		// 数据滑动后鼠标仍在图上时，按新坐标重定位十字线/提示框。
+		if (this.hoverClientX != null) {
+			const rect = chart.getBoundingClientRect();
+			this.positionHover(this.hoverClientX - rect.left);
+		} else {
+			this.hideHover();
+		}
+	},
+
+	onChartHover(ev) {
+		const chart = this.chartEl;
+		if (!chart)
+			return;
+		this.hoverClientX = ev.clientX;
+		const rect = chart.getBoundingClientRect();
+		this.positionHover(ev.clientX - rect.left);
+	},
+
+	positionHover(localX) {
+		const chart = this.chartEl;
+		const tip = this.tipEl;
+		const g = this.geom;
+		if (!chart || !tip || !g || !g.count) {
+			this.hideHover();
+			return;
+		}
+		const samples = this.history;
+		const { padL, padT, innerW, innerH, start, bands, count } = g;
+		const target = start + Math.max(0, Math.min(1, (localX - padL) / innerW)) * HISTORY_MS;
+		let i = 0;
+		for (let j = 1; j < count; j++)
+			if (Math.abs(samples[j].t - target) < Math.abs(samples[i].t - target)) i = j;
+
+		const s = samples[i] || { rx: 0, tx: 0, t: Date.now() };
+		const xi = padL + innerW * (s.t - start) / HISTORY_MS;
+		const yRx = bands.rx.top + innerH * (1 - Math.min(s.rx, bands.rx.max) / bands.rx.max);
+		const yTx = bands.tx.top + innerH * (1 - Math.min(s.tx, bands.tx.max) / bands.tx.max);
+
+		const hover = chart.querySelector('g.hover');
+		hover.style.display = '';
+		const cross = hover.querySelector('line.cross');
+		cross.setAttribute('x1', xi.toFixed(1));
+		cross.setAttribute('x2', xi.toFixed(1));
+		cross.setAttribute('y1', String(padT));
+		cross.setAttribute('y2', (bands.rx.top + innerH).toFixed(1));
+		const dotRx = hover.querySelector('circle.dot.rx');
+		dotRx.setAttribute('cx', xi.toFixed(1));
+		dotRx.setAttribute('cy', yRx.toFixed(1));
+		const dotTx = hover.querySelector('circle.dot.tx');
+		dotTx.setAttribute('cx', xi.toFixed(1));
+		dotTx.setAttribute('cy', yTx.toFixed(1));
+
+		tip.style.display = '';
+		tip.textContent = '';
+		tip.appendChild(E('div', { 'class': 'tip-t' }, new Date(s.t || Date.now()).toLocaleTimeString()));
+		tip.appendChild(E('div', { 'class': 'tip-row rx' }, [
+			E('span', { 'class': 'dot' }), _('Download') + ': ' + fmt.fmtRate(s.rx)
+		]));
+		tip.appendChild(E('div', { 'class': 'tip-row tx' }, [
+			E('span', { 'class': 'dot' }), _('Upload') + ': ' + fmt.fmtRate(s.tx)
+		]));
+
+		const cw = chart.clientWidth || (padL + innerW + 12);
+		const tw = tip.offsetWidth || 150;
+		let left = xi + 14;
+		if (left + tw > cw - 4)
+			left = xi - tw - 14;
+		if (left < 4)
+			left = 4;
+		tip.style.left = left.toFixed(0) + 'px';
+		tip.style.top = (padT + 6) + 'px';
+	},
+
+	hideHover() {
+		this.hoverClientX = null;
+		const chart = this.chartEl || (this.dash && this.dash.querySelector('.zen-dash-svg'));
+		const tip = this.tipEl || (this.dash && this.dash.querySelector('.zen-dash-tip'));
+		const hover = chart && chart.querySelector('g.hover');
+		if (hover)
+			hover.style.display = 'none';
+		if (tip)
+			tip.style.display = 'none';
+	},
+
+	async readCpu() {
+		const raw = await L.resolveDefault(fs.read('/proc/stat'), '');
+		const lines = String(raw || '').split(/\n/);
+		const now = cpuFromStat(lines[0]);
+		let cores = 0;
+		for (let i = 0; i < lines.length; i++) {
+			if (/^cpu\d+/.test(lines[i]))
+				cores++;
+		}
+		if (!cores)
+			cores = 1;
+
+		let pct = 0;
+		if (now && this.prevCpu && now.total > this.prevCpu.total) {
+			const dTotal = now.total - this.prevCpu.total;
+			const dIdle = now.idle - this.prevCpu.idle;
+			pct = (1 - dIdle / dTotal) * 100;
+		}
+		this.prevCpu = now;
+		return { pct: fmt.clampPct(pct), cores };
+	},
+
+	async readWifi() {
+		try {
+			if (!network || typeof network.getWifiNetworks !== 'function')
+				return { ssid: null, count: null };
+			const nets = await L.resolveDefault(network.getWifiNetworks(), []);
+			const active = (nets || []).filter((n) => {
+				try {
+					return typeof n.isUp === 'function' ? n.isUp() : true;
+				} catch (e) {
+					return false;
+				}
+			});
+			if (!active.length)
+				return { ssid: null, count: null };
+
+			const lists = await Promise.all(active.map((n) => {
+				if (typeof n.getAssocList !== 'function')
+					return Promise.resolve([]);
+				return L.resolveDefault(n.getAssocList(), []);
+			}));
+			const count = lists.reduce((s, a) => s + (Array.isArray(a) ? a.length : 0), 0);
+			return { ssid: null, count: count };
+		} catch (e) {
+			return { ssid: null, count: null };
+		}
+	},
+
+	async readDisk(info) {
+		const root = info && info.root;
+		if (root && Number(root.total) > 0) {
+			return {
+				total: Number(root.total) * 1024,
+				used: Number(root.used) * 1024
+			};
+		}
+
+		const mounts = await L.resolveDefault(callMountPoints(), []);
+		if (Array.isArray(mounts)) {
+			let hit = null;
+			for (let i = 0; i < mounts.length; i++) {
+				if (mounts[i] && mounts[i].mount === '/') {
+					hit = mounts[i];
+					break;
+				}
+			}
+			if (!hit && mounts[0])
+				hit = mounts[0];
+			if (hit && Number(hit.size) > 0) {
+				const total = Number(hit.size);
+				const free = Number(hit.free) || 0;
+				return { total, used: Math.max(0, total - free) };
+			}
+		}
+
+		return { total: 0, used: 0 };
+	},
+
+	looksLikeDevs(devs) {
+		if (!devs || typeof devs !== 'object' || Array.isArray(devs))
+			return false;
+		for (const name in devs) {
+			const d = devs[name];
+			if (d && typeof d === 'object' && (d.statistics || d.stats || d.type || d.up != null))
+				return true;
+		}
+		return false;
+	},
+
+	unwrapDevs(raw) {
+		if (this.looksLikeDevs(raw))
+			return raw;
+		if (raw && typeof raw === 'object') {
+			if (this.looksLikeDevs(raw.values))
+				return raw.values;
+			if (this.looksLikeDevs(raw.devices))
+				return raw.devices;
+		}
+		return null;
+	},
+
+	async readDevs() {
+		return this.unwrapDevs(await settled(callDevStatus(), {}))
+			|| this.unwrapDevs(await settled(callNetworkDevices(), {}))
+			|| {};
+	},
+
+	async readLan() {
+		try {
+			if (!network || typeof network.getNetwork !== 'function')
+				return null;
+			const lan = await L.resolveDefault(network.getNetwork('lan'), null);
+			if (lan)
+				return lan;
+			if (typeof network.getNetworks !== 'function')
+				return null;
+			const nets = await L.resolveDefault(network.getNetworks(), []);
+			for (let i = 0; i < (nets || []).length; i++) {
+				const n = nets[i];
+				try {
+					if (n && typeof n.isWAN === 'function' && !n.isWAN())
+						return n;
+				} catch (e) { /* ignore */ }
+			}
+			return (nets && nets[0]) || null;
+		} catch (e) {
+			return null;
+		}
+	},
+
+	tick() {
+		// LuCI starts polling immediately; share the manual first refresh with it.
+		if (this.refreshPromise) return this.refreshPromise;
+		// The first refresh may finish before poll.start(); avoid a tiny CPU sample.
+		const now = Date.now();
+		const elapsed = this.refreshAt == null ? MIN_REFRESH_MS : now - this.refreshAt;
+		if (elapsed >= 0 && elapsed < MIN_REFRESH_MS) return Promise.resolve();
+		this.refreshAt = now;
+		this.refreshPromise = this.refresh()
+			.catch((e) => console.error('zen-dashboard', e))
+			.finally(() => { this.refreshPromise = null; });
+		return this.refreshPromise;
+	},
+
+	async refresh() {
+		const now = Date.now();
+		// network 模块默认命中缓存；每帧先 flushCache，否则 WAN/LAN/WiFi 状态
+		// 首屏后冻结（对齐官方 status/index.js）。
+		if (network && typeof network.flushCache === 'function')
+			await L.resolveDefault(network.flushCache(), null);
+		const wanP = (network && typeof network.getWANNetworks === 'function')
+			? network.getWANNetworks()
+			: [];
+		const wan6P = (network && typeof network.getWAN6Networks === 'function')
+			? network.getWAN6Networks() : [];
+		if (!this.boardPromise) this.boardPromise = settled(callSystemBoard(), {});
+		const [info, cpu, devs, wans, lan, wans6, board] = await Promise.all([
+			settled(callSystemInfo(), {}),
+			this.readCpu(),
+			this.readDevs(),
+			settled(wanP, []),
+			this.readLan(),
+			settled(wan6P, []),
+			this.boardPromise
+		]);
+
+		const sys = info || {};
+		const wan = (wans || [])[0];
+		const wan6 = (wans6 || [])[0] || (addrsOf(wan, true).length ? wan : null);
+		this.setSystemInfo(board || {}, sys);
+		this.setUptime(sys.uptime, sys.localtime);
+
+		const loadRaw = (sys.load || [0, 0, 0]).map((v) => (Number(v) || 0) / 65535);
+		const perCore = loadRaw[0] / (cpu.cores || 1);
+		const loadPct = fmt.clampPct(perCore * 100);
+		const loadTxt = loadRaw.map((v) => v.toFixed(2)).join(' / ');
+		const loadHint = perCore < 0.7 ? _('Running smoothly') : (
+			perCore < 1 ? _('Normal load') : _('High load')
+		);
+
+		const mem = sys.memory || {};
+		const memTotal = Number(mem.total) || 0;
+		const memAvail = Number(mem.available != null ? mem.available : ((Number(mem.free) || 0) + (Number(mem.buffered) || 0)));
+		const memUsed = memTotal ? Math.max(0, memTotal - memAvail) : 0;
+		const memPct = memTotal ? (memUsed / memTotal) * 100 : 0;
+
+		const [disk, healthData, leases, dhcpConfig] = await Promise.all([
+			this.readDisk(sys),
+			health.read(!!wan && (typeof wan.isUp === 'function' ? wan.isUp() : !!addrsOf(wan, false).length)),
+			settled(callDhcpLeases(), null), settled(callDHCPConfig('dhcp'), null)
+		]);
+		this.setHealth(healthData, health.dhcpUsage(dhcpConfig, leases, lan));
+		this.diskInfo = disk;
+		const diskUsed = (disk && disk.used) || 0;
+		const diskTotal = (disk && disk.total) || 0;
+		const diskPct = diskTotal ? (diskUsed / diskTotal) * 100 : 0;
+
+		this.setGauge('load', _('Load'), loadHint, loadTxt, loadPct);
+		this.setGauge('cpu', 'CPU', '%d %s'.format(cpu.cores, _('cores')), '', cpu.pct);
+		this.setGauge('ram', _('Memory'), fmt.fmtBytes(memUsed), _('Total %s').format(fmt.fmtBytes(memTotal)), memPct);
+		this.setGauge('disk', _('Storage'), fmt.fmtBytes(diskUsed), _('Total %s').format(fmt.fmtBytes(diskTotal)), diskPct);
+
+		this.setNetworkRow('wan', wan, false);
+		this.setNetworkRow('lan', lan, false);
+		this.setNetworkRow('wan6', wan6, true);
+		this.wanDevice = this.selectWanDevice(wan, devs || {});
+		this.wanProto = wan && wan.getProtocol ? String(wan.getProtocol()).toUpperCase().replace('PPPOE', 'PPPoE') : '';
+		if (!this.ifaceChosen && this.wanDevice && this.iface !== this.wanDevice) {
+			this.iface = this.wanDevice;
+			this.historyLoadedFor = null;
+			this.history = [];
+			this.historyClockOffset = 0;
+			this.historyEnd = null;
+			this.prevNet = null;
+			this.prevAt = 0;
+		}
+
+		await this.loadRealtimeHistory();
+		const stats = this.pickStats(devs || {}, this.iface);
+		const hadBaseline = !!(this.prevNet && this.prevAt);
+		let rxRate = 0, txRate = 0;
+		if (this.prevNet && this.prevAt) {
+			const dt = Math.max((now - this.prevAt) / 1000, 0.001);
+			rxRate = Math.max(0, (stats.rx - this.prevNet.rx) / dt);
+			txRate = Math.max(0, (stats.tx - this.prevNet.tx) / dt);
+		}
+		this.prevNet = { rx: stats.rx, tx: stats.tx };
+		this.prevAt = now;
+		const sampleAt = now + (this.historyClockOffset || 0);
+		if (hadBaseline || !this.history.length)
+			this.history.push({ t: sampleAt, rx: rxRate, tx: txRate });
+		this.trimRealtimeHistory(Math.max(sampleAt, this.historyEnd || 0));
+
+		this.renderTraffic({
+			rxRate, txRate,
+			rxTotal: stats.rx,
+			txTotal: stats.tx,
+			names: stats.listed
+		});
+	}
+});

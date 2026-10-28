@@ -4,29 +4,27 @@
 
 | 包 | 用途 |
 | --- | --- |
-| `luci-theme-zen` | Zen 主题、登录页和首页仪表盘，可单独安装 |
-| `zen-traffic` | 流量采集与存储后台 |
-| `luci-app-zen-traffic` | 流量页面，依赖 `zen-traffic`，也可在其他主题下使用 |
-| `zen-full` | 通过已配置的 Zen 软件源安装主题和流量整套依赖 |
+| `luci-app-zen` | 全部页面：Zen 主题、登录页、首页、历史分析、通知和设置；架构为 `all` |
+| `luci-zen` | Rust/eBPF 采集、设备统计、SQLite 存储及后台服务；匹配目标架构 |
+
+从 0.2.4 起，每个 target 只生成两个 APK；`luci-app-zen` 依赖 `luci-zen`。旧的主题包、流量页面包和 `zen-full` 合并为前端包，不再单独出包。
 
 ## 安装与使用
 
-签名 APK 软件源、整套安装入口和自编译固件的兼容范围，见 [APK 安装与发布](docs/APK-DISTRIBUTION.md)。对应软件源需要维护者先完成签名发布。
+维护者可通过 GitHub Actions 发布按 SDK 和目标划分的签名 APK 软件源。软件源上线后可使用随 Release 提供的 `install-zen.sh` 安装；首次信任公钥前需核对发布说明中的 SHA256 指纹。
 
-从 [Releases](https://github.com/zdabing/luci-zen/releases) 或 [构建产物](https://github.com/zdabing/luci-zen/actions/workflows/build.yml) 下载包，上传到路由器 `/tmp`。主题和流量页面包为 `all` 架构；后台包须匹配固件大版本与 target/subtarget。`v*` 标签发布提供 OpenWrt 25 的 `x86/64` 和 `rockchip/armv8` 两组附件，按文件名的目标后缀选择一组。每种包只放一个版本，按实际包管理器选择一组命令：
+从 [Releases](https://github.com/zdabing/luci-zen/releases) 或 [构建产物](https://github.com/zdabing/luci-zen/actions/workflows/build.yml) 下载包，上传到路由器 `/tmp`。页面包为 `all` 架构；后台包须匹配固件大版本与 target/subtarget。`v*` 标签发布提供 OpenWrt 25 的 `x86/64` 和 `rockchip/armv8` 两组附件，按文件名的目标后缀选择一组。每种包只放一个版本，按实际包管理器选择一组命令：
 
 ```sh
 # apk 固件
 apk update
-apk add --allow-untrusted /tmp/zen-traffic-*.apk \
-  /tmp/luci-app-zen-traffic-*.apk /tmp/luci-theme-zen-*.apk
+apk add --allow-untrusted /tmp/luci-zen-*.apk /tmp/luci-app-zen-*.apk
 ```
 
 ```sh
 # opkg 固件：使用对应 SDK 生成的 .ipk
 opkg update
-opkg install /tmp/zen-traffic_*.ipk \
-  /tmp/luci-app-zen-traffic_*.ipk /tmp/luci-theme-zen_*.ipk
+opkg install /tmp/luci-zen_*.ipk /tmp/luci-app-zen_*.ipk
 ```
 
 依赖由匹配的软件源安装；离线安装需另外准备依赖包。内核模块必须匹配固件 ABI，不能只按 CPU 架构选包。
@@ -41,11 +39,13 @@ uci commit luci
 /etc/init.d/zen-traffic start
 ```
 
-只使用主题时，仅安装 `luci-theme-zen`，跳过流量服务命令。安装或升级后强制刷新浏览器。
+从旧版迁移时，将两个新 APK 放在同一次安装中，使用 `apk add --upgrade --allow-untrusted /tmp/luci-zen-*.apk /tmp/luci-app-zen-*.apk`。新包通过 `PROVIDES` 接管旧包名；不要提前卸载旧包，也不要删除配置或数据库。旧版更新页不认识新包名，首次迁移需手动安装，后续更新页只显示两个新包。
 
-- **首页仪表盘**：查看系统、网络和设备用量；右上角「Zen 设置」调整显示模式、导航布局及检查 Zen 软件包更新。
+后台运行名仍为 `zen-trafficd`，服务仍为 `/etc/init.d/zen-traffic`，UCI 与数据库路径保持原样。安装或升级后强制刷新浏览器。
+
+- **首页仪表盘**：四张卡片显示 CPU、内存、温度和连接数；网络地址随 IPv6 有无调整布局，并查看实时网速和设备用量；右上角「Zen 设置」调整显示模式、导航布局及检查 Zen 软件包更新。
 - **外观与布局**：登录后修改会保存到路由器，深浅模式及导航布局在不同浏览器间共享；登录页的临时调整不会修改路由器设置。首次迁移会保留已有浏览器中的偏好。
-- **状态 → Zen 流量**：进入实时监控、历史分析、通知设置。
+- **Zen 导航**：网络概览、流量分析、设置；通知与版本更新统一放在设置页。
 - **通知设置**：默认关闭，配置飞书或企业微信 Webhook，测试成功后启用阈值提醒或每日报告。
 
 ## 集成到固件
@@ -56,9 +56,7 @@ uci commit luci
 
 ```sh
 git clone https://github.com/zdabing/luci-zen.git ../luci-zen
-cp -R ../luci-zen/luci-theme-zen package/
-cp -R ../luci-zen/zen-traffic package/
-cp -R ../luci-zen/luci-app-zen-traffic package/
+cp -R ../luci-zen/luci-app-zen ../luci-zen/luci-zen package/
 ./scripts/feeds update -a
 ./scripts/feeds install -a
 make menuconfig
@@ -68,11 +66,10 @@ make menuconfig
 
 | 菜单 | 包 |
 | --- | --- |
-| LuCI → Themes | `luci-theme-zen` |
-| LuCI → Applications | `luci-app-zen-traffic` |
-| Network | `zen-traffic`（通常由应用依赖选中） |
+| LuCI → Applications | `luci-app-zen` |
+| Network | `luci-zen`（由页面包依赖选中） |
 
-选 `[*]` 内置固件，选 `<M>` 只生成安装包。仅需主题时只选 `luci-theme-zen`。
+选 `[*]` 内置固件，选 `<M>` 只生成安装包。选择页面包时自动选择后台依赖。
 
 ```sh
 make defconfig
@@ -88,26 +85,22 @@ make -j"$(nproc)" V=s
 
 ```sh
 git clone https://github.com/zdabing/luci-zen.git ../luci-zen
-cp -R ../luci-zen/luci-theme-zen package/
-cp -R ../luci-zen/zen-traffic package/
-cp -R ../luci-zen/luci-app-zen-traffic package/
+cp -R ../luci-zen/luci-app-zen ../luci-zen/luci-zen package/
 ./scripts/feeds update -a
 ./scripts/feeds install rust libubus libubox clang bpf-headers luci-base
 
 cat >> .config <<'EOF'
-CONFIG_PACKAGE_luci-theme-zen=m
-CONFIG_PACKAGE_zen-traffic=m
-CONFIG_PACKAGE_luci-app-zen-traffic=m
+CONFIG_PACKAGE_luci-app-zen=m
+CONFIG_PACKAGE_luci-zen=m
 EOF
 make defconfig
-make package/zen-traffic/compile V=s -j"$(nproc)"
-make package/luci-app-zen-traffic/compile V=s -j"$(nproc)"
-make package/luci-theme-zen/compile V=s -j"$(nproc)"
+make package/luci-zen/compile V=s -j"$(nproc)"
+make package/luci-app-zen/compile V=s -j"$(nproc)"
 
 find bin/packages -type f \( -name '*zen*.apk' -o -name '*zen*.ipk' \)
 ```
 
-包格式由固件分支决定，编译完成后按上面的安装步骤操作。只编译主题时，仅复制主题目录、安装 `luci-base` feed、设置主题为 `m`，执行主题编译命令；无需 Rust/eBPF 工具链。ImageBuilder 可集成已编译且匹配的包。
+包格式由固件分支决定，编译完成后按上面的安装步骤操作。两个源码目录需一并放入 SDK，确保依赖元数据完整。ImageBuilder 可集成已编译且匹配的包。
 
 ## 采集配置与检查
 
@@ -136,4 +129,4 @@ logread -e zen-traffic
 
 确认服务返回正常、设备上传/下载方向正确；实时历史启动后需等待采样。
 
-详细说明：[页面与通知](docs/TRAFFIC_PAGES_AND_NOTIFICATIONS.md) · [版本与更新](docs/VERSIONS_AND_UPDATES.md) · [开发指南](docs/DEVELOPMENT.md) · [测试记录](docs/TESTING.md) · [更新日志](CHANGELOG.md)。
+版本变更见 [更新记录](CHANGELOG.md)。仓库只维护正式前后端源码及构建发布脚本；本地测试、预览、文档和验收资料不进入发布源码。

@@ -1,0 +1,20 @@
+# luci-zen 后端 workspace（Rust/Aya + SQLite）。
+[workspace]
+resolver = "2"
+members = [
+    "crates/zen-ubus-sys",
+    "crates/zen-bpf",
+    "crates/zen-trafficd",
+]
+
+[workspace.package]
+version = "0.2.4"
+edition = "2024"
+rust-version = "1.87"
+license = "GPL-2.0"
+
+[profile.release]
+strip = true
+codegen-units = 1
+lto = true
+panic = "abort"

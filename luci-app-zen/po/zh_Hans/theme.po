@@ -1,0 +1,1115 @@
+# luci-theme-zen simplified Chinese translations.
+msgid ""
+msgstr ""
+"Project-Id-Version: luci-theme-zen\n"
+"Language: zh_Hans\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "All"
+msgstr "全部"
+
+msgid "Collecting data..."
+msgstr "正在收集数据..."
+
+msgid "Connected"
+msgstr "已连接"
+
+msgid "Dark mode"
+msgstr "深色模式"
+
+msgid "Device Traffic"
+msgstr "设备流量"
+
+msgid "Device traffic requires the zen-traffic service (not detected). Everything else keeps working."
+msgstr "设备流量需要 zen-traffic 服务（未检测到）。其余功能不受影响。"
+
+msgid "Down"
+msgstr "已断开"
+
+msgid "Download"
+msgstr "下载"
+
+msgid "Go to firmware upgrade..."
+msgstr "前往固件升级..."
+
+msgid "Go to password configuration..."
+msgstr "前往密码配置..."
+
+msgid "High load"
+msgstr "高负载"
+
+msgid "Interface"
+msgstr "接口"
+
+msgid "Invalid username and/or password! Please try again."
+msgstr "用户名或密码错误，请重试。"
+
+msgid "JavaScript required!"
+msgstr "需要启用 JavaScript！"
+
+msgid "LAN IP"
+msgstr "LAN IP"
+
+msgid "Light mode"
+msgstr "浅色模式"
+
+msgid "Load"
+msgstr "系统负载"
+
+msgid "Loading view…"
+msgstr "正在加载视图…"
+
+msgid "Log in"
+msgstr "登录"
+
+msgid "Logging in…"
+msgstr "正在登录…"
+
+msgid "Logout"
+msgstr "登出"
+
+msgid "Lua compatibility mode active"
+msgstr "Lua 兼容模式已启用"
+
+msgid "MAC"
+msgstr "MAC"
+
+msgid "Menu failed to load. Please refresh the page to retry."
+msgstr "菜单加载失败，请刷新页面重试。"
+
+msgid "Network"
+msgstr "网络状态"
+
+msgid ""
+"No changes to settings will be stored and are lost after rebooting. This "
+"mode should only be used to install a firmware upgrade"
+msgstr ""
+"任何设置更改都不会被保存，且重启后将丢失。此模式仅应用于安装固件升级"
+
+msgid "No devices yet"
+msgstr "暂无设备"
+
+msgid "No password set!"
+msgstr "未设置密码！"
+
+msgid "Normal load"
+msgstr "正常负载"
+
+msgid "Password"
+msgstr "密码"
+
+msgid "Realtime Traffic"
+msgstr "实时流量"
+
+msgid "Router"
+msgstr "路由器"
+
+msgid "Running smoothly"
+msgstr "运行流畅"
+
+msgid "Storage"
+msgstr "存储"
+
+msgid "Show all"
+msgstr "显示全部"
+
+msgid "Show less"
+msgstr "收起"
+
+msgid "Switch to dark mode"
+msgstr "切换到深色模式"
+
+msgid "Switch to light mode"
+msgstr "切换到浅色模式"
+
+msgid "System running in recovery (initramfs) mode."
+msgstr "系统正在恢复（initramfs）模式中运行。"
+
+msgid ""
+"There is no password set on this router. Please configure a root password "
+"to protect the web interface."
+msgstr ""
+"此路由器尚未设置 root 密码，请配置 root 密码以保护 Web 界面。"
+
+msgid "Today"
+msgstr "今日"
+
+msgid "Toggle light/dark mode"
+msgstr "切换浅色/深色模式"
+
+msgid "Toggle menu"
+msgstr "切换菜单"
+
+msgid "Total"
+msgstr "总计"
+
+msgid "Total received"
+msgstr "累计下载"
+
+msgid "Total sent"
+msgstr "累计上传"
+
+msgid "Upload"
+msgstr "上传"
+
+msgid "Username"
+msgstr "用户名"
+
+msgid "WAN IPv4"
+msgstr "WAN IPv4"
+
+msgid "WAN IPv6"
+msgstr "WAN IPv6"
+
+msgid "WAN IPv4 gateway"
+msgstr "WAN IPv4 网关"
+
+msgid "WAN IPv4 DNS"
+msgstr "WAN IPv4 DNS"
+
+msgid "Temperature"
+msgstr "温度"
+
+msgid "Connections"
+msgstr "连接数"
+
+msgid "Latency"
+msgstr "延迟"
+
+msgid "Prefix %s"
+msgstr "前缀 %s"
+
+msgid "No delegated prefix"
+msgstr "未获得委派前缀"
+
+msgid "Restarted %s"
+msgstr "%s 重启"
+
+msgid "DHCP leases %s / %s"
+msgstr "DHCP 已用 %s / %s"
+
+msgid "DHCP disabled"
+msgstr "DHCP 已关闭"
+
+msgid "Static DHCP leases only"
+msgstr "仅静态 DHCP 租约"
+
+msgid "DHCP leases unavailable"
+msgstr "DHCP 租约暂不可用"
+
+msgid "Temperature sensor unavailable"
+msgstr "温度传感器不可用"
+
+msgid "Connection count unavailable"
+msgstr "连接数暂不可用"
+
+msgid "Timeout"
+msgstr "超时"
+
+msgid "Wi-Fi"
+msgstr "Wi-Fi"
+
+msgid "Wired"
+msgstr "有线"
+
+msgid "You must enable JavaScript in your browser or LuCI will not work properly."
+msgstr "必须在浏览器中启用 JavaScript，否则 LuCI 无法正常工作。"
+
+msgid "cores"
+msgstr "核心"
+
+msgid "Sign in to manage your network."
+msgstr "登录以管理你的网络。"
+
+msgid "Show password"
+msgstr "显示密码"
+
+msgid "Hide password"
+msgstr "隐藏密码"
+
+msgid "Welcome back"
+msgstr "欢迎回来"
+
+msgid "Hostname"
+msgstr "主机名"
+
+msgid "Connection"
+msgstr "连接方式"
+
+msgid "Uptime"
+msgstr "运行时间"
+
+msgid "Startup time"
+msgstr "启动时间"
+
+msgid "Memory"
+msgstr "内存"
+
+msgid "Total %s"
+msgstr "共 %s"
+
+msgid "Protocol"
+msgstr "协议"
+
+msgid "Address"
+msgstr "地址"
+
+msgid "Status"
+msgstr "状态"
+
+msgid "DHCP client"
+msgstr "DHCP 客户端"
+
+msgid "Static address"
+msgstr "静态地址"
+
+msgid "Running"
+msgstr "运行中"
+
+msgid "Last 5 minutes"
+msgstr "最近5分钟"
+
+msgid "5-second updates"
+msgstr "每5秒更新"
+
+msgid "Download (solid)"
+msgstr "下载（实线）"
+
+msgid "Upload (dashed)"
+msgstr "上传（虚线）"
+
+msgid "5 minutes ago"
+msgstr "5分钟前"
+
+msgid "Now"
+msgstr "现在"
+
+msgid "%dd"
+msgstr "%d天"
+
+msgid "Loading history…"
+msgstr "正在加载历史…"
+
+msgid "Last activity"
+msgstr "最后活动时间"
+
+msgid "Open process list"
+msgstr "打开进程列表"
+
+msgid "Used %s"
+msgstr "已用 %s"
+
+msgid "Close"
+msgstr "关闭"
+
+msgid "Architecture"
+msgstr "架构"
+
+msgid "Firmware version"
+msgstr "固件版本"
+
+msgid "System time"
+msgstr "系统时间"
+
+msgid "64-bit"
+msgstr "64位"
+
+msgid "32-bit"
+msgstr "32位"
+
+msgid "Powered by"
+msgstr "技术支持"
+
+msgid "%dd %dh"
+msgstr "%d天 %d小时"
+
+msgid "%dh %dm"
+msgstr "%d小时 %d分钟"
+
+msgid "%dm"
+msgstr "%d分钟"
+msgid "Realtime upload"
+msgstr "实时上传"
+
+msgid "Sort descending"
+msgstr "按从高到低排序"
+
+msgid "Sort ascending"
+msgstr "按从低到高排序"
+
+msgid "Independent scales"
+msgstr "左右轴独立刻度"
+
+msgid "Other devices"
+msgstr "其他设备"
+
+msgid "Unassigned"
+msgstr "未归属"
+
+msgid "Upload share"
+msgstr "上传占比"
+
+msgid "Download share"
+msgstr "下载占比"
+
+msgid "View hourly usage"
+msgstr "查看每小时用量"
+
+msgid "Recorded traffic"
+msgstr "已统计流量"
+
+msgid "No internet traffic recorded yet"
+msgstr "暂无互联网流量"
+
+msgid "WAN interface: %s"
+msgstr "WAN 接口：%s"
+
+msgid "Loading internet usage…"
+msgstr "正在读取互联网用量…"
+
+msgid "Internet usage by device"
+msgstr "设备互联网用量"
+
+msgid "Internet shares require an updated zen-traffic service and a valid system clock."
+msgstr "互联网占比需要更新流量服务并校准系统时间。"
+
+msgid "Usage temporarily unavailable; showing the last result."
+msgstr "暂时无法读取用量，正在显示上次结果。"
+
+msgid "Theme settings"
+msgstr "主题设置"
+
+msgid "Display mode"
+msgstr "显示模式"
+
+msgid "Follow system"
+msgstr "跟随系统"
+
+msgid "Saved in this browser"
+msgstr "已保存在此浏览器"
+
+msgid "Saved on router; applies across browsers"
+msgstr "已保存到路由器，不同浏览器均可生效"
+
+msgid "Saving to router…"
+msgstr "正在保存到路由器…"
+
+msgid "Could not save to router. Try again."
+msgstr "未能保存到路由器，请重试。"
+
+msgid "Retry saving"
+msgstr "重新保存"
+
+msgid "Choose an option to save it on the router"
+msgstr "选择外观选项后将保存到路由器"
+
+msgid "Log in to save appearance across browsers"
+msgstr "登录后可保存外观，让不同浏览器均可生效"
+
+msgid "Storage unavailable; appearance applies for this session only"
+msgstr "浏览器存储不可用，设置仅在本次会话生效"
+
+msgid "Navigation layout"
+msgstr "导航布局"
+
+msgid "Left navigation"
+msgstr "左侧导航"
+
+msgid "Top navigation"
+msgstr "顶部导航"
+
+msgid "OpenWrt overview"
+msgstr "OpenWrt 概览"
+
+msgid "Zen theme"
+msgstr "Zen 主题"
+
+msgid "Zen traffic interface"
+msgstr "Zen 流量界面"
+
+msgid "Zen traffic service"
+msgstr "Zen 流量服务"
+
+msgid "Reading…"
+msgstr "读取中…"
+
+msgid "Refresh versions"
+msgstr "刷新版本"
+
+msgid "Check for updates"
+msgstr "检查更新"
+
+msgid "Updates have not been checked."
+msgstr "尚未检查更新。"
+
+msgid "Versions & updates"
+msgstr "版本与更新"
+
+msgid "Not installed"
+msgstr "未安装"
+
+msgid "Unable to read"
+msgstr "无法读取"
+
+msgid "The running traffic service differs from its installed version. Restart the service after upgrading."
+msgstr "运行中的流量服务与安装版本不同，升级后请重启服务。"
+
+msgid "Manage Zen packages"
+msgstr "管理 Zen 软件包"
+
+msgid "Read only"
+msgstr "只读"
+
+msgid "Package management is unavailable for this account."
+msgstr "当前账号没有可用的软件包管理页面。"
+
+msgid "Checking releases…"
+msgstr "正在检查发布…"
+
+msgid "GitHub rate limit reached. Try again later."
+msgstr "GitHub 请求次数已达上限，请稍后重试。"
+
+msgid "Release source is unavailable."
+msgstr "发布源不可用。"
+
+msgid "Update check failed. Check connectivity and retry."
+msgstr "检查更新失败，请检查网络后重试。"
+
+msgid "Last checked: %s"
+msgstr "检查时间：%s"
+
+msgid "No stable releases found."
+msgstr "未找到正式发布。"
+
+msgid "Unable to compare"
+msgstr "无法比较"
+
+msgid "Update available"
+msgstr "有可用更新"
+
+msgid "Up to date"
+msgstr "已是最新"
+
+msgid "Installed version is newer"
+msgstr "当前安装版本较新"
+
+msgid "View releases"
+msgstr "查看发布"
+
+msgid "Unknown"
+msgstr "未知"
+
+msgid "Zen settings"
+msgstr "Zen 设置"
+
+msgid "Appearance & layout"
+msgstr "外观与布局"
+
+msgid "Appearance controls are available when using the Zen theme."
+msgstr "使用 Zen 主题时可设置外观与布局。"
+
+msgid "Automatic"
+msgstr "自动识别"
+
+msgid "Phone"
+msgstr "手机"
+
+msgid "Tablet"
+msgstr "平板"
+
+msgid "Desktop"
+msgstr "台式电脑"
+
+msgid "Laptop"
+msgstr "笔记本"
+
+msgid "TV"
+msgstr "电视"
+
+msgid "Smart device"
+msgstr "智能设备"
+
+msgid "Device identity"
+msgstr "设备识别"
+
+msgid "Brand"
+msgstr "品牌"
+
+msgid "Device type"
+msgstr "设备类型"
+
+msgid "Model"
+msgstr "型号"
+
+msgid "Unable to save device identity"
+msgstr "设备识别信息保存失败，请重试"
+
+msgid "Automatic uses device names and MAC vendors. Private MAC addresses cannot identify a brand."
+msgstr "自动识别参考设备名称和 MAC 厂商；私有 MAC 无法判断品牌。"
+
+msgid "Identified from MAC vendor"
+msgstr "根据 MAC 厂商识别"
+
+msgid "Manually assigned"
+msgstr "手动指定"
+
+msgid "Reported device name"
+msgstr "设备名称报告的信息"
+
+msgid "Save"
+msgstr "保存"
+
+msgid "Cancel"
+msgstr "取消"
+
+msgid "Resetting…"
+msgstr "正在重置…"
+
+msgid "Retry failed devices"
+msgstr "重试失败设备"
+
+msgid "This day"
+msgstr "本日"
+
+msgid "This week"
+msgstr "本周"
+
+msgid "This month"
+msgstr "本月"
+
+msgid "All time"
+msgstr "全部"
+
+msgid "Time range"
+msgstr "时间范围"
+
+msgid "Release information is incomplete."
+msgstr "发布信息不完整，暂时无法判断更新。"
+
+msgid "No compatible build has been published."
+msgstr "尚未发布适配此固件的版本。"
+
+msgid "Package details"
+msgstr "软件包详情"
+
+msgid "Preparing update…"
+msgstr "正在准备更新…"
+
+msgid "Checking package…"
+msgstr "正在检查软件包…"
+
+msgid "Downloading on router…"
+msgstr "路由器正在下载…"
+
+msgid "Verifying package…"
+msgstr "正在校验软件包…"
+
+msgid "Installing package…"
+msgstr "正在安装软件包…"
+
+msgid "Restarting traffic service…"
+msgstr "正在重启流量服务…"
+
+msgid "Update completed."
+msgstr "更新完成。"
+
+msgid "Update failed."
+msgstr "更新失败。"
+
+msgid "Another update is running."
+msgstr "已有更新正在进行。"
+
+msgid "Invalid update request."
+msgstr "更新请求无效。"
+
+msgid "This updater requires an APK-based OpenWrt system."
+msgstr "此更新功能需要使用 APK 的 OpenWrt 系统。"
+
+msgid "The selected package is not installed."
+msgstr "尚未安装所选软件包。"
+
+msgid "The package does not match this router."
+msgstr "软件包与此路由器不匹配。"
+
+msgid "Package verification failed; nothing was installed."
+msgstr "软件包校验失败，未执行安装。"
+
+msgid "Download failed. Check the router internet connection and retry."
+msgstr "下载失败，请检查路由器的网络连接后重试。"
+
+msgid "The download size does not match."
+msgstr "下载文件大小不符。"
+
+msgid "Not enough temporary space on the router."
+msgstr "路由器临时存储空间不足。"
+
+msgid "The selected version is no longer newer."
+msgstr "所选版本已不是较新版本。"
+
+msgid "The system package manager is busy. Try again later."
+msgstr "系统包管理器正在运行，请稍后重试。"
+
+msgid "The package manager could not install the update."
+msgstr "包管理器无法安装此更新。"
+
+msgid "The installed version could not be verified."
+msgstr "无法核实安装后的版本。"
+
+msgid "The package was installed, but the traffic service could not start."
+msgstr "软件包已安装，但流量服务未能启动。"
+
+msgid "The update was interrupted. Refresh versions before retrying."
+msgstr "更新已中断，请刷新版本后重试。"
+
+msgid "Unable to start the update service."
+msgstr "无法启动更新服务。"
+
+msgid "Unable to complete the update."
+msgstr "无法完成更新。"
+
+msgid "Reconnecting to the update service…"
+msgstr "正在重新连接更新服务…"
+
+msgid "Reload page"
+msgstr "重新载入页面"
+
+msgid "Updates are downloaded, verified and installed by the router. Keep power connected during installation."
+msgstr "更新由路由器下载、校验并安装，安装期间请保持供电。"
+
+msgid "Download APK"
+msgstr "下载 APK"
+
+msgid "Update"
+msgstr "更新"
+
+msgid "Close navigation"
+msgstr "关闭导航"
+
+msgid "Open navigation"
+msgstr "打开导航"
+
+msgid "Expand navigation"
+msgstr "展开导航"
+
+msgid "Collapse navigation"
+msgstr "收起导航"
+
+msgid "Close details"
+msgstr "关闭详情"
+
+msgid "Device details"
+msgstr "设备详情"
+
+msgid "Select device"
+msgstr "选择设备"
+
+msgid "Search name, IP or MAC"
+msgstr "搜索设备名称、IP 或 MAC"
+
+msgid "Search devices"
+msgstr "搜索设备"
+
+msgid "Connection filter"
+msgstr "连接类型筛选"
+
+msgid "All connections"
+msgstr "全部连接"
+
+msgid "Offline"
+msgstr "离线"
+
+msgid "No matching devices. Try another search or connection filter."
+msgstr "没有符合条件的设备，请更换关键词或连接类型。"
+
+msgid "%d selected"
+msgstr "已选 %d 台"
+
+msgid "%d devices could not be reset. Retry to process only these devices."
+msgstr "%d 台设备重置失败，重试时仅处理这些设备。"
+
+msgid "This clears the selected devices’ traffic counters. This action cannot be undone."
+msgstr "这将清空所选设备的流量统计，操作无法撤销。"
+
+msgid "Reset selected device counters"
+msgstr "重置所选设备统计"
+
+msgid "Reset counters"
+msgstr "重置统计"
+
+msgid "History analysis"
+msgstr "历史分析"
+
+msgid "Mist"
+msgstr "雾岚"
+
+msgid "A quieter view of your network."
+msgstr "让网络状态，一目了然。"
+
+msgid "Keep pages within reach in the sidebar."
+msgstr "常用页面集中在左侧，随时切换。"
+
+msgid "Use the full width with navigation above."
+msgstr "导航置于顶部，为内容留出完整宽度。"
+
+msgid "Changes apply immediately."
+msgstr "更改即时生效。"
+
+msgid "Internet upload"
+msgstr "互联网上传"
+
+msgid "Internet download"
+msgstr "互联网下载"
+
+msgid "LAN upload"
+msgstr "局域网上传"
+
+msgid "LAN download"
+msgstr "局域网下载"
+
+msgid "Zen"
+msgstr "Zen"
+
+msgid "Realtime"
+msgstr "实时"
+
+msgid "Analysis"
+msgstr "分析"
+
+msgid "Settings"
+msgstr "设置"
+
+msgid "Notification settings"
+msgstr "通知设置"
+
+msgid "Loading…"
+msgstr "正在加载…"
+
+msgid "Retry"
+msgstr "重试"
+
+msgid "Notification settings are unavailable. Install and enable luci-app-zen and luci-zen."
+msgstr "通知设置不可用，请安装并启用 luci-app-zen 和 luci-zen。"
+
+msgid "Unable to load versions. Please try again."
+msgstr "无法加载版本信息，请重试。"
+
+msgid "Reset counters…"
+msgstr "重置统计…"
+
+msgid "Select all devices"
+msgstr "全选设备"
+
+msgid "Device shares require the Zen theme. Usage and ranking remain available."
+msgstr "设备占比图需要 Zen 主题，用量与排名仍可使用。"
+
+msgid "Usage & devices"
+msgstr "用量与设备"
+
+msgid "Device shares"
+msgstr "设备占比"
+
+msgid "Past rates"
+msgstr "过去速率"
+
+msgid "System & interface details"
+msgstr "系统与接口详情"
+
+msgid "DHCP reload failed. The previous configuration was restored."
+msgstr "DHCP 重载失败，已恢复原配置"
+
+msgid "The IP address must belong to a LAN with DHCP enabled."
+msgstr "IP 地址不在启用 DHCP 的局域网内"
+
+msgid "IPv4 address"
+msgstr "IPv4 地址"
+
+msgid "↑ Upload"
+msgstr "↑ 上传"
+
+msgid "↑ Upload "
+msgstr "↑ 上传 "
+
+msgid "↓ Download"
+msgstr "↓ 下载"
+
+msgid "↓ Download "
+msgstr "↓ 下载 "
+
+msgid "● Online"
+msgstr "● 在线"
+
+msgid "Upload · Mbps"
+msgstr "上传 · Mbps"
+
+msgid "Download · Mbps"
+msgstr "下载 · Mbps"
+
+msgid "The router address cannot be reserved."
+msgstr "不能绑定路由器自身地址"
+
+msgid "Unlimited"
+msgstr "不限速"
+
+msgid "Internet"
+msgstr "互联网"
+
+msgid "Internet usage today"
+msgstr "今日互联网用量"
+
+msgid "Saving failed. The previous device policy was restored."
+msgstr "保存失败，已恢复原限速或拉黑状态"
+
+msgid "Another operation is in progress. Try again shortly."
+msgstr "其他操作正在进行，请稍后重试"
+
+msgid "The kernel device policy could not be updated."
+msgstr "内核策略更新失败"
+
+msgid "History analysis ↗"
+msgstr "历史分析 ↗"
+
+msgid "Remove limits"
+msgstr "取消限速"
+
+msgid "Device name updated."
+msgstr "名称已更新"
+
+msgid "Fixed IP"
+msgstr "固定 IP"
+
+msgid "Fixed IP "
+msgstr "固定 IP "
+
+msgid "IP reservation saved. It takes effect at the next DHCP renewal."
+msgstr "固定 IP 已绑定，下次 DHCP 续租生效"
+
+msgid "Multiple reservations match this device. Resolve them on the DHCP page."
+msgstr "存在重复绑定，请在 DHCP 页面处理"
+
+msgid "Current speed"
+msgstr "实时速率"
+
+msgid "LAN"
+msgstr "局域网"
+
+msgid "Rate limits removed."
+msgstr "已取消限速"
+
+msgid "Internet access restored."
+msgstr "已恢复设备互联网访问"
+
+msgid "Blocked"
+msgstr "已拉黑"
+
+msgid "Internet access blocked."
+msgstr "已禁止设备访问互联网"
+
+msgid "IP reservation removed."
+msgstr "已解除固定 IP 绑定"
+
+msgid "Hardware offload or the current interface state may bypass device policies."
+msgstr "当前硬件加速或接口状态可能绕过设备策略"
+
+msgid "Rollback failed. Check the DHCP configuration and service."
+msgstr "恢复失败，请检查 DHCP 配置及服务"
+
+msgid "Rollback failed. Check the device policy."
+msgstr "恢复失败，请检查设备策略"
+
+msgid "Restore Internet access for this device."
+msgstr "恢复此设备的互联网访问。"
+
+msgid "Block"
+msgstr "拉黑"
+
+msgid "Block device"
+msgstr "拉黑设备"
+
+msgid "Operation failed. Check permissions and services, then retry."
+msgstr "操作失败，请检查权限和服务后重试"
+
+msgid "Operation failed. Please retry."
+msgstr "操作失败，请重试"
+
+msgid "This IP address is already in use by another device."
+msgstr "此 IP 已被其他设备占用"
+
+msgid "This reservation is shared by multiple devices. Edit it on the DHCP page."
+msgstr "此绑定由多台设备共用，请在 DHCP 页面处理"
+
+msgid "Hardware offload or unavailable interfaces prevent this policy. Check the traffic service."
+msgstr "硬件加速或接口状态不支持此策略，请先检查流量服务"
+
+msgid "Confirm"
+msgstr "确认"
+
+msgid "Example data"
+msgstr "示例数据"
+
+msgid "Block Internet access for this device."
+msgstr "禁止此设备访问互联网。"
+
+msgid "Reserve IP"
+msgstr "绑定固定 IP"
+
+msgid "Unblock"
+msgstr "解除拉黑"
+
+msgid "Remove reservation"
+msgstr "解除绑定"
+
+msgid "Device name"
+msgstr "设备名称"
+
+msgid "Device actions"
+msgstr "设备常用操作"
+
+msgid "Device management"
+msgstr "设备管理"
+
+msgid "Device rate limits"
+msgstr "设备限速"
+
+msgid "Enter a valid IPv4 address."
+msgstr "请输入有效的 IPv4 地址"
+
+msgid "Enter valid rate limits."
+msgstr "请输入有效限速"
+
+msgid "Enter a device name."
+msgstr "请输入设备名称"
+
+msgid "Connection details"
+msgstr "连接信息"
+
+msgid "Some device settings could not be loaded."
+msgstr "部分管理状态读取失败"
+
+msgid "The configuration changed concurrently. Check DHCP settings."
+msgstr "配置已被其他操作修改，请检查 DHCP 配置"
+
+msgid "Rename"
+msgstr "重命名"
+
+msgid "Rate limit"
+msgstr "限速"
+
+msgid "Limit ↑ "
+msgstr "限速 ↑ "
+
+msgid "Device management permission is required."
+msgstr "需要设备管理权限"
+
+msgid "Rate limits saved."
+msgstr "限速设置已保存"
+
+msgid "Last active %s"
+msgstr "最后活动 %s"
+
+msgid "Connected %s"
+msgstr "已连接 %s"
+
+msgid "Connected for"
+msgstr "连接时长"
+
+msgid "Wi-Fi link rate"
+msgstr "无线协商速率"
+
+msgid "Port link rate"
+msgstr "端口协商速率"
+
+msgid "%d online · %d offline"
+msgstr "%d 台在线 · %d 台离线"
+
+msgid "Online"
+msgstr "在线"
+
+msgid "Yesterday"
+msgstr "昨天"
+
+msgid "Peak"
+msgstr "峰值"
+
+msgid "Current version"
+msgstr "当前版本"
+
+msgid "Zen interface"
+msgstr "Zen 页面"
+
+msgid "Zen backend"
+msgstr "Zen 后端"
+
+msgid "Install the new Zen interface once to enable updates directly on the router."
+msgstr "安装新版 Zen 页面包后，即可直接在路由器上更新。"
+
+msgid "Notification settings unavailable."
+msgstr "通知设置暂时不可用"
+
+msgid "Automatic notifications"
+msgstr "自动通知"
+
+msgid "Send daily report"
+msgstr "每日发送"
+
+msgid "Send time"
+msgstr "发送时间"
+
+msgid "Current configuration"
+msgstr "当前配置"
+
+msgid "Save settings"
+msgstr "保存设置"
+
+msgid "Undo"
+msgstr "撤销"
+
+msgid "Notification channel"
+msgstr "通知渠道"
+
+msgid "Usage alerts"
+msgstr "用量提醒"
+
+msgid "Add rule"
+msgstr "添加规则"
+
+msgid "Unsaved changes"
+msgstr "有未保存修改"
+
+msgid "Webhook URL"
+msgstr "Webhook 地址"
+
+msgid "Optional"
+msgstr "选填"
+
+msgid "Send test"
+msgstr "发送测试"
+
+msgid "Show %s"
+msgstr "显示 %s"
+
+msgid "Hide %s"
+msgstr "隐藏 %s"
+
+msgid "Show"
+msgstr "显示"
+
+msgid "Hide"
+msgstr "隐藏"
+
+msgid "Enabled"
+msgstr "启用"
+
+msgid "Metric"
+msgstr "统计项"
+
+msgid "Threshold"
+msgstr "提醒阈值"
+
+msgid "Saved"
+msgstr "已保存"
+
+msgid "No deliveries yet."
+msgstr "暂无发送记录"
