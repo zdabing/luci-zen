@@ -13,6 +13,8 @@
 #![allow(unsafe_op_in_unsafe_fn)]
 
 mod accounting;
+mod app_usage;
+mod app_engine;
 mod timeline;
 mod daemon;
 mod device;

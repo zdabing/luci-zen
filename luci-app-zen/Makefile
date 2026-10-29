@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-zen
 PKG_VERSION:=0.2.4
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
 PKG_MAINTAINER:=luci-zen maintainers
 PKG_LICENSE:=Apache-2.0
@@ -102,6 +102,7 @@ define Package/luci-app-zen/install
 
 	$(INSTALL_DIR) $(1)/www/luci-static/resources/view/zen-traffic
 	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/zen-traffic/analysis-workspace.js $(1)/www/luci-static/resources/view/zen-traffic/analysis-workspace.js
+	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/zen-traffic/app-usage.js $(1)/www/luci-static/resources/view/zen-traffic/app-usage.js
 	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/zen-traffic/date-picker.js $(1)/www/luci-static/resources/view/zen-traffic/date-picker.js
 	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/zen-traffic/device-reset.js $(1)/www/luci-static/resources/view/zen-traffic/device-reset.js
 	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/zen-traffic/notification-settings.js $(1)/www/luci-static/resources/view/zen-traffic/notification-settings.js

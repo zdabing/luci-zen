@@ -1,0 +1,14 @@
+zen-appid is a separate LGPL-3.0-or-later recognition executable.
+It communicates application IDs and names to the GPL-2.0 zen-trafficd daemon
+through inherited local pipes; nDPI is not linked into zen-trafficd.
+
+nDPI 5.0, copyright ntop and contributors.
+Upstream: https://github.com/ntop/nDPI/tree/5.0
+Corresponding source: https://sources.openwrt.org/libndpi-5.0.tar.gz
+SHA256: 8b0d3dc0c8a6a68578e09a18c922021ef6458d4aca1c7a20ce04efc267aa9ea5
+The source version and checksum match OpenWrt's libndpi recipe.
+
+nDPI is compiled without changes. The separate zen-appid adapter and its
+WeChat hostname refinement are supplied in this repository's appid directory.
+The backend Makefile contains the complete source preparation and build steps.
+LICENSE.LGPL-3.0 and LICENSE.GPL-3.0 accompany this executable.

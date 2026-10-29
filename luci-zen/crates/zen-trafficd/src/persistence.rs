@@ -45,6 +45,28 @@ mod transaction_tests {
     use std::collections::HashMap;
 
     #[test]
+    fn device_and_application_hours_commit_or_retry_together() {
+        let db=Db::open(":memory:").unwrap();
+        let now=crate::state::MIN_SYNC_EPOCH+370*86_400+120;
+        let mac="02:00:00:00:00:09";
+        let mut timeline=crate::timeline::DeviceTimeline::load(&db).unwrap();
+        let mut apps=crate::app_usage::AppUsage::load(&db).unwrap();
+        timeline.record(now,mac.into(),1000,200);
+        apps.record(now,mac,54,"iQIYI",true,crate::wan::Bytes{download:800,upload:100});
+        db.conn.execute_batch("CREATE TRIGGER reject_app BEFORE INSERT ON device_app_hour BEGIN SELECT RAISE(ABORT,'test full storage'); END;").unwrap();
+        assert!(crate::timeline::flush_usage(&mut timeline,&mut apps,&db,now,true).is_err());
+        let hour=crate::timeline::local_hour(now);
+        assert!(db.device_timeline(mac,hour,hour+3600).unwrap().is_empty());
+        assert!(db.app_usage(mac,hour).unwrap().is_empty());
+        assert_eq!(timeline.hours.len(),1);assert_eq!(apps.hours.len(),1);
+        db.conn.execute_batch("DROP TRIGGER reject_app").unwrap();
+        for _ in 0..2 {crate::timeline::flush_usage(&mut timeline,&mut apps,&db,now,true).unwrap();}
+        assert_eq!(db.device_timeline(mac,hour,hour+3600).unwrap()[0].1.download,1000);
+        assert_eq!(db.app_usage(mac,hour).unwrap()[&54].bytes.download,800);
+        assert!(timeline.hours.is_empty() && apps.hours.is_empty());
+    }
+
+    #[test]
     #[cfg(unix)]
     fn opening_legacy_database_restricts_existing_wal_and_shm_permissions() {
         use std::os::unix::fs::PermissionsExt;
@@ -269,6 +291,12 @@ impl Db {
                  PRIMARY KEY(mac,time)
              ) WITHOUT ROWID;
              CREATE INDEX IF NOT EXISTS device_usage_hour_time ON device_usage_hour(time);
+             CREATE TABLE IF NOT EXISTS device_app_hour (
+                 mac TEXT NOT NULL, time INTEGER NOT NULL, app INTEGER NOT NULL,
+                 name TEXT NOT NULL, identified INTEGER NOT NULL, download INTEGER NOT NULL CHECK(download>=0),
+                 upload INTEGER NOT NULL CHECK(upload>=0), PRIMARY KEY(mac,time,app)
+             ) WITHOUT ROWID;
+             CREATE INDEX IF NOT EXISTS device_app_hour_time ON device_app_hour(time);
              CREATE TABLE IF NOT EXISTS monthly_usage (
                  mac            TEXT NOT NULL,
                  month          TEXT NOT NULL,              -- 本地月份 YYYY-MM
@@ -492,8 +520,16 @@ impl Db {
     }
 
     /// Add pending deltas and clear expired/over-quota rows in one transaction.
+    #[cfg(test)]
     pub fn save_device_timeline(&self, timeline: &crate::timeline::DeviceTimeline, now: u64) -> Result<u64, String> {
         let tx = self.conn.unchecked_transaction().map_err(|e| e.to_string())?;
+        let floor = self.write_device_timeline(timeline, now)?;
+        tx.commit().map_err(|e| e.to_string())?;
+        Ok(floor)
+    }
+
+    fn write_device_timeline(&self, timeline: &crate::timeline::DeviceTimeline, now: u64) -> Result<u64, String> {
+        let tx = &self.conn;
         let table = "device_usage_hour";
         let (floor, step) = (timeline.hour_floor, 3600);
         let cutoff = now.saturating_sub(crate::timeline::HOURLY_SECS).max(floor);
@@ -524,7 +560,6 @@ impl Db {
             params!["timeline_hour_floor", kept_from.to_string()]).map_err(|e| e.to_string())?;
         tx.execute("INSERT INTO app_settings VALUES('timeline_since',?1) ON CONFLICT(name) DO UPDATE SET value=excluded.value",
             params![timeline.since.to_string()]).map_err(|e| e.to_string())?;
-        tx.commit().map_err(|e| e.to_string())?;
         Ok(kept_from)
     }
 
@@ -533,6 +568,63 @@ impl Db {
             WHERE mac=?1 AND time>=?2 AND time<?3 ORDER BY time LIMIT 25").map_err(|e| e.to_string())?;
         let rows = query.query_map(params![mac,start as i64,end as i64], |r| Ok((nonnegative(r,0)?, crate::wan::Bytes {
             download:nonnegative(r,1)?, upload:nonnegative(r,2)?,
+        }))).map_err(|e| e.to_string())?;
+        rows.collect::<Result<_, _>>().map_err(|e| e.to_string())
+    }
+
+    #[cfg(test)]
+    pub fn save_app_usage(&self, usage: &crate::app_usage::AppUsage, now: u64) -> Result<u64, String> {
+        let tx = self.conn.unchecked_transaction().map_err(|e| e.to_string())?;
+        let floor = self.write_app_usage(usage,now)?;
+        tx.commit().map_err(|e| e.to_string())?;
+        Ok(floor)
+    }
+
+    fn write_app_usage(&self, usage: &crate::app_usage::AppUsage, now: u64) -> Result<u64, String> {
+        let tx = &self.conn;
+        let cutoff = now.saturating_sub(crate::timeline::HOURLY_SECS).max(usage.floor);
+        {
+            let mut insert = tx.prepare_cached("INSERT INTO device_app_hour VALUES(?1,?2,?3,?4,?5,?6,?7)
+                ON CONFLICT(mac,time,app) DO UPDATE SET name=excluded.name,identified=excluded.identified,
+                download=download+MIN(excluded.download,9223372036854775807-download),
+                upload=upload+MIN(excluded.upload,9223372036854775807-upload)")
+                .map_err(|e| e.to_string())?;
+            for ((time, mac, app), row) in &usage.hours {
+                if *time < usage.floor || time.saturating_add(3600) <= cutoff { continue; }
+                insert.execute(params![mac,*time as i64,*app as i64,row.name,row.identified,
+                    row.bytes.download.min(i64::MAX as u64) as i64,
+                    row.bytes.upload.min(i64::MAX as u64) as i64]).map_err(|e| e.to_string())?;
+            }
+        }
+        tx.execute("DELETE FROM device_app_hour WHERE time<=?1 OR time<?2",
+            params![cutoff.saturating_sub(3600) as i64,usage.floor as i64]).map_err(|e| e.to_string())?;
+        let overflow: Option<i64> = tx.query_row("SELECT MAX(time) FROM
+            (SELECT time FROM device_app_hour ORDER BY time,mac,app
+            LIMIT MAX(0,(SELECT COUNT(*) FROM device_app_hour)-?1))",
+            params![crate::app_usage::ROW_LIMIT as i64], |r| r.get(0)).map_err(|e| e.to_string())?;
+        let floor = overflow.map(|v| v.max(0) as u64 + 3600).unwrap_or(usage.floor).max(usage.floor);
+        tx.execute("DELETE FROM device_app_hour WHERE time<?1", params![floor as i64]).map_err(|e| e.to_string())?;
+        for (name, value) in [("app_usage_floor",floor),("app_usage_since",usage.since)] {
+            tx.execute("INSERT INTO app_settings VALUES(?1,?2) ON CONFLICT(name) DO UPDATE SET value=excluded.value",
+                params![name,value.to_string()]).map_err(|e| e.to_string())?;
+        }
+        Ok(floor)
+    }
+
+    pub fn save_usage_timelines(&self, timeline: &crate::timeline::DeviceTimeline, apps: &crate::app_usage::AppUsage,
+        now: u64) -> Result<(u64,u64),String> {
+        let tx = self.conn.unchecked_transaction().map_err(|e| e.to_string())?;
+        let device_floor = self.write_device_timeline(timeline,now)?;
+        let app_floor = self.write_app_usage(apps,now)?;
+        tx.commit().map_err(|e| e.to_string())?;
+        Ok((device_floor,app_floor))
+    }
+
+    pub fn app_usage(&self, mac: &str, hour: u64) -> Result<std::collections::BTreeMap<u16,crate::app_usage::AppBytes>, String> {
+        let mut query = self.conn.prepare("SELECT app,name,identified,download,upload FROM device_app_hour
+            WHERE mac=?1 AND time=?2 ORDER BY app").map_err(|e| e.to_string())?;
+        let rows = query.query_map(params![mac,hour as i64], |r| Ok((r.get(0)?,crate::app_usage::AppBytes {
+            name:r.get(1)?, identified:r.get(2)?, bytes:crate::wan::Bytes { download:nonnegative(r,3)?,upload:nonnegative(r,4)? },
         }))).map_err(|e| e.to_string())?;
         rows.collect::<Result<_, _>>().map_err(|e| e.to_string())
     }
@@ -663,6 +755,7 @@ impl Db {
         tx.execute("DELETE FROM wan_devices WHERE mac=?1", params![mac]).map_err(|e| e.to_string())?;
         tx.execute("DELETE FROM wan_daily WHERE mac=?1", params![mac]).map_err(|e| e.to_string())?;
         tx.execute("DELETE FROM device_usage_hour WHERE mac=?1", params![mac]).map_err(|e| e.to_string())?;
+        tx.execute("DELETE FROM device_app_hour WHERE mac=?1", params![mac]).map_err(|e| e.to_string())?;
         tx.commit().map_err(|e| e.to_string())
     }
 

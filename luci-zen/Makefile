@@ -17,9 +17,13 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-zen
 PKG_VERSION:=0.2.4
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 PKG_MAINTAINER:=luci-zen maintainers
-PKG_LICENSE:=GPL-2.0
+PKG_LICENSE:=GPL-2.0 LGPL-3.0-or-later
+PKG_LICENSE_FILES:=LICENSE appid/LICENSE.LGPL-3.0 appid/LICENSE.GPL-3.0
+PKG_FIXUP:=autoreconf
+NDPI_VERSION:=5.0
+NDPI_SOURCE:=libndpi-$(NDPI_VERSION).tar.gz
 
 PKG_BUILD_DEPENDS:=rust/host bpf-headers
 PKG_BUILD_PARALLEL:=1
@@ -28,6 +32,17 @@ RUST_PKG_LOCKED:=0
 include $(INCLUDE_DIR)/package.mk
 include $(INCLUDE_DIR)/bpf.mk
 include $(TOPDIR)/feeds/packages/lang/rust/rust-package.mk
+CONFIGURE_PATH:=nDPI-$(NDPI_VERSION)
+
+# Same immutable release and source hash as OpenWrt 25.12's libndpi recipe.
+# Build the separate recognition executable inside this APK, preserving the
+# two-package distribution and keeping nDPI out of the GPL-2.0 daemon process.
+define Download/ndpi
+  FILE:=$(NDPI_SOURCE)
+  URL:=https://sources.openwrt.org https://codeload.github.com/ntop/nDPI/tar.gz/$(NDPI_VERSION)?
+  HASH:=8b0d3dc0c8a6a68578e09a18c922021ef6458d4aca1c7a20ce04efc267aa9ea5
+endef
+$(eval $(call Download,ndpi))
 
 # Rust 会读取 bundled SQLite 静态库的符号；仅含 GCC LTO 中间码的对象
 # 在此路径下可能丢失 sqlite3_* 符号。保留机器码和 LTO 数据，并在最终
@@ -65,16 +80,24 @@ BPF_OBJ:=$(PKG_BUILD_DIR)/bpf/zen_traffic.bpf.o
 
 define Build/Prepare
 	$(call Build/Prepare/Default)
-	$(CP) ./Cargo.toml ./crates ./bpf $(PKG_BUILD_DIR)/
+	$(CP) ./Cargo.toml ./crates ./bpf ./appid ./LICENSE $(PKG_BUILD_DIR)/
+	tar -xzf $(DL_DIR)/$(NDPI_SOURCE) -C $(PKG_BUILD_DIR)
 endef
 
 define Build/Configure
 	$(TARGET_CC) $(TARGET_CPPFLAGS) $(TARGET_CFLAGS) -I$(STAGING_DIR)/usr/include \
 		-c $(PKG_BUILD_DIR)/crates/zen-ubus-sys/abi-check.c -o $(PKG_BUILD_DIR)/ubus-abi-check.o
 	$(call CompileBPF,$(BPF_SRC))
+	$(call Build/Configure/Default,--with-only-libndpi --disable-global-context-support)
 endef
 
 define Build/Compile
+	CFLAGS="$(TARGET_CFLAGS)" CPPFLAGS="$(TARGET_CPPFLAGS)" \
+		$(MAKE) -C $(PKG_BUILD_DIR)/nDPI-$(NDPI_VERSION)/src/lib libndpi.a
+	$(TARGET_CC) $(TARGET_CPPFLAGS) $(TARGET_CFLAGS) \
+		-I$(PKG_BUILD_DIR)/nDPI-$(NDPI_VERSION)/src/include \
+		$(PKG_BUILD_DIR)/appid/zen-appid.c $(PKG_BUILD_DIR)/nDPI-$(NDPI_VERSION)/src/lib/libndpi.a \
+		$(TARGET_LDFLAGS) -lm -o $(PKG_BUILD_DIR)/zen-appid
 	$(call Build/Compile/Cargo,crates/zen-trafficd)
 endef
 
@@ -85,7 +108,11 @@ define Package/luci-zen/install
 	$(INSTALL_DIR) $(1)/usr/bin
 	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/bin/zen-trafficd $(1)/usr/bin/
 	$(INSTALL_DIR) $(1)/usr/libexec
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/zen-appid $(1)/usr/libexec/zen-appid
 	$(INSTALL_BIN) ./files/usr/libexec/zen-traffic-check $(1)/usr/libexec/zen-traffic-check
+	$(INSTALL_DIR) $(1)/usr/share/licenses/luci-zen
+	$(INSTALL_DATA) ./appid/LICENSE.LGPL-3.0 ./appid/LICENSE.GPL-3.0 $(1)/usr/share/licenses/luci-zen/
+	$(INSTALL_DATA) ./LICENSE ./appid/NOTICE $(1)/usr/share/licenses/luci-zen/
 
 	$(INSTALL_DIR) $(1)/usr/share/zen-traffic
 	$(INSTALL_DATA) $(BPF_OBJ) $(1)/usr/share/zen-traffic/zen_traffic.bpf.o

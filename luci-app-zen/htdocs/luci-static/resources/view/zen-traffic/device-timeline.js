@@ -2,6 +2,7 @@
 'require baseclass';
 'require rpc';
 'require view.zen-traffic.date-picker as datePicker';
+'require view.zen-traffic.app-usage as appUsage';
 
 const callTimeline = rpc.declare({ object: 'zen.traffic', method: 'getDeviceTimeline', params: ['mac', 'date'], reject: true });
 
@@ -42,13 +43,15 @@ return baseclass.extend({
 		this.notice = E('p', { class: 'zen-app-muted', role: 'status' });
 		this.summary = E('div', { class: 'zen-rt-summary' });
 		this.body = E('div');
+		this.apps = Object.create(appUsage);
+		this.appUsage = this.apps.render(status);
 		this.container = E('section', { id: 'device-hourly', class: 'cbi-section zen-device-timeline', tabindex: '-1' }, [
 			E('h3', {}, _('Hourly device internet usage')),
 			E('div', { class: 'zen-timeline-controls' }, [
 				E('label', { class: 'zen-history-field' }, [_('Date'), dateControl])
 			]),
 			E('p', { class: 'zen-app-muted' }, _('Router local time · hourly usage retained for 30 days.')),
-			this.notice, this.summary, this.body
+			this.notice, this.summary, this.body, this.appUsage
 		]);
 		this.select('');
 		return this.container;
@@ -61,6 +64,8 @@ return baseclass.extend({
 
 	async query() {
 		const request = this.request = (this.request || 0) + 1;
+		this.apps.clear();
+		this.selectedAppHour = null;
 		this.body.replaceChildren(); this.summary.replaceChildren();
 		if (!this.supported) { this.notice.textContent = _('Update the traffic service to enable device time history.'); return; }
 		if (!this.mac) { this.notice.textContent = _('Choose a device above to see when it used traffic.'); return; }
@@ -140,11 +145,16 @@ return baseclass.extend({
 			tip.style.left = Math.max(8, Math.min(x + 12, frame.clientWidth - tip.offsetWidth - 8)) + 'px';
 			tip.style.top = Math.max(8, Math.min(y - tip.offsetHeight - 12, frame.clientHeight - tip.offsetHeight - 8)) + 'px';
 		};
-		const select = (index, ev, showTip = true) => {
+		const select = (index, ev, showTip = true, refreshApps = false) => {
+			this.chosenHour = rows[index].time; this.chosenMac = this.mac; this.chosenDate = this.date.value;
 			groups.forEach((group, i) => group.setAttribute('aria-pressed', String(i === index)));
 			readout.textContent = describe(rows[index]); tip.textContent = readout.textContent;
 			tip.hidden = !showTip;
 			if (showTip) positionTip(ev);
+			if (refreshApps || this.selectedAppHour !== rows[index].time || this.selectedAppMac !== this.mac || this.selectedAppDate !== this.date.value) {
+				this.selectedAppHour = rows[index].time; this.selectedAppMac = this.mac; this.selectedAppDate = this.date.value;
+				this.apps.select(this.mac, this.date.value, rows[index]);
+			}
 		};
 		rows.forEach((row, index) => {
 			const x = left + index * slot, width = slot * .62, dl = height(row.download), ul = height(row.upload);
@@ -154,9 +164,10 @@ return baseclass.extend({
 			group.appendChild(svg('rect', { x: x + (slot - width) / 2, y: H - bottom - dl, width, height: dl, class: 'zen-tf-bar-dl' }));
 			group.appendChild(svg('rect', { x: x + (slot - width) / 2, y: H - bottom - dl - ul, width, height: ul, class: 'zen-tf-bar-ul' }));
 			group.appendChild(svg('title', {}, describe(row)));
-			for (const event of ['pointermove', 'focus', 'click']) group.addEventListener(event, ev => select(index, ev, false));
+			for (const event of ['pointermove', 'focus']) group.addEventListener(event, ev => select(index, ev, false));
+			group.addEventListener('click', ev => select(index, ev, false, true));
 			group.addEventListener('keydown', ev => {
-				if (['Enter', ' '].includes(ev.key)) { ev.preventDefault(); select(index, ev); }
+				if (['Enter', ' '].includes(ev.key)) { ev.preventDefault(); select(index, ev, false, true); }
 				if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(ev.key)) {
 					ev.preventDefault();
 					const next = ev.key === 'Home' ? 0 : ev.key === 'End' ? rows.length - 1 : Math.max(0, Math.min(rows.length - 1, index + (ev.key === 'ArrowLeft' ? -1 : 1)));
@@ -172,7 +183,8 @@ return baseclass.extend({
 		this.body.replaceChildren(frame, E('div', { class: 'zen-tf-legend' }, [
 			E('span', { class: 'zen-tf-ul' }, _('Upload')), E('span', { class: 'zen-tf-dl' }, _('Download'))
 		]), E('p', { class: 'zen-app-muted zen-timeline-scroll-hint' }, _('Swipe horizontally to view all hours.')), readout);
-		const initial = rows.findIndex(row => row.in_progress && row.upload + row.download > 0);
+		const saved = this.chosenMac === this.mac && this.chosenDate === this.date.value ? rows.findIndex(row => row.time === this.chosenHour) : -1;
+		const initial = saved >= 0 ? saved : rows.findIndex(row => row.in_progress && row.upload + row.download > 0);
 		select(initial >= 0 ? initial : rows.reduce((best, row, index) => row.download + row.upload > rows[best].download + rows[best].upload ? index : best, 0), null, false);
 	}
 });

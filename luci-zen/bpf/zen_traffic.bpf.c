@@ -27,6 +27,7 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
 #include "device_policy.h"
+#include "app_flow.h"
 
 /* 部分 UAPI 头不导出 struct vlan_hdr（CI 实测），BPF 程序本地自带定义 */
 #ifndef VLAN_VID_MASK
@@ -133,7 +134,7 @@ static __always_inline struct dev_stats *dev_get_or_create(const __u8 *mac)
  * len：skb->len（TC 层为 L3 字节，GSO skb 已含聚合长度）。
  */
 static __always_inline int account(struct __sk_buff *skb, const __u8 *mac,
-				    int is_v6, const void *scope_addr, int egress)
+				    int is_v6, const void *scope_addr, int egress, int off)
 {
 	struct dev_stats *s = dev_get_or_create(mac);
 	__u64 len = skb->len;
@@ -160,6 +161,8 @@ static __always_inline int account(struct __sk_buff *skb, const __u8 *mac,
 		return TC_ACT_SHOT;
 	if (!s)
 		return TC_ACT_OK;
+	if (!local)
+		app_account(skb, mac, off, egress, is_v6);
 
 	if (egress) {
 		if (local) {
@@ -226,9 +229,9 @@ static __always_inline int zen_account(struct __sk_buff *skb, int egress)
 		 * 字节仍归属该设备，避免分片流量漏计。
 		 */
 		if (egress)
-			return account(skb, mac, 0, &ip.saddr, egress);
+			return account(skb, mac, 0, &ip.saddr, egress, off);
 		else
-			return account(skb, mac, 0, &ip.daddr, egress);
+			return account(skb, mac, 0, &ip.daddr, egress, off);
 	} else if (proto == ETH_P_IPV6) {
 		if (bpf_skb_load_bytes(skb, off, &ip6, sizeof(ip6)))
 			return TC_ACT_OK;
@@ -237,9 +240,9 @@ static __always_inline int zen_account(struct __sk_buff *skb, int egress)
 			return TC_ACT_OK;	/* IPv6 组播（含 NDP）跳过 */
 
 		if (egress)
-			return account(skb, mac, 1, &ip6.saddr, egress);
+			return account(skb, mac, 1, &ip6.saddr, egress, off);
 		else
-			return account(skb, mac, 1, &ip6.daddr, egress);
+			return account(skb, mac, 1, &ip6.daddr, egress, off);
 	}
 	/* 其余协议（ARP 等）不计 */
 

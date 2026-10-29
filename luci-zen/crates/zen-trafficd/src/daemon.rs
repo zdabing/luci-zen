@@ -35,6 +35,8 @@ pub struct Daemon {
     pub realtime: crate::realtime::RealtimeHistory,
     pub wan: crate::wan::WanUsage,
     pub timeline: crate::timeline::DeviceTimeline,
+    pub app_usage: crate::app_usage::AppUsage,
+    pub app_engine: crate::app_engine::AppEngine,
     pub notifications: crate::notifications::Notifications,
     pub policies: crate::policy::Policies,
     pub wifi: crate::wifi::WifiCache,
@@ -136,10 +138,12 @@ impl Daemon {
         let nl = Netlink::open().map_err(|e| format!("netlink socket: {e}"))?;
 
         // 4) BPF：加载 + 残留 filter 清理 + attach
-        let bpf = zen_bpf::load(std::path::Path::new(&cfg.bpf_path))?;
+        let mut bpf = zen_bpf::load(std::path::Path::new(&cfg.bpf_path))?;
         zen_bpf::describe(&bpf);
 
         let timeline = crate::timeline::DeviceTimeline::load(&db)?;
+        let app_usage = crate::app_usage::AppUsage::load(&db)?;
+        let app_engine = crate::app_engine::AppEngine::start(&mut bpf);
         let mut d = Daemon {
             cfg,
             bpf,
@@ -151,6 +155,8 @@ impl Daemon {
             realtime: crate::realtime::RealtimeHistory::default(),
             wan,
             timeline,
+            app_usage,
+            app_engine,
             notifications,
             policies,
             local_prefixes: Vec::new(),
@@ -310,8 +316,9 @@ impl Daemon {
         totals::refresh(self, &links);
         self.realtime.sample(&self.upstream, &links, now_mono, now);
         self.realtime.flush(&self.db, now_mono, now, false);
-        if let Err(e) = self.timeline.flush(&self.db, now, false) {
-            eprintln!("[zen-trafficd] 分时记录落盘失败（保留缓存）: {e}");
+        self.app_engine.tick(&mut self.bpf, &mut self.app_usage, now, now_mono);
+        if let Err(e) = crate::timeline::flush_usage(&mut self.timeline, &mut self.app_usage, &self.db, now, false) {
+            eprintln!("[zen-trafficd] hourly usage checkpoint (pending retained): {e}");
         }
         unsafe { self.wifi.tick(self.ubus_ctx, now_mono); }
 
@@ -345,12 +352,13 @@ impl Daemon {
 
     /// SIGTERM / 退出前最终 checkpoint
     pub fn shutdown_checkpoint(&mut self) {
+        self.app_engine.finish(&mut self.bpf, &mut self.app_usage);
         match accounting::checkpoint(self) {
             Ok(()) => println!("[zen-trafficd] 退出 checkpoint 完成"),
             Err(e) => eprintln!("[zen-trafficd] 退出 checkpoint 失败: {e}"),
         }
-        if let Err(e) = self.timeline.flush(&self.db, crate::state::now_epoch(), true) {
-            eprintln!("[zen-trafficd] timeline shutdown checkpoint: {e}");
+        if let Err(e) = crate::timeline::flush_usage(&mut self.timeline, &mut self.app_usage, &self.db, crate::state::now_epoch(), true) {
+            eprintln!("[zen-trafficd] hourly usage shutdown checkpoint: {e}");
         }
     }
 

@@ -546,3 +546,39 @@ msgstr "已保存"
 
 msgid "No deliveries yet."
 msgstr "暂无发送记录"
+
+msgid "Application"
+msgstr "应用"
+
+msgid "Application and device counters have a sampling difference."
+msgstr "应用与设备统计存在采样差异。"
+
+msgid "Application recognition is currently unavailable."
+msgstr "应用识别当前不可用。"
+
+msgid "Application usage"
+msgstr "应用用量"
+
+msgid "Hardware offload may bypass application recognition."
+msgstr "硬件加速可能导致应用识别漏记。"
+
+msgid "Loading application usage…"
+msgstr "正在加载应用用量…"
+
+msgid "No application records for this hour."
+msgstr "此时段没有应用记录。"
+
+msgid "Some connections could not be classified."
+msgstr "部分连接未能完成识别。"
+
+msgid "This hour is only partially recorded."
+msgstr "此时段仅记录了部分数据。"
+
+msgid "Unable to load application usage. Please try again."
+msgstr "无法加载应用用量，请重试。"
+
+msgid "Unclassified"
+msgstr "未归类"
+
+msgid "Update the traffic service to enable application usage."
+msgstr "请更新流量服务以启用应用用量。"

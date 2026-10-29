@@ -135,3 +135,12 @@
 .zen-console #zen-notifications .zc-savebar{margin-top:0}
 
 .zen-console #zen-settings>.zen-settings-title{display:none}
+
+/* Hour selection uses the existing compact traffic detail column. */
+.zen-app-usage { margin-top: 18px; border-top: 1px solid var(--line, #e0e5df); padding-top: 14px; }
+.zen-app-usage h4 { margin: 0 0 10px; font-size: 14px; }
+.zen-app-usage-body { overflow-x: auto; }
+.zen-app-usage-table { width: 100%; font-size: 13px; }
+.zen-app-usage-table th, .zen-app-usage-table td { padding: 8px 6px; text-align: right; white-space: nowrap; }
+.zen-app-usage-table th:first-child, .zen-app-usage-table td:first-child { text-align: left; }
+.zen-app-usage-table .is-unclassified td:first-child { color: var(--text-secondary, #6d7873); }

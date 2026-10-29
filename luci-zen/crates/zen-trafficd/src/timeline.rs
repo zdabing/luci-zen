@@ -14,6 +14,20 @@ pub struct DeviceTimeline {
     last_flush: u64,
 }
 
+/// Persist both hourly ledgers atomically. A full disk or interrupted commit
+/// must not save application details independently of their device timeline.
+pub fn flush_usage(timeline: &mut DeviceTimeline, apps: &mut crate::app_usage::AppUsage,
+    db: &Db, now: u64, force: bool) -> Result<(),String> {
+    let mono = now_mono_ms();
+    if !time_synced(now) || (!force && mono.saturating_sub(timeline.last_flush) < 300_000 &&
+        mono.saturating_sub(apps.last_flush) < 300_000) { return Ok(()); }
+    timeline.last_flush = mono; apps.last_flush = mono;
+    let (device_floor,app_floor) = db.save_usage_timelines(timeline,apps,now)?;
+    timeline.hours.clear(); apps.hours.clear();
+    timeline.hour_floor = device_floor; apps.floor = app_floor;
+    Ok(())
+}
+
 impl DeviceTimeline {
     pub fn load(db: &Db) -> Result<Self, String> {
         let setting = |name| db.setting(name).map(|value| value.and_then(|s| s.parse().ok()).unwrap_or(0));
@@ -41,6 +55,7 @@ impl DeviceTimeline {
         self.hours.retain(|(_, device), _| device != mac);
     }
 
+    #[cfg(test)]
     pub fn flush(&mut self, db: &Db, now: u64, force: bool) -> Result<(), String> {
         let mono = now_mono_ms();
         if !time_synced(now) || (!force && mono.saturating_sub(self.last_flush) < 300_000) { return Ok(()); }

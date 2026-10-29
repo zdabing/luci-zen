@@ -69,7 +69,7 @@ return baseclass.extend({async render(data){
   const deviceField=E('label','za-hourly-device'),dateField=E('label','za-hourly-date');deviceField.append(E('span','za-meta','设备'),deviceSelect);const dateControl=timelineRoot.querySelector('.zen-date-picker');dateField.append(E('span','za-meta','日期'),dateControl);
   const dayTotals=timeline.summary,hourly=timeline.body,hourReadout=timeline.notice,hourEmpty=E('p','za-meta','选择设备查看每小时用量');dayTotals.classList.add('za-detail-day');detailTools.append(deviceField,dateField,dayTotals);
   const hourlyHeading=E('div','za-chart-head');hourlyHeading.append(E('h3','','每小时用量'),trendLegend.cloneNode(true));
-  detail.append(detailHead,detailTools,hourEmpty,hourlyHeading,hourly,hourReadout);detail.classList.add('za-panel');lower.append(devicePanel,detail);
+  detail.append(detailHead,detailTools,hourEmpty,hourlyHeading,hourly,hourReadout,timeline.appUsage);detail.classList.add('za-panel');lower.append(devicePanel,detail);
   function range(){if(period==='day')return ledger.filter(d=>d.date===todayKey).concat(ledger.some(d=>d.date===todayKey)?[]:[{date:todayKey,upload:0,download:0}]);if(period==='week'){return ledger.filter(d=>d.date>=periodsModule.startDate(todayKey,'week'));}if(period==='month')return ledger.filter(d=>d.date.slice(0,7)===todayKey.slice(0,7));return ledger;}
   function addMetric(host,label,amount,cls){const cell=E('div',cls);cell.append(E('span','',label),E('strong','',format(amount)));host.append(cell);}
   function drawBars(host,data,label,hours,onSelect,targetReadout){
@@ -85,7 +85,7 @@ return baseclass.extend({async render(data){
   }
   let timelineKey='';
   function showDetail(scroll=false){
-   const device=deviceOptions.find(d=>d.key===selected);deviceSelect.value=selected;deviceSelect.zenPicker?.sync();hourEmpty.hidden=!!device;close.hidden=!device;detailMeta.hidden=!device;for(const part of [dayTotals,hourlyHeading,hourly,hourReadout])part.hidden=!device;if(!device){timelineKey='';timeline.select('');return;}
+   const device=deviceOptions.find(d=>d.key===selected);deviceSelect.value=selected;deviceSelect.zenPicker?.sync();hourEmpty.hidden=!!device;close.hidden=!device;detailMeta.hidden=!device;for(const part of [dayTotals,hourlyHeading,hourly,hourReadout,timeline.appUsage])part.hidden=!device;if(!device){timelineKey='';timeline.select('');return;}
    detailMeta.textContent=facts.get(device.key)?.ip4||'';
    if(!picker.selectable(day,date.min,date.max))return;
    const key=selected+'|'+date.value;

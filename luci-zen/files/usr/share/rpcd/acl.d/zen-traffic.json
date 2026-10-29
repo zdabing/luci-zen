@@ -12,7 +12,8 @@
 					"getWanUsage",
 					"getInternetHistory",
 					"getNotifications",
-					"getDeviceTimeline"
+					"getDeviceTimeline",
+					"getAppUsage"
 				]
 			}
 		},
