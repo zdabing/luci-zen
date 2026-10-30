@@ -141,6 +141,10 @@
 .zen-app-usage h4 { margin: 0 0 10px; font-size: 14px; }
 .zen-app-usage-body { overflow-x: auto; }
 .zen-app-usage-table { width: 100%; font-size: 13px; }
+.zen-console table.zen-app-usage-table { display: table; table-layout: auto; }
+.zen-console .zen-app-usage-table thead { display: table-header-group; }
+.zen-console .zen-app-usage-table tbody { display: table-row-group; }
 .zen-app-usage-table th, .zen-app-usage-table td { padding: 8px 6px; text-align: right; white-space: nowrap; }
 .zen-app-usage-table th:first-child, .zen-app-usage-table td:first-child { text-align: left; }
 .zen-app-usage-table .is-unclassified td:first-child { color: var(--text-secondary, #6d7873); }
+.zen-app-usage-table .zen-app-section th { padding-top: 12px; font-size: 12px; color: var(--text-secondary, #6d7873); background: var(--bg-input); }

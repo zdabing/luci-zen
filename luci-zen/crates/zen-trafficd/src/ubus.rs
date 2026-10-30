@@ -205,17 +205,11 @@ unsafe extern "C" fn handle_get_app_usage(ctx: *mut ubus::ubus_context, _obj: *m
         let device = d.timeline.query(&d.db, &mac, &date, now_epoch())?["samples"].as_array()
             .and_then(|samples| samples.iter().find(|sample| sample["time"].as_u64() == Some(hour))).cloned()
             .unwrap_or_else(|| serde_json::json!({"download":0,"upload":0}));
-        let mut named = crate::wan::Bytes::default();
-        if let Some(apps) = value["applications"].as_array() {
-            for app in apps.iter().filter(|app| app["identified"] == true) {
-                named.download = named.download.saturating_add(app["download"].as_u64().unwrap_or(0));
-                named.upload = named.upload.saturating_add(app["upload"].as_u64().unwrap_or(0));
-            }
-        }
         let download = device["download"].as_u64().unwrap_or(0);
         let upload = device["upload"].as_u64().unwrap_or(0);
-        value["unattributed"] = serde_json::json!({"download":download.saturating_sub(named.download),"upload":upload.saturating_sub(named.upload)});
-        value["accounting_mismatch"] = serde_json::json!(named.download > download || named.upload > upload);
+        let (pending,provisional) = d.app_engine.pending_usage(&mac,hour);
+        if pending != crate::wan::Bytes::default() { value["available"] = serde_json::json!(true); }
+        crate::app_usage::breakdown(&mut value,crate::wan::Bytes { download,upload },pending,provisional);
         value["device"] = device;
         value["recognition"] = d.app_engine.status();
         value["hardware_offload"] = serde_json::json!(d.offload.hardware_requested || !d.offload.known);

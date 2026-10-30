@@ -582,3 +582,24 @@ msgstr "未归类"
 
 msgid "Update the traffic service to enable application usage."
 msgstr "请更新流量服务以启用应用用量。"
+
+msgid "Application / service"
+msgstr "应用 / 服务"
+
+msgid "Protocol only"
+msgstr "仅识别到协议"
+
+msgid "Recognition status and differences"
+msgstr "识别状态与差额"
+
+msgid "Unidentified connections"
+msgstr "连接未识别"
+
+msgid "Recognition in progress"
+msgstr "识别中"
+
+msgid "Unattributed difference"
+msgstr "未归属差额"
+
+msgid "Recognition capacity was reached."
+msgstr "部分连接超出识别容量。"

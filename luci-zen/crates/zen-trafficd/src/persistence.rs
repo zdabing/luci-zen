@@ -583,6 +583,13 @@ impl Db {
     fn write_app_usage(&self, usage: &crate::app_usage::AppUsage, now: u64) -> Result<u64, String> {
         let tx = &self.conn;
         let cutoff = now.saturating_sub(crate::timeline::HOURLY_SECS).max(usage.floor);
+        for ((time,mac),bytes) in &usage.corrections {
+            if *time < usage.floor || time.saturating_add(3600) <= cutoff { continue; }
+            tx.execute("UPDATE device_app_hour SET download=MAX(0,download-?3),upload=MAX(0,upload-?4)
+                WHERE mac=?1 AND time=?2 AND app=0", params![mac,*time as i64,
+                bytes.download.min(i64::MAX as u64) as i64,bytes.upload.min(i64::MAX as u64) as i64])
+                .map_err(|e| e.to_string())?;
+        }
         {
             let mut insert = tx.prepare_cached("INSERT INTO device_app_hour VALUES(?1,?2,?3,?4,?5,?6,?7)
                 ON CONFLICT(mac,time,app) DO UPDATE SET name=excluded.name,identified=excluded.identified,

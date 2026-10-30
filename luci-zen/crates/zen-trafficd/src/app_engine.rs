@@ -1,6 +1,6 @@
 //! Bounded, passive application recognition. nDPI runs in a separate worker
 //! executable; uloop never waits for recognition or a pipe read.
-use std::{collections::HashMap, io::{Read, Write}, os::fd::AsRawFd,
+use std::{collections::{HashMap,VecDeque}, io::{Read, Write}, os::fd::AsRawFd,
     process::{Command, Stdio}, sync::{Arc, atomic::{AtomicU32, Ordering}, mpsc}, thread};
 use aya::{Ebpf, Pod, maps::{Array, HashMap as BpfHashMap, MapData, RingBuf}};
 use crate::{app_usage::AppUsage, wan::Bytes};
@@ -16,25 +16,54 @@ struct FlowKey { mac: [u8; 6], family: u8, protocol: u8, client: [u8; 16], serve
 unsafe impl Pod for FlowKey {}
 #[repr(C)]
 #[derive(Clone, Copy)]
-struct FlowStats { first_seen: u64, last_seen: u64, download: u64, upload: u64, samples: u64 }
+struct FlowStats { first_seen: u64, last_seen: u64, download: u64, upload: u64, samples: u64, control_samples: u64 }
 unsafe impl Pod for FlowStats {}
 #[repr(C)]
 #[derive(Clone, Copy)]
 struct Sample { key: FlowKey, length: u32, first_seen: u64, time: u64, packet: [u8; SAMPLE_SIZE] }
 
 #[derive(Clone)]
-struct Classification { app: u16, name: String, identified: bool }
+struct Classification { app: u16, name: String, identified: bool, limited: bool }
 impl Default for Classification {
-    fn default() -> Self { Self { app: 0, name: "Unknown".into(), identified: false } }
+    fn default() -> Self { Self { app: 0, name: "Unknown".into(), identified: false, limited:false } }
 }
 struct Flow {
     id: u64, first_seen: u64, previous: Bytes, last_seen: u64,
     classification: Option<Classification>, pending: Vec<(u64, Bytes)>,
+    provisional: Vec<(u64, Bytes)>,
+}
+
+impl Flow {
+    fn accumulate(buckets: &mut Vec<(u64,Bytes)>, time: u64, bytes: Bytes) {
+        let hour = crate::timeline::local_hour(time);
+        if let Some((_,total)) = buckets.iter_mut().find(|(t,_)| crate::timeline::local_hour(*t) == hour) {
+            total.download = total.download.saturating_add(bytes.download);
+            total.upload = total.upload.saturating_add(bytes.upload);
+        } else { buckets.push((time,bytes)); }
+    }
+
+    fn decide(&mut self, app: Classification, mac: &str, usage: &mut AppUsage) {
+        for (time,bytes) in self.provisional.drain(..) {
+            usage.reclassify(time,mac,app.app,&app.name,app.identified,bytes);
+        }
+        self.classification = Some(app);
+    }
+
+    fn account(&mut self, mac: &str, usage: &mut AppUsage, provisional: bool) {
+        let app = self.classification.clone().unwrap_or_default();
+        for (time,bytes) in self.pending.drain(..) {
+            usage.record(time,mac,app.app,&app.name,app.identified,bytes);
+            if provisional { Self::accumulate(&mut self.provisional,time,bytes); }
+        }
+        // Bound per-connection reconciliation memory even for slow sessions
+        // lasting days. Older provisional hours remain honest Unknown rows.
+        while self.provisional.len() > 2 { self.provisional.remove(0); }
+    }
 }
 enum ResultMessage { Ready(String), Detection(u64, Classification, bool), Failed }
 struct Request { id: u64, time: u64, packet: Vec<u8> }
 struct Worker {
-    sender: Option<mpsc::SyncSender<Request>>, receiver: mpsc::Receiver<ResultMessage>,
+    sender: Option<mpsc::SyncSender<Request>>, receiver: Option<mpsc::Receiver<ResultMessage>>,
     pid: Arc<AtomicU32>, handle: Option<thread::JoinHandle<()>>,
 }
 
@@ -50,14 +79,15 @@ fn read_reply(reader: &mut impl Read, fd: i32, id: u64, timeout: i32) -> Result<
     if &result[..4] != b"ZAR1" || u64::from_be_bytes(result[4..12].try_into().unwrap()) != id || result[15] > 64 { return Err(()); }
     let app = u16::from_be_bytes([result[12],result[13]]);
     let name = std::str::from_utf8(&result[16..16+result[15] as usize]).map_err(|_| ())?.to_owned();
-    Ok((Classification { app, name, identified: result[14] & 2 != 0 }, result[14] & 1 != 0))
+    Ok((Classification { app, name, identified: result[14] & 2 != 0, limited:result[14] & 4 != 0 }, result[14] & 1 != 0))
 }
 
 impl Worker {
     fn drain(&self) -> (Vec<ResultMessage>,bool) {
         let mut messages=Vec::new();let mut closed=false;
+        let Some(receiver) = &self.receiver else { return (messages,true) };
         for _ in 0..RESULT_BATCH {
-            match self.receiver.try_recv() {
+            match receiver.try_recv() {
                 Ok(message)=>messages.push(message),
                 Err(mpsc::TryRecvError::Empty)=>break,
                 Err(mpsc::TryRecvError::Disconnected)=>{closed=true;break;},
@@ -87,23 +117,29 @@ impl Worker {
             let handshake = Request { id: 1, time: 0, packet: Vec::new() };
             let initial = transact(&mut input, &mut output, &handshake);
             let mut healthy = initial.is_ok();
-            if let Ok((version,_)) = initial { let _ = results.try_send(ResultMessage::Ready(version.name)); }
+            if let Ok((version,_)) = initial { healthy = results.send(ResultMessage::Ready(version.name)).is_ok(); }
             while healthy {
                 let Ok(request) = requests.recv() else { break };
                 match transact(&mut input, &mut output, &request) {
-                    Ok((app, done)) => { let _ = results.try_send(ResultMessage::Detection(request.id, app, done)); }
+                    Ok((app, done)) => {
+                        if !request.packet.is_empty() {
+                            healthy = results.send(ResultMessage::Detection(request.id, app, done)).is_ok();
+                        }
+                    }
                     Err(_) => healthy = false,
                 }
             }
-            if !healthy { let _ = results.try_send(ResultMessage::Failed); }
+            if !healthy { let _ = results.send(ResultMessage::Failed); }
             let _ = child.kill(); let _ = child.wait(); thread_pid.store(0, Ordering::Release);
         });
-        Ok(Self { sender: Some(sender), receiver, pid, handle: Some(handle) })
+        Ok(Self { sender: Some(sender), receiver:Some(receiver), pid, handle: Some(handle) })
     }
 }
 impl Drop for Worker {
     fn drop(&mut self) {
         self.sender.take();
+        // Unblock a worker delivering a full result queue before joining it.
+        self.receiver.take();
         let pid = self.pid.load(Ordering::Acquire);
         if pid != 0 { unsafe { libc::kill(pid as i32, libc::SIGTERM); } }
         if let Some(handle) = self.handle.take() { let _ = handle.join(); }
@@ -114,6 +150,7 @@ pub struct AppEngine {
     samples: Option<RingBuf<MapData>>, worker: Option<Worker>, flows: HashMap<FlowKey,Flow>,
     ids: HashMap<u64,FlowKey>, errors: [u64; 3], version: String,
     next_id: u64, pub active: bool, pub dropped: u64, pub failed: bool,
+    releases: VecDeque<u64>, limited: u64,
 }
 impl AppEngine {
     pub fn start(bpf: &mut Ebpf) -> Self {
@@ -122,7 +159,7 @@ impl AppEngine {
 
     fn with_worker(bpf: &mut Ebpf, path: &str) -> Self {
         let mut engine = Self { samples: None, worker: None, flows: HashMap::new(), ids: HashMap::new(), errors: [0; 3], version: String::new(), next_id: 2,
-            active: false, dropped: 0, failed: false };
+            active: false, dropped: 0, failed: false, releases:VecDeque::new(), limited:0 };
         match bpf.take_map("app_samples").ok_or("Missing application sample map".to_owned())
             .and_then(|map| RingBuf::try_from(map).map_err(|e| e.to_string()))
             .and_then(|samples| { engine.samples = Some(samples); Worker::start(path) }) {
@@ -139,17 +176,50 @@ impl AppEngine {
     }
 
     fn flow(&mut self, key: FlowKey, first_seen: u64) -> Option<&mut Flow> {
+        if self.flows.get(&key).is_some_and(|flow| flow.first_seen > first_seen) { return None; }
         if self.flows.get(&key).is_some_and(|flow| flow.first_seen != first_seen) {
-            if let Some(old) = self.flows.remove(&key) { self.ids.remove(&old.id); }
+            if let Some(old) = self.flows.remove(&key) {
+                self.ids.remove(&old.id);
+                if old.classification.is_none() { self.releases.push_back(old.id); }
+            }
         }
-        if !self.flows.contains_key(&key) && self.flows.len() >= FLOW_LIMIT { return None; }
+        if !self.flows.contains_key(&key) && (self.flows.len() >= FLOW_LIMIT || self.releases.len() >= FLOW_LIMIT) { return None; }
         if !self.flows.contains_key(&key) {
             let id = self.next_id; self.next_id = self.next_id.saturating_add(1);
             self.ids.insert(id, key);
             self.flows.insert(key, Flow { id, first_seen, previous: Bytes::default(), last_seen: first_seen,
-                classification: None, pending: Vec::new() });
+                classification: None, pending: Vec::new(), provisional:Vec::new() });
         }
         self.flows.get_mut(&key)
+    }
+
+    fn release_completed(&mut self) {
+        while let Some(id) = self.releases.front().copied() {
+            let sent = self.worker.as_ref().and_then(|w| w.sender.as_ref())
+                .is_some_and(|sender| sender.try_send(Request { id,time:0,packet:Vec::new() }).is_ok());
+            if !sent { break; }
+            self.releases.pop_front();
+        }
+    }
+
+    pub fn pending_usage(&self, mac: &str, hour: u64) -> (Bytes,Bytes) {
+        let (mut pending,mut provisional) = (Bytes::default(),Bytes::default());
+        for (key,flow) in &self.flows {
+            if flow.classification.is_some() || crate::persistence::mac_str(&key.mac) != mac { continue; }
+            for (time,bytes) in &flow.provisional {
+                if crate::timeline::local_hour(*time) == hour {
+                    provisional.download = provisional.download.saturating_add(bytes.download);
+                    provisional.upload = provisional.upload.saturating_add(bytes.upload);
+                }
+            }
+            for (time,bytes) in flow.pending.iter().chain(&flow.provisional) {
+                if crate::timeline::local_hour(*time) == hour {
+                    pending.download = pending.download.saturating_add(bytes.download);
+                    pending.upload = pending.upload.saturating_add(bytes.upload);
+                }
+            }
+        }
+        (pending,provisional)
     }
 
     pub fn tick(&mut self, bpf: &mut Ebpf, usage: &mut AppUsage, now: u64, mono_ms: u64) {
@@ -160,8 +230,14 @@ impl AppEngine {
                 ResultMessage::Ready(version) => { self.version = version; self.active = true; Self::set_enabled(bpf, true); }
                 ResultMessage::Failed => { self.active = false; self.failed = true; Self::set_enabled(bpf, false); }
                 ResultMessage::Detection(id, app, done) => if done {
-                    if let Some(flow) = self.ids.get(&id).and_then(|key| self.flows.get_mut(key)) {
-                        if flow.classification.is_none() { flow.classification = Some(app); }
+                    if let Some(key) = self.ids.get(&id).copied() {
+                        if let Some(flow) = self.flows.get_mut(&key) {
+                            if flow.classification.is_none() {
+                                if app.limited { self.limited = self.limited.saturating_add(1); }
+                                flow.decide(app,&crate::persistence::mac_str(&key.mac),usage);
+                                self.releases.push_back(id);
+                            }
+                        }
                     }
                 },
             }
@@ -169,6 +245,7 @@ impl AppEngine {
         // A full result queue can lose the final error message. Channel
         // closure must still disable sampling instead of claiming readiness.
         if closed {self.active=false;self.failed=true;Self::set_enabled(bpf,false);}
+        self.release_completed();
         // Bounded work per uloop tick. Overruns are diagnosed, never guessed.
         for _ in 0..SAMPLE_BATCH {
             let sample = self.samples.as_mut().and_then(|ring| ring.next()).and_then(|item| {
@@ -180,7 +257,7 @@ impl AppEngine {
             let id = self.flow(sample.key, sample.first_seen).and_then(|flow| if flow.classification.is_none() { Some(flow.id) } else { None });
             if let Some(id) = id {
                 let request = Request { id, time: sample.time / 1_000_000, packet: sample.packet[..sample.length as usize].to_vec() };
-                if !self.worker.as_ref().and_then(|worker| worker.sender.as_ref()).is_some_and(|sender| sender.try_send(request).is_ok()) {
+                if !self.releases.is_empty() || !self.worker.as_ref().and_then(|worker| worker.sender.as_ref()).is_some_and(|sender| sender.try_send(request).is_ok()) {
                     self.dropped = self.dropped.saturating_add(1);
                 }
             }
@@ -195,22 +272,27 @@ impl AppEngine {
             flow.last_seen = stats.last_seen;
             let bytes = Bytes { download:stats.download.saturating_sub(flow.previous.download), upload:stats.upload.saturating_sub(flow.previous.upload) };
             flow.previous = Bytes { download:stats.download,upload:stats.upload };
-            if bytes != Bytes::default() { flow.pending.push((now, bytes)); }
-            if flow.classification.is_none() && (failed || mono.saturating_sub(stats.first_seen) > 10_000_000_000) {
-                flow.classification = Some(Classification::default());
+            if bytes != Bytes::default() { Flow::accumulate(&mut flow.pending,now,bytes); }
+            if flow.classification.is_none() && failed {
+                flow.decide(Classification::default(),&crate::persistence::mac_str(&key.mac),usage);
             }
-            if let Some(app) = &flow.classification {
-                for (time, bytes) in flow.pending.drain(..) {
-                    usage.record(time, &crate::persistence::mac_str(&key.mac), app.app, &app.name, app.identified, bytes);
-                }
+            let expired_flow = mono.saturating_sub(stats.last_seen) > 120_000_000_000;
+            if flow.classification.is_some() || expired_flow {
+                flow.account(&crate::persistence::mac_str(&key.mac),usage,false);
+            } else if mono.saturating_sub(stats.first_seen) > 10_000_000_000 {
+                // A soft accounting checkpoint, never a final DPI decision.
+                flow.account(&crate::persistence::mac_str(&key.mac),usage,true);
             }
-            if mono.saturating_sub(stats.last_seen) > 120_000_000_000 { expired.push(key); }
+            if expired_flow { expired.push(key); }
         }
         if let Some(map) = bpf.map_mut("app_flows") {
             if let Ok(mut map) = BpfHashMap::<_,FlowKey,FlowStats>::try_from(map) {
                 for key in expired {
                     let _ = map.remove(&key);
-                    if let Some(flow) = self.flows.remove(&key) { self.ids.remove(&flow.id); }
+                    if let Some(flow) = self.flows.remove(&key) {
+                        self.ids.remove(&flow.id);
+                        if flow.classification.is_none() { self.releases.push_back(flow.id); }
+                    }
                 }
             }
         }
@@ -231,6 +313,7 @@ impl AppEngine {
         for (key,stats) in rows {
             if let Some(flow) = self.flow(key,stats.first_seen) {
                 flow.pending.clear();
+                flow.provisional.clear();
                 flow.previous = Bytes { download:stats.download, upload:stats.upload };
             }
         }
@@ -239,9 +322,7 @@ impl AppEngine {
     pub fn finish(&mut self, bpf: &mut Ebpf, usage: &mut AppUsage) {
         Self::set_enabled(bpf, false);
         for (key,flow) in &mut self.flows {
-            for (time,bytes) in flow.pending.drain(..) {
-                usage.record(time, &crate::persistence::mac_str(&key.mac), 0, "Unknown", false, bytes);
-            }
+            flow.account(&crate::persistence::mac_str(&key.mac),usage,false);
         }
         Self::set_enabled(bpf, false); self.worker.take(); self.active = false;
     }
@@ -249,7 +330,8 @@ impl AppEngine {
     pub fn status(&self) -> serde_json::Value {
         serde_json::json!({"engine":"nDPI","version":self.version,"active":self.active,
             "failed":self.failed,"queue_dropped":self.dropped.saturating_add(self.errors[1]),
-            "flow_overflow":self.errors[0],"unsupported_packets":self.errors[2],"flows":self.flows.len()})
+            "flow_overflow":self.errors[0],"unsupported_packets":self.errors[2],"flows":self.flows.len(),
+            "worker_limited":self.limited,"pending_flows":self.flows.values().filter(|flow| flow.classification.is_none()).count()})
     }
 }
 
@@ -288,7 +370,7 @@ mod tests {
     #[test]
     fn wire_layout_matches_the_kernel_and_worker_protocols() {
         assert_eq!(std::mem::size_of::<FlowKey>(),44);
-        assert_eq!(std::mem::size_of::<FlowStats>(),40);
+        assert_eq!(std::mem::size_of::<FlowStats>(),48);
         assert_eq!(std::mem::size_of::<Sample>(),4160);
     }
 
@@ -296,7 +378,7 @@ mod tests {
     fn worker_closure_is_detected_even_without_a_final_error_message() {
         let (results,receiver)=mpsc::sync_channel(1);
         results.send(ResultMessage::Ready("fixture".into())).unwrap();drop(results);
-        let worker=Worker{sender:None,receiver,pid:Arc::new(AtomicU32::new(0)),handle:None};
+        let worker=Worker{sender:None,receiver:Some(receiver),pid:Arc::new(AtomicU32::new(0)),handle:None};
         let (messages,closed)=worker.drain();assert_eq!(messages.len(),1);assert!(closed);
     }
 

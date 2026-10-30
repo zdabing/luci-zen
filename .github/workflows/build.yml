@@ -52,6 +52,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Validate version changelog before building
+        run: |
+          python3 scripts/make-release-notes.py --tag "$RELEASE_TAG" \
+            --sdk-version "$SDK_VERSION" --target "$SDK_TARGET" --commit "$GITHUB_SHA" \
+            --output "$RUNNER_TEMP/release-notes.md"
+
       - name: Install build prerequisites
         run: |
           sudo apt-get update
@@ -192,6 +198,21 @@ jobs:
           python3 scripts/make-release-metadata.py --assets out --target "$SDK_TARGET" \
             --sdk-version "$SDK_VERSION" --tag "$RELEASE_TAG" --notes build-metadata-notes.md \
             --filename-suffix "$suffix"
+          cp "$RUNNER_TEMP/release-notes.md" out/release-notes.md
+
+      - name: Explain build and publication outputs
+        env:
+          WILL_PUBLISH: ${{ github.event_name != 'workflow_dispatch' || inputs.publish_release }}
+        run: |
+          {
+            printf '## Zen %s\n\n' "$SDK_TARGET"
+            printf 'APK 和本版更新日志保存在本次运行的 Artifacts 中。\n\n'
+            if [ "$WILL_PUBLISH" = true ]; then
+              printf '所有目标构建成功后将发布到 [Release](https://github.com/%s/releases/tag/%s)。\n' "$GITHUB_REPOSITORY" "$RELEASE_TAG"
+            else
+              printf '本次关闭了 publish_release，仅保存构建产物，不创建 Release。\n'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v7
         with:
@@ -253,19 +274,8 @@ jobs:
           RELEASE_TARGET: ${{ inputs.sdk_target && inputs.sdk_target != 'both' && inputs.sdk_target || 'x86/64, rockchip/armv8' }}
           RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && format('build-{0}-{1}', github.run_id, github.run_attempt) || github.ref_name }}
         run: |
-          python3 - <<'PY'
-          import os
-          from pathlib import Path
-          notes = Path('CHANGELOG.md').read_text(encoding='utf-8')
-          metadata = (
-              f"\n\n## 构建信息\n\n"
-              f"- OpenWrt SDK: {os.environ['RELEASE_SDK']}\n"
-              f"- Target: {os.environ['RELEASE_TARGET']}\n"
-              f"- Commit: {os.environ['GITHUB_SHA']}\n\n"
-              "Kernel modules for luci-zen must match the firmware build.\n"
-          )
-          Path('release-notes.md').write_text(notes + metadata, encoding='utf-8')
-          PY
+          python3 scripts/make-release-notes.py --tag "$RELEASE_TAG" \
+            --sdk-version "$RELEASE_SDK" --target "$RELEASE_TARGET" --commit "$GITHUB_SHA"
           python3 scripts/make-release-metadata.py --assets release-assets --merge-builds --tag "$RELEASE_TAG" --notes release-notes.md
           (cd release-assets && find . -type f -name '*.apk' -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
 

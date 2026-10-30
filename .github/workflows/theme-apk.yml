@@ -73,18 +73,12 @@ jobs:
           tag = f'frontend-v{version}-r{revision}'
           with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
               output.write(f'tag={tag}\nversion={version}-r{revision}\n')
-          Path('release-notes.md').write_text(
-              f'Zen 页面 {version}-r{revision}，APK 架构为 `all`。\n\n'
-              '- 版本页提供路由器一键更新：下载、校验、安装两个 Zen 组件并显示进度；页面重载后恢复后台任务。\n'
-              '- 安装权限独立于外观设置，只允许固定仓库、已安装的 Zen 包和更高版本。\n'
-              '- 更新由独立后台任务执行；服务包升级后重启并检查运行状态。\n\n'
-              '从旧包名升级需先按 README 的迁移步骤安装两个新包。\n\n'
-              '安装：下载 APK，在 OpenWrt 软件包页面上传安装，然后选择 Zen 主题。需要 ucode LuCI。\n\n'
-              f'源码提交：`{os.environ["GITHUB_SHA"]}`\n', encoding='utf-8')
           Path('out/sources.tsv').write_text(
               f'Zen\t{os.environ["GITHUB_SHA"]}\nSDK\t{os.environ["SDK_VERSION"]}\nTarget\t{os.environ["SDK_TARGET"]}\n')
           PY
           TAG=$(sed -n 's/^tag=//p' "$GITHUB_OUTPUT")
+          python3 scripts/make-release-notes.py --tag "$TAG" --sdk-version "$SDK_VERSION" \
+            --target "$SDK_TARGET" --commit "$GITHUB_SHA"
           python3 scripts/make-release-metadata.py --assets out --target "$SDK_TARGET" \
             --sdk-version "$SDK_VERSION" --tag "$TAG" --notes release-notes.md --packages luci-app-zen
           (cd out && sha256sum ./*.apk > SHA256SUMS && sha256sum -c SHA256SUMS)

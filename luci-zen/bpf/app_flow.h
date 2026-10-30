@@ -4,7 +4,8 @@
 
 #define ZEN_APP_FLOWS 16384
 #define ZEN_APP_SAMPLE_SIZE 4096
-#define ZEN_APP_SAMPLE_PACKETS 32
+#define ZEN_APP_SAMPLE_PACKETS 128
+#define ZEN_APP_CONTROL_PACKETS 8
 
 /* Device-normalized five tuple: both directions use the same key. */
 struct app_flow_key {
@@ -13,7 +14,7 @@ struct app_flow_key {
 	__be16 client_port, server_port;
 };
 struct app_flow_stats {
-	__u64 first_seen, last_seen, download, upload, samples;
+	__u64 first_seen, last_seen, download, upload, samples, control_samples;
 };
 struct app_flow_sample {
 	struct app_flow_key key;
@@ -63,7 +64,7 @@ static __always_inline void app_account(struct __sk_buff *skb, const __u8 *mac,
 	struct ipv6hdr ip6;
 	__be16 ports[2];
 	int l4;
-	__u32 length;
+	__u32 length, ip_length;
 	__u64 now = bpf_ktime_get_ns();
 	if (!enabled || !*enabled) return;
 	__builtin_memcpy(key.mac, mac, 6);
@@ -73,6 +74,7 @@ static __always_inline void app_account(struct __sk_buff *skb, const __u8 *mac,
 		__builtin_memcpy(key.client, egress ? &ip6.daddr : &ip6.saddr, 16);
 		__builtin_memcpy(key.server, egress ? &ip6.saddr : &ip6.daddr, 16);
 		l4 = off + sizeof(ip6);
+		ip_length = sizeof(ip6) + bpf_ntohs(ip6.payload_len);
 	} else {
 		if (bpf_skb_load_bytes(skb, off, &ip, sizeof(ip))) return;
 		if (ip.ihl < 5 || (ip.frag_off & bpf_htons(0x3fff))) { app_error(2); return; }
@@ -80,6 +82,7 @@ static __always_inline void app_account(struct __sk_buff *skb, const __u8 *mac,
 		__builtin_memcpy(key.client, egress ? &ip.daddr : &ip.saddr, 4);
 		__builtin_memcpy(key.server, egress ? &ip.saddr : &ip.daddr, 4);
 		l4 = off + ip.ihl * 4;
+		ip_length = bpf_ntohs(ip.tot_len);
 	}
 	/* Fragment/extension headers and other protocols remain in device totals.
 	 * They must appear as unattributed bytes, never as a guessed application. */
@@ -97,9 +100,29 @@ static __always_inline void app_account(struct __sk_buff *skb, const __u8 *mac,
 	stats->last_seen = now;
 	if (egress) __sync_fetch_and_add(&stats->download, skb->len);
 	else __sync_fetch_and_add(&stats->upload, skb->len);
-	if (__sync_fetch_and_add(&stats->samples, 1) >= ZEN_APP_SAMPLE_PACKETS) return;
+	/* Empty TCP ACKs must not consume the useful-payload inspection budget. */
+	__u64 *counter = &stats->samples;
+	__u64 budget = ZEN_APP_SAMPLE_PACKETS;
+	if (key.protocol == 6) {
+		__u8 tcp[2];
+		if (bpf_skb_load_bytes(skb, l4 + 12, tcp, sizeof(tcp))) return;
+		__u32 tcp_length = (tcp[0] >> 4) * 4;
+		if (tcp_length < 20 || ip_length < (__u32)(l4 - off) + tcp_length) return;
+		if (ip_length == (__u32)(l4 - off) + tcp_length) {
+			if (!(tcp[1] & 0x07)) return; /* FIN, SYN or RST only. */
+			counter = &stats->control_samples;
+			budget = ZEN_APP_CONTROL_PACKETS;
+		}
+	} else if (ip_length <= (__u32)(l4 - off) + 8) {
+		return;
+	}
+	if (*counter >= budget) return;
+	if (__sync_fetch_and_add(counter, 1) >= budget) {
+		__sync_fetch_and_sub(counter, 1);
+		return;
+	}
 	event = bpf_ringbuf_reserve(&app_samples, sizeof(*event), 0);
-	if (!event) { app_error(1); return; }
+	if (!event) { __sync_fetch_and_sub(counter, 1); app_error(1); return; }
 	event->key = key;
 	event->first_seen = stats->first_seen;
 	event->time = now;
@@ -116,9 +139,11 @@ static __always_inline void app_account(struct __sk_buff *skb, const __u8 *mac,
 	 * retain the explicit positive-length check at the helper call. */
 	__u32 read_length = *(volatile __u32 *)&event->length;
 	if (read_length == 0 || read_length > ZEN_APP_SAMPLE_SIZE) {
+		__sync_fetch_and_sub(counter, 1);
 		bpf_ringbuf_discard(event, 0); return;
 	}
 	if (bpf_skb_load_bytes(skb, off, event->packet, read_length)) {
+		__sync_fetch_and_sub(counter, 1);
 		bpf_ringbuf_discard(event, 0); return;
 	}
 	bpf_ringbuf_submit(event, 0);

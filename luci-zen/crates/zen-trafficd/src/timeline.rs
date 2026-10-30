@@ -23,7 +23,7 @@ pub fn flush_usage(timeline: &mut DeviceTimeline, apps: &mut crate::app_usage::A
         mono.saturating_sub(apps.last_flush) < 300_000) { return Ok(()); }
     timeline.last_flush = mono; apps.last_flush = mono;
     let (device_floor,app_floor) = db.save_usage_timelines(timeline,apps,now)?;
-    timeline.hours.clear(); apps.hours.clear();
+    timeline.hours.clear(); apps.hours.clear(); apps.corrections.clear();
     timeline.hour_floor = device_floor; apps.floor = app_floor;
     Ok(())
 }

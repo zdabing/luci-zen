@@ -2,11 +2,24 @@ zen-appid is a separate LGPL-3.0-or-later recognition executable.
 It communicates application IDs and names to the GPL-2.0 zen-trafficd daemon
 through inherited local pipes; nDPI is not linked into zen-trafficd.
 
-nDPI 5.0, copyright ntop and contributors.
-Upstream: https://github.com/ntop/nDPI/tree/5.0
-Corresponding source: https://sources.openwrt.org/libndpi-5.0.tar.gz
-SHA256: 8b0d3dc0c8a6a68578e09a18c922021ef6458d4aca1c7a20ce04efc267aa9ea5
-The source version and checksum match OpenWrt's libndpi recipe.
+nDPI 6.0, copyright ntop and contributors.
+Upstream: https://github.com/ntop/nDPI/tree/6.0
+Release commit: 1a5293396337f9a72dfee1fa070b2c4b0a0a3aaf
+Corresponding source: https://codeload.github.com/ntop/nDPI/tar.gz/6.0
+SHA256: 21fc40cab5505942c0b21d9bbaf73e9adf8162ddfe782e4cd072cab855a2eda9
+
+The core library is LGPL-3.0-or-later. nDPI 6.0 additionally supplies
+dual-licensed dissectors, including TLS, QUIC, DNS and DHCP. This project's
+default personal/non-profit build initializes nDPI with
+NDPI_LICENSE_NOT_FOR_PROFIT_LGPL, enabling those components under the upstream
+terms. This default does not grant permission for commercial use of the
+dual-licensed components. The unmodified upstream README.license.md is
+installed alongside this notice as NDPI-LICENSING.
+
+Commercial downstream builds must select an applicable upstream usage mode
+via the backend Makefile's NDPI_LICENSE_TYPE setting. The upstream
+NDPI_LICENSE_FOR_PROFIT_LGPL mode disables dual-licensed dissectors;
+NDPI_LICENSE_FOR_PROFIT_DUAL_LICENSE requires an agreement with ntop.
 
 nDPI is compiled without changes. The separate zen-appid adapter and its
 WeChat hostname refinement are supplied in this repository's appid directory.
