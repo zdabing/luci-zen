@@ -62,7 +62,11 @@ return baseclass.extend({
   this.panel.querySelectorAll('button,input,select,textarea').forEach(control=>control.disabled=true);
   this.message.textContent=_('Working…');
   try{await fn();if(this.message.textContent===_('Working…'))this.message.textContent=_('Done.');}
-  catch(error){this.dns.checked=!!this.savedDns;this.message.textContent=_('Operation failed: ')+(error?.message||_('Unavailable'));}
+  catch(error){
+   this.dns.checked=!!this.savedDns;
+   const safeMessages=[...Object.values(errors),_('Invalid rule package JSON.'),_('Rule package is too large.'),_('Choose a device first.'),_('Invalid recognition response.')];
+   this.message.textContent=_('Operation failed: ')+(safeMessages.includes(error?.message)?error.message:_('Unable to save recognition settings.'));
+  }
   finally{this.pending=false;this.panel.querySelectorAll('button,input,select,textarea').forEach(control=>control.disabled=false);}
  },
  async load(){

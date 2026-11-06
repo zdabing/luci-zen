@@ -254,9 +254,14 @@ unsafe extern "C" fn handle_get_dpi_diagnostics(ctx:*mut ubus::ubus_context,_obj
     }) {Some(value)=>send_json(ctx,req,value),None=>ubus::UBUS_STATUS_NOT_SUPPORTED}
 }
 
+// rpcd injects authenticated session metadata; business fields stay strict.
+unsafe fn dpi_fields<'a>(msg:*mut ubus::blob_attr)->Vec<ubus::AttrRef<'a>> {
+    ubus::parse_msg(msg).into_iter().filter(|field|field.name!=Some("ubus_rpc_session")).collect()
+}
+
 unsafe extern "C" fn handle_set_dpi_diagnostics(ctx:*mut ubus::ubus_context,_obj:*mut ubus::ubus_object,
     req:*mut ubus::ubus_request_data,_method:*const c_char,msg:*mut ubus::blob_attr) -> c_int {
-    let fields=ubus::parse_msg(msg);
+    let fields=dpi_fields(msg);
     if fields.len()!=1 || fields[0].name!=Some("seconds") {return ubus::UBUS_STATUS_INVALID_ARGUMENT;}
     let Some(seconds)=fields[0].as_u32().filter(|n|*n<=300) else {return ubus::UBUS_STATUS_INVALID_ARGUMENT;};
     match with_daemon(|d|d.app_engine.set_diagnostics(u64::from(seconds),crate::state::now_mono_ms())) {
@@ -279,16 +284,16 @@ unsafe fn mutation_reply(ctx:*mut ubus::ubus_context,req:*mut ubus::ubus_request
     match result {Some(Ok(()))=>send_json(ctx,req,serde_json::json!({"ok":true})),Some(Err(error))=>send_json(ctx,req,serde_json::json!({"ok":false,"error":error})),None=>ubus::UBUS_STATUS_NOT_SUPPORTED}
 }
 unsafe extern "C" fn handle_set_dpi_rules(ctx:*mut ubus::ubus_context,_obj:*mut ubus::ubus_object,req:*mut ubus::ubus_request_data,_method:*const c_char,msg:*mut ubus::blob_attr)->c_int {
-    let fields=ubus::parse_msg(msg);if fields.len()!=1||fields[0].name!=Some("json"){return ubus::UBUS_STATUS_INVALID_ARGUMENT;}
+    let fields=dpi_fields(msg);if fields.len()!=1||fields[0].name!=Some("json"){return ubus::UBUS_STATUS_INVALID_ARGUMENT;}
     let Some(data)=fields[0].as_str() else{return ubus::UBUS_STATUS_INVALID_ARGUMENT;};
     mutation_reply(ctx,req,with_daemon(|d|d.app_engine.update_rules(data)))
 }
 unsafe extern "C" fn handle_rollback_dpi_rules(ctx:*mut ubus::ubus_context,_obj:*mut ubus::ubus_object,req:*mut ubus::ubus_request_data,_method:*const c_char,msg:*mut ubus::blob_attr)->c_int {
-    if !ubus::parse_msg(msg).is_empty(){return ubus::UBUS_STATUS_INVALID_ARGUMENT;}
+    if !dpi_fields(msg).is_empty(){return ubus::UBUS_STATUS_INVALID_ARGUMENT;}
     mutation_reply(ctx,req,with_daemon(|d|d.app_engine.rollback_rules()))
 }
 unsafe extern "C" fn handle_set_dpi_dns(ctx:*mut ubus::ubus_context,_obj:*mut ubus::ubus_object,req:*mut ubus::ubus_request_data,_method:*const c_char,msg:*mut ubus::blob_attr)->c_int {
-    let fields=ubus::parse_msg(msg);if fields.len()!=1||fields[0].name!=Some("enabled"){return ubus::UBUS_STATUS_INVALID_ARGUMENT;}
+    let fields=dpi_fields(msg);if fields.len()!=1||fields[0].name!=Some("enabled"){return ubus::UBUS_STATUS_INVALID_ARGUMENT;}
     let enabled=fields[0].as_u32().or_else(||fields[0].as_bool().map(u32::from));
     let Some(enabled)=enabled.filter(|n|*n<=1).map(|n|n==1) else{return ubus::UBUS_STATUS_INVALID_ARGUMENT;};
     mutation_reply(ctx,req,with_daemon(|d| {
@@ -299,7 +304,7 @@ unsafe extern "C" fn handle_set_dpi_dns(ctx:*mut ubus::ubus_context,_obj:*mut ub
 }
 unsafe extern "C" fn handle_set_dpi_feedback(ctx:*mut ubus::ubus_context,_obj:*mut ubus::ubus_object,req:*mut ubus::ubus_request_data,_method:*const c_char,msg:*mut ubus::blob_attr)->c_int {
     #[derive(serde::Deserialize)] #[serde(deny_unknown_fields)] struct Input {rule_id:String,expected:String}
-    let fields=ubus::parse_msg(msg);if fields.len()!=1||fields[0].name!=Some("json"){return ubus::UBUS_STATUS_INVALID_ARGUMENT;}
+    let fields=dpi_fields(msg);if fields.len()!=1||fields[0].name!=Some("json"){return ubus::UBUS_STATUS_INVALID_ARGUMENT;}
     let Some(data)=fields[0].as_str().filter(|s|s.len()<=1024) else{return ubus::UBUS_STATUS_INVALID_ARGUMENT;};
     let Ok(input)=serde_json::from_str::<Input>(data) else{return ubus::UBUS_STATUS_INVALID_ARGUMENT;};
     mutation_reply(ctx,req,with_daemon(|d| {
