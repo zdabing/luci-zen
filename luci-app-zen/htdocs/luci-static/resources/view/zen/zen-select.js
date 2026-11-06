@@ -15,9 +15,17 @@ function enhance(select) {
  list.append(...options); wrapper.append(button,list); select.before(wrapper); select.hidden=true;
  const sync=()=>{label.textContent=select.selectedOptions[0]?.textContent||''; options.forEach(option=>option.setAttribute('aria-selected',String(option.dataset.value===select.value)));};
  let listening=false;
+ function position(){
+  if(list.hidden)return;
+  const viewport=window.visualViewport,gutter=12,left=(viewport?.offsetLeft||0)+gutter;
+  const right=left+(viewport?.width||document.documentElement.clientWidth)-gutter*2,width=Math.max(1,right-left);
+  list.style.maxWidth=width+'px';list.style.minWidth=Math.min(button.getBoundingClientRect().width,width)+'px';list.style.transform='none';
+  const rect=list.getBoundingClientRect(),target=Math.max(left,Math.min(rect.left,right-rect.width));
+  list.style.transform='translateX('+(target-rect.left)+'px)';
+ }
  function outside(event){if(!wrapper.contains(event.target))close(false);}
- function close(focus){list.hidden=true;button.setAttribute('aria-expanded','false');button.removeAttribute('aria-activedescendant');if(listening){document.removeEventListener('pointerdown',outside);listening=false;}if(focus)button.focus();}
- function open(index){list.hidden=false;button.setAttribute('aria-expanded','true');index=Math.max(0,Math.min(options.length-1,index));options[index]?.focus();if(!listening){document.addEventListener('pointerdown',outside);listening=true;}}
+ function close(focus){list.hidden=true;button.setAttribute('aria-expanded','false');button.removeAttribute('aria-activedescendant');if(listening){document.removeEventListener('pointerdown',outside);window.removeEventListener('resize',position);window.visualViewport?.removeEventListener('resize',position);window.visualViewport?.removeEventListener('scroll',position);listening=false;}if(focus)button.focus();}
+ function open(index){list.hidden=false;button.setAttribute('aria-expanded','true');position();index=Math.max(0,Math.min(options.length-1,index));options[index]?.focus();if(!listening){document.addEventListener('pointerdown',outside);window.addEventListener('resize',position);window.visualViewport?.addEventListener('resize',position);window.visualViewport?.addEventListener('scroll',position);listening=true;}}
  options.forEach((option,index)=>{
   option.addEventListener('click',()=>{select.value=option.dataset.value;select.dispatchEvent(new Event('change',{bubbles:true}));sync();close(true);});
   option.addEventListener('keydown',event=>{

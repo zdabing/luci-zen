@@ -13,7 +13,10 @@
 					"getInternetHistory",
 					"getNotifications",
 					"getDeviceTimeline",
-					"getAppUsage"
+					"getAppUsage",
+					"getDpiDiagnostics",
+					"getDpiRules",
+					"getAppRealtime"
 				]
 			}
 		},
@@ -23,7 +26,12 @@
 					"setHostname",
 					"resetDevice",
 					"setNotifications",
-					"testNotification"
+					"testNotification",
+					"setDpiDiagnostics",
+					"setDpiRules",
+					"rollbackDpiRules",
+					"setDpiDns",
+					"setDpiFeedback"
 				]
 			}
 		}

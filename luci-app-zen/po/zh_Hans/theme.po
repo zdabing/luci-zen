@@ -742,8 +742,6 @@ msgstr "重置统计"
 msgid "History analysis"
 msgstr "历史分析"
 
-msgid "Mist"
-msgstr "雾岚"
 
 msgid "A quieter view of your network."
 msgstr "让网络状态，一目了然。"
@@ -1149,3 +1147,22 @@ msgstr "未归类"
 
 msgid "Update the traffic service to enable application usage."
 msgstr "请更新流量服务以启用应用用量。"
+
+msgid "Visual theme"
+msgstr "界面主题"
+
+msgid "Meridian"
+msgstr "Meridian 橙彩玻璃"
+
+msgid "Neutral cards, orange accents and glass navigation."
+msgstr "灰白卡片、橙色交互与玻璃导航。"
+
+
+msgid "Apple"
+msgstr "Apple 清爽卡片"
+
+msgid "White cards, blue actions and colorful icons."
+msgstr "白色卡片、蓝色操作与彩色图标。"
+
+msgid "View traffic"
+msgstr "查看流量"

@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: LGPL-3.0-or-later
  * Separate nDPI worker; no payload, hostname, URL or flow log is written to disk.
- * stdin: ZAP1 + id:u64 + monotonic_ms:u64 + length:u32, then IPv4/IPv6 bytes.
- * stdout: ZAR1 + id:u64 + protocol:u16 + flags:u8 + name_length:u8 + name[64].
+ * stdin: ZAP2 + id:u64 + monotonic_ms:u64 + length:u32, then IPv4/IPv6 bytes.
+ * stdout: ZAR2, 440 bytes. The first 80 bytes carry the native decision;
+ * offsets 80/82: master/app u16, 84: confidence u8, 85: budget/truncation bits,
+ * 86: host length u16, 88: host[256], 344: confidence name[32], 376: master name[64].
  * All integers are big endian; a zero-length message releases the flow slot.
  */
 #include <ndpi_api.h>
@@ -32,6 +34,9 @@ struct slot {
   unsigned packets, payloads;
   uint16_t app;
   uint8_t state, done, limited;
+  uint16_t master, raw_app;
+  uint8_t confidence, budget, truncated;
+  char hostname[80];
 };
 static struct slot slots[SLOTS];
 
@@ -97,6 +102,9 @@ static int identified_service(struct ndpi_detection_module_struct *ndpi, uint16_
     case NDPI_PROTOCOL_HLS: case NDPI_PROTOCOL_PROTOBUF: case NDPI_PROTOCOL_BITTORRENT:
     case NDPI_PROTOCOL_OPENVPN: case NDPI_PROTOCOL_TOR: case NDPI_PROTOCOL_RAKNET:
       return 0;
+#if NDPI_MAJOR >= 6
+    case NDPI_PROTOCOL_MSGPACK: return 0;
+#endif
     default:
 #if NDPI_MAJOR >= 6
       return app < ndpi_get_num_protocols(ndpi) && ndpi_get_proto_defaults(ndpi)[app].isAppProtocol;
@@ -106,32 +114,14 @@ static int identified_service(struct ndpi_detection_module_struct *ndpi, uint16_
   }
 }
 
-/* nDPI's generic qq.com rule also matches WeChat hosts. Refine only
- * service-specific HTTP/TLS/QUIC hostnames, never shared Tencent CDN IPs. */
-static uint16_t specific_service(ndpi_protocol proto, const struct ndpi_flow_struct *flow) {
-  uint16_t master = proto.proto.master_protocol, app = proto.proto.app_protocol;
-  if (master != NDPI_PROTOCOL_HTTP && master != NDPI_PROTOCOL_TLS && master != NDPI_PROTOCOL_QUIC &&
-      app != NDPI_PROTOCOL_HTTP && app != NDPI_PROTOCOL_TLS && app != NDPI_PROTOCOL_QUIC) return 0;
-  static const char *domains[] = { "weixin.qq.com", "wx.qq.com", "wechat.com" };
-  char host[sizeof(flow->host_server_name)];
-  size_t n = strnlen(flow->host_server_name, sizeof(host));
-  if (!n || n >= sizeof(host) - 1) return 0; /* Potentially truncated hostname. */
-  for (size_t i = 0; i < n; i++) {
-    unsigned char c = (unsigned char)flow->host_server_name[i];
-    host[i] = c >= 'A' && c <= 'Z' ? (char)(c + ('a' - 'A')) : (char)c;
-  }
-  if (host[n - 1] == '.') n--;
-  host[n] = 0;
-  for (unsigned i = 0; i < sizeof(domains) / sizeof(domains[0]); i++) {
-    size_t size = strlen(domains[i]);
-    if (n >= size && !memcmp(host + n - size, domains[i], size) &&
-        (n == size || host[n - size - 1] == '.')) return NDPI_PROTOCOL_WECHAT;
-  }
-  return 0;
+static void copy_text(uint8_t *out, size_t capacity, const char *text) {
+  if (!text) return;
+  size_t n = strnlen(text, capacity - 1);
+  for (size_t i = 0; i < n; i++) out[i] = (uint8_t)text[i] < 32 ? '_' : text[i];
 }
 
 int main(void) {
-  uint8_t header[24], packet[MAX_PACKET], response[80];
+  uint8_t header[24], packet[MAX_PACKET], response[440];
   struct ndpi_detection_module_struct *ndpi;
   struct rlimit memory = { 128ULL * 1024 * 1024, 128ULL * 1024 * 1024 };
   struct rlimit core = { 0, 0 };
@@ -166,12 +156,12 @@ int main(void) {
   }
   setvbuf(stdout, NULL, _IONBF, 0);
   while (read_exact(header, sizeof(header))) {
-    if (memcmp(header, "ZAP1", 4)) break;
+    if (memcmp(header, "ZAP2", 4)) break;
     uint64_t id = read64(header + 4), time = read64(header + 12);
     uint32_t length = read32(header + 20);
     if (!id || length > MAX_PACKET) break;
     memset(response, 0, sizeof(response));
-    memcpy(response, "ZAR1", 4); memcpy(response + 4, header + 4, 8);
+    memcpy(response, "ZAR2", 4); memcpy(response + 4, header + 4, 8);
     if (length) {
       if (!read_exact(packet, length)) break;
       struct slot *slot = find_slot(id, 1);
@@ -185,8 +175,7 @@ int main(void) {
       ndpi_protocol proto = ndpi_detection_process_packet(ndpi, slot->flow, packet,
           (uint16_t)length, time, NULL);
       slot->packets++; slot->payloads += has_payload(packet, length);
-      uint16_t service = specific_service(proto, slot->flow);
-      uint16_t candidate = service ? service : proto.proto.app_protocol ? proto.proto.app_protocol : proto.proto.master_protocol;
+      uint16_t candidate = proto.proto.app_protocol ? proto.proto.app_protocol : proto.proto.master_protocol;
       unsigned done;
 #if NDPI_MAJOR >= 5
       done = slot->payloads >= PAYLOAD_PACKETS || slot->packets >= MAX_SAMPLED_PACKETS || proto.state == NDPI_STATE_CLASSIFIED;
@@ -194,7 +183,6 @@ int main(void) {
       done = slot->payloads >= PAYLOAD_PACKETS || slot->packets >= MAX_SAMPLED_PACKETS ||
           (proto.proto.app_protocol && !ndpi_extra_dissection_possible(ndpi, slot->flow));
 #endif
-      if (service) done = 1;
       /* Application accounting does not need to wait for HTTP response/TLS
        * certificate metadata once a complete hostname supplied a DPI result.
        * Empty ACKs are intentionally no longer sampled just to finish that
@@ -213,7 +201,18 @@ int main(void) {
         proto = ndpi_detection_giveup(ndpi, slot->flow, &guessed);
       }
 #endif
-      slot->app = service ? service : proto.proto.app_protocol ? proto.proto.app_protocol : proto.proto.master_protocol;
+      slot->app = proto.proto.app_protocol ? proto.proto.app_protocol : proto.proto.master_protocol;
+      slot->master = proto.proto.master_protocol;
+      slot->raw_app = proto.proto.app_protocol;
+      slot->confidence = slot->flow->confidence;
+      slot->budget = slot->payloads >= PAYLOAD_PACKETS || slot->packets >= MAX_SAMPLED_PACKETS;
+      /* Copy evidence before freeing the parser. Reject potentially truncated
+       * names; the daemon additionally validates DNS label boundaries. */
+      memset(slot->hostname, 0, sizeof(slot->hostname));
+      host_length = strnlen(slot->flow->host_server_name, sizeof(slot->flow->host_server_name));
+      slot->truncated = host_length >= sizeof(slot->flow->host_server_name) - 1 || host_length >= sizeof(slot->hostname);
+      if (host_length && host_length < sizeof(slot->flow->host_server_name) - 1 && host_length < sizeof(slot->hostname))
+        memcpy(slot->hostname, slot->flow->host_server_name, host_length + 1);
       slot->done = done;
       if (done) { ndpi_free_flow(slot->flow); slot->flow = NULL; }
 decision: ;
@@ -225,6 +224,14 @@ decision: ;
       if (identified_service(ndpi, app)) response[14] |= 2;
       response[15] = (uint8_t)n;
       for (size_t i = 0; i < n; i++) response[16 + i] = (uint8_t)name[i] < 32 ? '_' : name[i];
+      response[80] = slot->master >> 8; response[81] = slot->master & 255;
+      response[82] = slot->raw_app >> 8; response[83] = slot->raw_app & 255;
+      response[84] = slot->confidence; response[85] = slot->budget | (slot->truncated << 1);
+      size_t host_size = strlen(slot->hostname);
+      response[86] = host_size >> 8; response[87] = host_size & 255;
+      memcpy(response + 88, slot->hostname, host_size);
+      copy_text(response + 344, 32, ndpi_confidence_get_name(slot->confidence));
+      copy_text(response + 376, 64, ndpi_get_proto_name(ndpi, slot->master));
     } else {
       struct slot *slot = find_slot(id, 0);
       release_slot(slot);

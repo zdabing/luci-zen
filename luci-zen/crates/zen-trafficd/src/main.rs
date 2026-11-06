@@ -15,6 +15,11 @@
 mod accounting;
 mod app_usage;
 mod app_engine;
+mod app_rules;
+mod app_catalog;
+mod app_rule_store;
+mod app_features;
+mod app_dns;
 mod timeline;
 mod daemon;
 mod device;

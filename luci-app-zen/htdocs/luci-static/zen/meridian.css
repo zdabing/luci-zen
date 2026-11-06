@@ -1,0 +1,96 @@
+/* Meridian / vivid: optional Zen skin. Theme and layout preferences stay independent. */
+:root[data-skin="meridian"] {
+ --chart-series-1:#168bff;--chart-series-2:#ff6a00;--chart-series-3:#6254de;--chart-series-4:#2cc653;
+ --chart-series-5:#ffc900;--chart-series-6:#00adc4;--chart-series-7:#ff3b30;--chart-series-8:#af52de;
+ --bg-base:#f4f4f6;--bg-panel:#fff;--bg-nested:#f7f7fa;--bg-input:#fff;
+ --text:#232326;--text-secondary:#62626c;--text-muted:#6b6b75;
+ --line:#ececf0;--line-strong:#85858f;--accent:#ff6a00;--accent-strong:#a64000;
+ --on-accent:#232326;--accent-soft:#fff0e5;--accent-press:#e65e00;
+ --selection-fill:rgb(0 0 0 / 6%);--danger:#b42318;--danger-soft:#fff0ed;
+ --ok:#24753c;--ok-soft:#eaf8ed;--warn:#8a5700;--warn-soft:#fff7de;--info:#2563b0;--info-soft:#eaf4ff;
+ --dl:#168bff;--ul:#ff6a00;--total-dl:var(--dl);--total-ul:var(--ul);
+ --gauge:#ff6a00;--gauge-warn:var(--warn);--gauge-danger:var(--danger);--status-online:#24753c;
+ --surface-raised:#fff;--bg-overview:#fff;--progress-track:#eaeaf0;
+ --radius:20px;--radius-card:20px;--radius-sm:16px;--radius-control:12px;
+ --modal-mask:#10101555;--modal-shadow:0 20px 64px #10101520;--scroll-thumb:#b5b5bf;
+ --focus-ring:#a6400040;--nav-active-bg:var(--selection-fill);--nav-active-text:var(--accent-strong);
+ --row-hover:var(--bg-nested);--glass-fill:rgb(255 255 255 / 76%);--glass-rim:rgb(255 255 255 / 80%);
+ --glass-inner:rgb(0 0 0 / 7%);--glass-shadow:0 8px 24px rgb(0 0 0 / 7%);
+ --rf-green:var(--dl);--rf-green-bg:var(--info-soft);--rf-up:var(--ul);--rf-up-bg:var(--accent-soft);
+}
+:root[data-skin="meridian"][data-theme="dark"] {
+ color-scheme:dark;--bg-base:#000;--bg-panel:#202125;--bg-nested:#292a2f;--bg-input:#292a2f;
+ --text:#f3f3f5;--text-secondary:#b2b2bc;--text-muted:#a1a1ac;--line:#303137;--line-strong:#73737f;
+ --accent:#ff6a00;--accent-strong:#ffad70;--on-accent:#232326;--accent-soft:#3a2618;--selection-fill:rgb(255 255 255 / 10%);
+ --danger:#ffb4ab;--danger-soft:#412624;--ok:#82d99a;--ok-soft:#20362a;
+ --warn:#f1c16b;--warn-soft:#3a321f;--info:#a8c7fa;--info-soft:#1c3048;
+ --dl:#69b6ff;--ul:#ffad70;--status-online:#82d99a;--surface-raised:#292a2f;--bg-overview:#202125;--progress-track:#3b3b44;
+ --modal-mask:#0009;--modal-shadow:0 20px 64px #0008;--scroll-thumb:#63636e;--focus-ring:#ffad7050;
+ --glass-fill:rgb(32 32 38 / 82%);--glass-rim:rgb(255 255 255 / 18%);--glass-inner:rgb(0 0 0 / 24%);--glass-shadow:0 8px 24px rgb(0 0 0 / 24%);
+}
+:root[data-skin="meridian"] body {background:var(--bg-base);color:var(--text);font-variant-numeric:tabular-nums}
+:root[data-skin="meridian"] body>header {background:var(--bg-panel);border:1px solid var(--line);box-shadow:var(--glass-shadow)}
+:root[data-skin="meridian"] :is(.zc-app-nav,.zen-settings-tabs) {background:var(--bg-panel)}
+:root[data-skin="meridian"] :is(.nav>li.active>a,.slide-menu .active>a,.zen-settings-tabs button[aria-selected="true"]) {background:var(--selection-fill);color:var(--accent-strong);border-radius:14px}
+:root[data-skin="meridian"][data-layout="top"] #mainmenu .nav>li.active>a {background:var(--selection-fill);color:var(--accent-strong);border-radius:24px}
+:root[data-skin="meridian"] :is(.zen-mode-toggle,.zen-settings-link,.rf-system-button) {border-radius:14px}
+:root[data-skin="meridian"] :is(.zen-dash-panel,.cbi-section,.za-panel,.za-detail,.zen-updates,.zen-preferences) {background:var(--bg-panel);border-color:var(--line);border-radius:20px;box-shadow:none}
+:root[data-skin="meridian"] :is(.rf-router,.rf-live,.rf-share-bounded,.zen-dash-devices) {border-radius:20px!important;background:var(--bg-panel)!important;border:1px solid var(--line)!important;padding:20px!important}
+:root[data-skin="meridian"] .rf-health :is(.rf-health-metric,.zen-dash-health-metric) {background:var(--bg-nested);border:1px solid var(--line);border-radius:16px}
+:root[data-skin="meridian"] .rf-health>:nth-child(1) {background:color-mix(in srgb,var(--ul) 5%,var(--bg-panel));border-color:color-mix(in srgb,var(--ul) 14%,var(--bg-panel))}
+:root[data-skin="meridian"] .rf-health>:nth-child(2) {background:color-mix(in srgb,var(--dl) 5%,var(--bg-panel));border-color:color-mix(in srgb,var(--dl) 14%,var(--bg-panel))}
+:root[data-skin="meridian"] .rf-health>:nth-child(3) {background:color-mix(in srgb,var(--warn) 5%,var(--bg-panel));border-color:color-mix(in srgb,var(--warn) 14%,var(--bg-panel))}
+:root[data-skin="meridian"] .rf-health>:nth-child(4) {background:color-mix(in srgb,var(--ok) 5%,var(--bg-panel));border-color:color-mix(in srgb,var(--ok) 14%,var(--bg-panel))}
+:root[data-skin="meridian"] .rf-health-track {background:var(--progress-track)}
+:root[data-skin="meridian"] .rf-health-fill {background:var(--ul)}
+:root[data-skin="meridian"] .rf-health>:nth-child(2) .rf-health-fill {background:var(--dl)}
+:root[data-skin="meridian"] .rf-health>:nth-child(3) .rf-health-fill {background:var(--warn)}
+:root[data-skin="meridian"] .rf-health>:nth-child(4) :is(.rf-health-fill,.zen-dash-health-track i) {background:var(--ok)}
+:root[data-skin="meridian"] .rf-wan-status:has([data-state="connected"])::before {background:var(--ok);box-shadow:0 0 0 5px var(--ok-soft)}
+:root[data-skin="meridian"] .rf-router .zen-dash-connection {background:var(--bg-nested);border:1px solid var(--line);border-radius:16px}
+:root[data-skin="meridian"] .rf-live .zen-dash-stat {background:var(--bg-nested);border-radius:16px}
+:root[data-skin="meridian"] .rf-live .zen-dash-stat.tx {background:color-mix(in srgb,var(--ul) 5%,var(--bg-panel))}
+:root[data-skin="meridian"] .rf-live .zen-dash-stat.rx {background:color-mix(in srgb,var(--dl) 5%,var(--bg-panel))}
+:root[data-skin="meridian"] .rf-live .zen-dash-stat .v {color:var(--text)}
+:root[data-skin="meridian"] .rf-live .zen-dash-stat.rx .k {color:var(--info)}
+:root[data-skin="meridian"] .rf-live .zen-dash-stat.tx .k {color:var(--accent-strong)}
+:root[data-skin="meridian"] .rf-live .zen-dash-svg .line.rx {stroke:var(--dl)}
+:root[data-skin="meridian"] .rf-live .zen-dash-svg .fill.rx {fill:var(--dl)}
+:root[data-skin="meridian"] .zen-dash-dev-row .zen-dash-dev-download {color:var(--info)}
+:root[data-skin="meridian"] :is(.zen-dash-dev-row.selected,.zen-dash-dev-row.open,.zen-pref-choice[aria-pressed="true"]) {background:var(--selection-fill);color:var(--accent-strong)}
+:root[data-skin="meridian"] .zen-pref-skin {grid-template-columns:repeat(2,minmax(0,1fr))}
+:root[data-skin="meridian"] .zen-pref-skin .zen-pref-choice {align-items:flex-start}
+:root[data-skin="meridian"] :is(.zen-dash-devices .zen-dash-dev-icon[data-device-type],.zen-device-brand) {background:var(--info-soft);color:var(--info)}
+:root[data-skin="meridian"] :is(.zen-segmented,.zu-periods,.zen-share-periods) {background:var(--bg-nested)}
+:root[data-skin="meridian"] :is(.zen-segmented,.zu-periods,.zen-share-periods)>button:is([aria-selected="true"],[aria-pressed="true"]) {background:var(--selection-fill);color:var(--accent-strong);box-shadow:none}
+:root[data-skin="meridian"] :is(.cbi-button-save,.cbi-button-apply,.cbi-button-positive,.zen-login-submit,.cbi-button.important) {background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
+:root[data-skin="meridian"] :is(.zen-device-drawer,.zen-preferences-dialog) {background:var(--bg-panel);backdrop-filter:none;-webkit-backdrop-filter:none}
+:root[data-skin="meridian"] :is(.zen-device-drawer,.zen-dash-disk-dialog)::backdrop {background:var(--modal-mask);backdrop-filter:none}
+:root[data-skin="meridian"] :is(button,a,input,select,textarea):focus-visible {outline:2px solid var(--accent-strong);outline-offset:3px}
+:root[data-skin="meridian"] :is(.rf-copy,.rf-system-button,.zen-pref-choice) {transition:background-color .15s,transform .15s}
+:root[data-skin="meridian"] .zen-pref-choice:active {transform:scale(.985)}
+@supports ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))) {
+ :root[data-skin="meridian"] body>header {background:var(--glass-fill);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);box-shadow:inset 0 1px 0 var(--glass-rim),inset 0 -1px 0 var(--glass-inner),var(--glass-shadow)}
+}
+@media(min-width:769px) {
+ :root[data-skin="meridian"] body>header {top:12px;margin:12px 16px 0;width:auto;border-radius:28px}
+ :root[data-skin="meridian"] .main {padding-top:24px}
+ :root[data-skin="meridian"] .main-left {top:88px;height:calc(100dvh - 88px)}
+ :root[data-skin="meridian"][data-layout="top"] .main-left {height:auto}
+}
+@media(max-width:768px) {
+ :root[data-skin="meridian"] body>header {border-radius:0 0 20px 20px}
+ :root[data-skin="meridian"] :is(.rf-router,.rf-live,.rf-share-bounded,.zen-dash-devices) {padding:16px!important}
+ :root[data-skin="meridian"] .zen-pref-skin {grid-template-columns:minmax(0,1fr)}
+ :root[data-skin="meridian"] :is(.btn,.cbi-button) {min-height:44px}
+}
+@media(prefers-reduced-motion:reduce) {
+ :root[data-skin="meridian"] :is(.rf-copy,.rf-system-button,.zen-pref-choice) {transition:none;transform:none}
+}
+@media(prefers-reduced-transparency:reduce) {
+ :root[data-skin="meridian"] body>header {background:var(--bg-panel);backdrop-filter:none;-webkit-backdrop-filter:none}
+}
+@media(forced-colors:active) {
+ :root[data-skin="meridian"] body>header {background:Canvas;backdrop-filter:none;-webkit-backdrop-filter:none;border:1px solid CanvasText}
+ :root[data-skin="meridian"] .zen-pref-choice[aria-pressed="true"] {outline:2px solid Highlight}
+}

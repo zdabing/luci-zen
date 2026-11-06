@@ -16,11 +16,11 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-zen
-PKG_VERSION:=0.2.4
-PKG_RELEASE:=3
+PKG_VERSION:=0.2.5
+PKG_RELEASE:=1
 PKG_MAINTAINER:=luci-zen maintainers
-PKG_LICENSE:=GPL-2.0 LGPL-3.0-or-later
-PKG_LICENSE_FILES:=LICENSE appid/LICENSE.LGPL-3.0 appid/LICENSE.GPL-3.0
+PKG_LICENSE:=GPL-2.0 LGPL-3.0-or-later MIT
+PKG_LICENSE_FILES:=LICENSE appid/LICENSE.LGPL-3.0 appid/LICENSE.GPL-3.0 rules/LICENSE-MIT
 PKG_FIXUP:=autoreconf
 NDPI_VERSION:=6.0
 NDPI_SOURCE:=libndpi-$(NDPI_VERSION).tar.gz
@@ -83,7 +83,7 @@ BPF_OBJ:=$(PKG_BUILD_DIR)/bpf/zen_traffic.bpf.o
 
 define Build/Prepare
 	$(call Build/Prepare/Default)
-	$(CP) ./Cargo.toml ./crates ./bpf ./appid ./LICENSE $(PKG_BUILD_DIR)/
+	$(CP) ./Cargo.toml ./crates ./bpf ./appid ./rules ./LICENSE $(PKG_BUILD_DIR)/
 	tar -xzf $(DL_DIR)/$(NDPI_SOURCE) -C $(PKG_BUILD_DIR)
 endef
 
@@ -117,6 +117,8 @@ define Package/luci-zen/install
 	$(INSTALL_DIR) $(1)/usr/share/licenses/luci-zen
 	$(INSTALL_DATA) ./appid/LICENSE.LGPL-3.0 ./appid/LICENSE.GPL-3.0 $(1)/usr/share/licenses/luci-zen/
 	$(INSTALL_DATA) ./LICENSE ./appid/NOTICE $(1)/usr/share/licenses/luci-zen/
+	$(INSTALL_DATA) ./rules/LICENSE-MIT $(1)/usr/share/licenses/luci-zen/COMMUNITY-LICENSE
+	$(INSTALL_DATA) ./rules/SOURCES.json $(1)/usr/share/licenses/luci-zen/COMMUNITY-SOURCES.json
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/nDPI-$(NDPI_VERSION)/README.license.md \
 		$(1)/usr/share/licenses/luci-zen/NDPI-LICENSING
 

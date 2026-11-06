@@ -28,6 +28,14 @@ struct {
 	__type(key, struct app_flow_key);
 	__type(value, struct app_flow_stats);
 } app_flows SEC(".maps");
+/* Only inspection state is written by userspace; byte counters remain owned
+ * by the kernel. The epoch prevents a reused tuple inheriting an old verdict. */
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(max_entries, ZEN_APP_FLOWS);
+	__type(key, struct app_flow_key);
+	__type(value, __u64);
+} app_verdicts SEC(".maps");
 struct {
 	__uint(type, BPF_MAP_TYPE_RINGBUF);
 	__uint(max_entries, 8 * 1024 * 1024);
@@ -100,6 +108,8 @@ static __always_inline void app_account(struct __sk_buff *skb, const __u8 *mac,
 	stats->last_seen = now;
 	if (egress) __sync_fetch_and_add(&stats->download, skb->len);
 	else __sync_fetch_and_add(&stats->upload, skb->len);
+	__u64 *verdict = bpf_map_lookup_elem(&app_verdicts, &key);
+	if (verdict && *verdict == stats->first_seen) return;
 	/* Empty TCP ACKs must not consume the useful-payload inspection budget. */
 	__u64 *counter = &stats->samples;
 	__u64 budget = ZEN_APP_SAMPLE_PACKETS;

@@ -10,8 +10,8 @@ const E=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=
 const NS='http://www.w3.org/2000/svg';
 const S=(tag,attrs,text)=>{const n=document.createElementNS(NS,tag);for(const [k,v]of Object.entries(attrs))n.setAttribute(k,v);if(text!=null)n.textContent=text;return n;};
 const format=n=>{let i=0;while(n>=1024&&i<4){n/=1024;i++;}return n.toFixed(i===0?0:i>2?2:1)+' '+['B','KB','MB','GB','TB'][i];};
-const colors=['#1f7a5a','#b08d57','#5f7f94','#8a9a5b','#9c7972'];
-const deviceColor=key=>{let hash=0;for(const char of key)hash=(hash*31+char.charCodeAt(0))>>>0;return key==='unassigned'?'#a7aaa0':colors[hash%colors.length];};
+const colors=Array.from({length:8},(_,i)=>'var(--chart-series-'+(i+1)+')');
+const deviceColor=key=>{let hash=0;for(const char of key)hash=(hash*31+char.charCodeAt(0))>>>0;return key==='unassigned'?'var(--chart-unassigned)':colors[hash%colors.length];};
 return baseclass.extend({async render(data){
   trafficStyle.inject();
   const status=data[0],facts=new Map(((data[1]&&data[1].dev)||[]).map(d=>[d.mac,d]));

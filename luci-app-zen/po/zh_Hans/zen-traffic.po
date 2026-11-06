@@ -475,9 +475,6 @@ msgstr "设备占比"
 msgid "Past rates"
 msgstr "过去速率"
 
-msgid "Time"
-msgstr "时间"
-
 msgid "Notification settings unavailable."
 msgstr "通知设置暂时不可用"
 
@@ -603,3 +600,177 @@ msgstr "未归属差额"
 
 msgid "Recognition capacity was reached."
 msgstr "部分连接超出识别容量。"
+
+msgid "Recognition settings and diagnostics"
+msgstr "识别设置与诊断"
+
+msgid "Device-scoped DNS assistance"
+msgstr "设备级 DNS 辅助归属"
+
+msgid "Rule package JSON"
+msgstr "规则包 JSON"
+
+msgid "Import rule package"
+msgstr "导入规则包"
+
+msgid "Rule package is too large."
+msgstr "规则包超过大小限制。"
+
+msgid "Ready to validate and apply."
+msgstr "已读取，等待校验并应用。"
+
+msgid "Invalid rule package JSON."
+msgstr "规则包 JSON 格式无效。"
+
+msgid "Matching rule"
+msgstr "匹配规则"
+
+msgid "Correct application"
+msgstr "正确应用"
+
+msgid "Rule management"
+msgstr "规则管理"
+
+msgid "Rule changes apply to new connections."
+msgstr "规则变更对新连接生效。"
+
+msgid "Validate and apply"
+msgstr "校验并应用"
+
+msgid "Restore previous rules"
+msgstr "恢复上一版规则"
+
+msgid "Export rules"
+msgstr "导出规则"
+
+msgid "Report a classification error"
+msgstr "反馈识别错误"
+
+msgid "Save feedback"
+msgstr "保存反馈"
+
+msgid "Feedback saved."
+msgstr "反馈已保存。"
+
+msgid "Refresh diagnostics"
+msgstr "刷新诊断"
+
+msgid "Enable details for 60 seconds"
+msgstr "开启明细 60 秒"
+
+msgid "Stop details"
+msgstr "停止明细"
+
+msgid "Unable to save recognition settings."
+msgstr "无法保存识别设置。"
+
+msgid "Working…"
+msgstr "处理中…"
+
+msgid "Done."
+msgstr "已完成。"
+
+msgid "Operation failed: "
+msgstr "操作失败："
+
+msgid "Unavailable"
+msgstr "不可用"
+
+msgid "Invalid recognition response."
+msgstr "识别接口返回数据无效。"
+
+msgid "rules"
+msgstr "条规则"
+
+msgid "Unidentified"
+msgstr "未识别"
+
+msgid "Choose a device first."
+msgstr "请先选择设备。"
+
+msgid "Live connection snapshot"
+msgstr "当前连接快照"
+
+msgid "Dropped samples"
+msgstr "采样丢弃"
+
+msgid "Rule conflicts"
+msgstr "规则冲突"
+
+msgid "Domain details stay in memory and expire automatically."
+msgstr "域名明细仅保存在内存，到期自动清除。"
+
+msgid "Conflict"
+msgstr "冲突"
+
+msgid "Native DPI"
+msgstr "原生 DPI"
+
+msgid "Dedicated domain"
+msgstr "专属域名"
+
+msgid "DNS assistance"
+msgstr "DNS 辅助"
+
+msgid "Visible features"
+msgstr "可见特征"
+
+msgid "Infrastructure"
+msgstr "基础设施"
+
+msgid "Unrecorded source"
+msgstr "来源未记录"
+
+msgid "Shared CDN / cloud"
+msgstr "共享 CDN / 云服务"
+
+msgid "Application coverage"
+msgstr "应用识别覆盖率"
+
+msgid "Not attributed to an app"
+msgstr "未归属应用"
+
+msgid "Application ranking"
+msgstr "应用排行"
+
+msgid "All applications"
+msgstr "全部应用"
+
+msgid "Video ranking"
+msgstr "视频排行"
+
+msgid "Diagnostic candidate"
+msgstr "诊断候选"
+
+msgid "Invalid rule package format."
+msgstr "规则包格式无效。"
+
+msgid "Unsupported application identifier."
+msgstr "不支持的应用标识。"
+
+msgid "Conflicting domain ownership."
+msgstr "域名归属存在冲突。"
+
+msgid "Shared domains cannot identify one application."
+msgstr "共享域名不能归属单个应用。"
+
+msgid "Change the version before changing rule content."
+msgstr "修改规则内容时请更换版本号。"
+
+msgid "No previous rule package."
+msgstr "没有可恢复的上一版规则。"
+
+msgid "Rule storage is unavailable."
+msgstr "规则存储不可用。"
+
+msgid "DNS metadata capture is unavailable."
+msgstr "DNS 元数据采集不可用。"
+
+msgid "Previous rules were restored."
+msgstr "已恢复上一版规则。"
+
+msgid "Custom rules could not be loaded."
+msgstr "自定义规则加载失败。"
+
+msgid "Live connections"
+msgstr "当前连接"

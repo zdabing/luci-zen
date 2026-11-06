@@ -1,6 +1,7 @@
 config appearance 'appearance'
 	option mode 'auto'
 	option layout 'sidebar'
+	option skin 'meridian'
 	option saved '0'
 
 config device_identity 'device_identity'

@@ -297,6 +297,12 @@ impl Db {
                  upload INTEGER NOT NULL CHECK(upload>=0), PRIMARY KEY(mac,time,app)
              ) WITHOUT ROWID;
              CREATE INDEX IF NOT EXISTS device_app_hour_time ON device_app_hour(time);
+             CREATE TABLE IF NOT EXISTS device_app_origin_hour (
+                 mac TEXT NOT NULL,time INTEGER NOT NULL,app INTEGER NOT NULL,source TEXT NOT NULL,version TEXT NOT NULL,
+                 download INTEGER NOT NULL CHECK(download>=0),upload INTEGER NOT NULL CHECK(upload>=0),
+                 PRIMARY KEY(mac,time,app,source,version)
+             ) WITHOUT ROWID;
+             CREATE INDEX IF NOT EXISTS device_app_origin_time ON device_app_origin_hour(time);
              CREATE TABLE IF NOT EXISTS monthly_usage (
                  mac            TEXT NOT NULL,
                  month          TEXT NOT NULL,              -- 本地月份 YYYY-MM
@@ -589,6 +595,8 @@ impl Db {
                 WHERE mac=?1 AND time=?2 AND app=0", params![mac,*time as i64,
                 bytes.download.min(i64::MAX as u64) as i64,bytes.upload.min(i64::MAX as u64) as i64])
                 .map_err(|e| e.to_string())?;
+            tx.execute("UPDATE device_app_origin_hour SET download=MAX(0,download-?3),upload=MAX(0,upload-?4) WHERE mac=?1 AND time=?2 AND app=0 AND source='unidentified' AND version=''",
+                params![mac,*time as i64,bytes.download.min(i64::MAX as u64) as i64,bytes.upload.min(i64::MAX as u64) as i64]).map_err(|e|e.to_string())?;
         }
         {
             let mut insert = tx.prepare_cached("INSERT INTO device_app_hour VALUES(?1,?2,?3,?4,?5,?6,?7)
@@ -603,6 +611,10 @@ impl Db {
                     row.bytes.upload.min(i64::MAX as u64) as i64]).map_err(|e| e.to_string())?;
             }
         }
+        for ((time,mac,app,source,version),bytes) in &usage.origins {
+            if *time<usage.floor||time.saturating_add(3600)<=cutoff {continue;}
+            tx.execute("INSERT INTO device_app_origin_hour VALUES(?1,?2,?3,?4,?5,?6,?7) ON CONFLICT(mac,time,app,source,version) DO UPDATE SET download=download+MIN(excluded.download,9223372036854775807-download),upload=upload+MIN(excluded.upload,9223372036854775807-upload)",params![mac,*time as i64,*app as i64,source,version,bytes.download.min(i64::MAX as u64) as i64,bytes.upload.min(i64::MAX as u64) as i64]).map_err(|e|e.to_string())?;
+        }
         tx.execute("DELETE FROM device_app_hour WHERE time<=?1 OR time<?2",
             params![cutoff.saturating_sub(3600) as i64,usage.floor as i64]).map_err(|e| e.to_string())?;
         let overflow: Option<i64> = tx.query_row("SELECT MAX(time) FROM
@@ -611,6 +623,8 @@ impl Db {
             params![crate::app_usage::ROW_LIMIT as i64], |r| r.get(0)).map_err(|e| e.to_string())?;
         let floor = overflow.map(|v| v.max(0) as u64 + 3600).unwrap_or(usage.floor).max(usage.floor);
         tx.execute("DELETE FROM device_app_hour WHERE time<?1", params![floor as i64]).map_err(|e| e.to_string())?;
+        tx.execute("DELETE FROM device_app_origin_hour WHERE time<?1 OR time<=?2 OR NOT EXISTS(SELECT 1 FROM device_app_hour a WHERE a.mac=device_app_origin_hour.mac AND a.time=device_app_origin_hour.time AND a.app=device_app_origin_hour.app)",params![floor as i64,cutoff.saturating_sub(3600) as i64]).map_err(|e|e.to_string())?;
+        tx.execute("DELETE FROM device_app_origin_hour WHERE (mac,time,app,source,version) IN (SELECT mac,time,app,source,version FROM device_app_origin_hour ORDER BY time LIMIT MAX(0,(SELECT COUNT(*) FROM device_app_origin_hour)-1000000))",[]).map_err(|e|e.to_string())?;
         for (name, value) in [("app_usage_floor",floor),("app_usage_since",usage.since)] {
             tx.execute("INSERT INTO app_settings VALUES(?1,?2) ON CONFLICT(name) DO UPDATE SET value=excluded.value",
                 params![name,value.to_string()]).map_err(|e| e.to_string())?;
@@ -627,13 +641,18 @@ impl Db {
         Ok((device_floor,app_floor))
     }
 
-    pub fn app_usage(&self, mac: &str, hour: u64) -> Result<std::collections::BTreeMap<u16,crate::app_usage::AppBytes>, String> {
+    pub fn app_usage(&self, mac: &str, hour: u64) -> Result<std::collections::BTreeMap<u32,crate::app_usage::AppBytes>, String> {
         let mut query = self.conn.prepare("SELECT app,name,identified,download,upload FROM device_app_hour
             WHERE mac=?1 AND time=?2 ORDER BY app").map_err(|e| e.to_string())?;
         let rows = query.query_map(params![mac,hour as i64], |r| Ok((r.get(0)?,crate::app_usage::AppBytes {
             name:r.get(1)?, identified:r.get(2)?, bytes:crate::wan::Bytes { download:nonnegative(r,3)?,upload:nonnegative(r,4)? },
         }))).map_err(|e| e.to_string())?;
         rows.collect::<Result<_, _>>().map_err(|e| e.to_string())
+    }
+
+    pub fn app_origins(&self,mac:&str,hour:u64)->Result<std::collections::BTreeMap<(u32,String,String),crate::wan::Bytes>,String>{
+        let mut query=self.conn.prepare("SELECT app,source,version,download,upload FROM device_app_origin_hour WHERE mac=?1 AND time=?2 ORDER BY app,source,version LIMIT 8192").map_err(|e|e.to_string())?;
+        query.query_map(params![mac,hour as i64],|r|Ok(((r.get(0)?,r.get(1)?,r.get(2)?),crate::wan::Bytes {download:nonnegative(r,3)?,upload:nonnegative(r,4)?}))).map_err(|e|e.to_string())?.collect::<Result<_,_>>().map_err(|e|e.to_string())
     }
 
     pub fn wan_window(&self) -> Result<Option<(u64, u64, u64)>, String> {
@@ -753,6 +772,7 @@ impl Db {
         tx
             .execute("DELETE FROM devices WHERE mac = ?1", params![mac])
             .map_err(|e| e.to_string())?;
+        tx.execute("DELETE FROM device_app_origin_hour WHERE mac=?1",params![mac]).map_err(|e|e.to_string())?;
         tx
             .execute("DELETE FROM daily_usage WHERE mac = ?1", params![mac])
             .map_err(|e| e.to_string())?;

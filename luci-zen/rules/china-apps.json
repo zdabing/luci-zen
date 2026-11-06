@@ -1,0 +1,2312 @@
+{
+  "schema": 1,
+  "version": "zen-cn-20261106.2",
+  "source_revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+  "rules": [
+    {
+      "domain": "17roco.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "71.am",
+      "match": "suffix",
+      "app": "ndpi:54",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "71edge.com",
+      "match": "suffix",
+      "app": "ndpi:54",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "9xsecndns.cn",
+      "match": "suffix",
+      "app": "community:youku",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "acg.tv",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "acgvideo.com",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "activity-wbsj.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "aihst8.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "alicdn.com",
+      "match": "suffix",
+      "app": "infra:alibaba-cloud",
+      "level": "infrastructure",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261106.2",
+      "license": "MIT"
+    },
+    {
+      "domain": "aliyuncs.com",
+      "match": "suffix",
+      "app": "infra:alibaba-cloud",
+      "level": "infrastructure",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261106.2",
+      "license": "MIT"
+    },
+    {
+      "domain": "amemv.cn",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "amemv.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "amemv.net",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "animetamashi.cn",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "animetamashi.com",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "anitama.cn",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "anitama.net",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "anticheatexpert.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "awemeughun.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "awemeuglang.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "awemeugsoul.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "awemeugwave.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "b23.tv",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "battlecare.net",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "bcfmglobal.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "betastar.cn",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "bigfun.cn",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "bigfunapp.cn",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "bili22.cn",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "bili2233.cn",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "bili23.cn",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "bili33.cn",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "biliapi.com",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "biliapi.net",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "bilibili.cc",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "bilibili.cn",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "bilibili.com",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "bilibili.net",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "bilibili.tv",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "bilibilipay.cn",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "bilibilipay.com",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "bilicomic.com",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "bilicomics.com",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "biligo.com",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "biliintl.com",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "boxdouyin.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "brawlstars.cn",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "codm.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "cookicut.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "douyin.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "douyinact.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "douyinact.net",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "douyincdn.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "douyinec.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "douyinfe.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "douyinliving.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "douyinmusicpromotion.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "douyinpay.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "douyinpic.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "douyinstatic.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "douyinvod.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "douyu.com",
+      "match": "suffix",
+      "app": "community:douyu",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "douyu.tv",
+      "match": "suffix",
+      "app": "community:douyu",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "douyucdn.cn",
+      "match": "suffix",
+      "app": "community:douyu",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "douyucdn2.cn",
+      "match": "suffix",
+      "app": "community:douyu",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "douyuscdn.com",
+      "match": "suffix",
+      "app": "community:douyu",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "douyutv.com",
+      "match": "suffix",
+      "app": "community:douyu",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "dreamcast.hk",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "duoshan.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "eckwai.com",
+      "match": "suffix",
+      "app": "community:kuaishou",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "ecukwai.com",
+      "match": "suffix",
+      "app": "community:kuaishou",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "edgesrv.com",
+      "match": "suffix",
+      "app": "community:douyu",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "ffbuddy.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "gamebonfire.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "gameitop.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "gameloop.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "gcloudcs.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "gcloudcstest.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "gcloudcstestonly.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "gclouddolphin.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "gcloudsdk.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "gcloudsvcs.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "gdtimg.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "gifshow.com",
+      "match": "suffix",
+      "app": "community:kuaishou",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "goto-game.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "goto-game.mobi",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "goto-game.net.cn",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "goto-game.org",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "gotolink.net",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "gouhuo.qq.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "gtgres.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "happyhlddz.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "haydaypop.cn",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "hdyxgame.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "hifuntv.com",
+      "match": "suffix",
+      "app": "community:mgtv",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "hitv.com",
+      "match": "suffix",
+      "app": "community:mgtv",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "hkgcloudcs.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "hnbntv.com",
+      "match": "suffix",
+      "app": "community:mgtv",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "huasheng.cn",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "hunaniptv.com",
+      "match": "suffix",
+      "app": "community:mgtv",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "hunantv.com",
+      "match": "suffix",
+      "app": "community:mgtv",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "huoshan.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "huoshancdn.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "huoshangroup.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "huoshanimg.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "huoshanlive.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "huoshanparty.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "huoshanstatic.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "huoshante8.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "huoshanvideo.cn",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "huoshanvideo.net",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "huoshanvod.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "huoshanxiaoshipin.cn",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "huoshanxiaoshipin.net",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "huoshanzhibo.cn",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "huoshanzhibo.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "huoshanzhibo.net",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "huya.com",
+      "match": "suffix",
+      "app": "community:huya",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "hypercachenode.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "idouyinliving.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "idouyinpic.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "idouyinstatic.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "idouyinvod.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "iesdouyin.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "iesdouyin.net",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "ieshuodong.cn",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "ieshuodong.net",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "ihappystudio.cn",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "ihappystudio.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "ihst8.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "ihuoshanimg.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "ihuoshanlive.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "ihuoshanstatic.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "ihuoshanvod.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "im9.com",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "imgo.tv",
+      "match": "suffix",
+      "app": "community:mgtv",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "in.th",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "inkuai.com",
+      "match": "suffix",
+      "app": "community:kuaishou",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "inkwai.com",
+      "match": "suffix",
+      "app": "community:kuaishou",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "iq.com",
+      "match": "suffix",
+      "app": "ndpi:54",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "iqiyi.com",
+      "match": "suffix",
+      "app": "ndpi:54",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "iqiyipic.com",
+      "match": "suffix",
+      "app": "ndpi:54",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "kolbuyer.cn",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "ksapisrv.com",
+      "match": "suffix",
+      "app": "community:kuaishou",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "kskwai.com",
+      "match": "suffix",
+      "app": "community:kuaishou",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "kspkg.com",
+      "match": "suffix",
+      "app": "community:kuaishou",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "kuaishou.cn",
+      "match": "suffix",
+      "app": "community:kuaishou",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "kuaishou.com",
+      "match": "suffix",
+      "app": "community:kuaishou",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "kuaishouapps.com",
+      "match": "suffix",
+      "app": "community:kuaishou",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "kuaishoupay.com",
+      "match": "suffix",
+      "app": "community:kuaishou",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "kuaishouzt.com",
+      "match": "suffix",
+      "app": "community:kuaishou",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "kumiao.com",
+      "match": "suffix",
+      "app": "community:youku",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "kwaicdn.com",
+      "match": "suffix",
+      "app": "community:kuaishou",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "kwaishop.com",
+      "match": "suffix",
+      "app": "community:kuaishou",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "kwaixiaodian.com",
+      "match": "suffix",
+      "app": "community:kuaishou",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "kwaiying.com",
+      "match": "suffix",
+      "app": "community:kuaishou",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "kwaizt.com",
+      "match": "suffix",
+      "app": "community:kuaishou",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "kwimgs.com",
+      "match": "suffix",
+      "app": "community:kuaishou",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "labycore.cn",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "lifexue.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "ludosuperstar.cn",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "ludoworld.net",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "mahjongai.net",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "mahjongcup.cn",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "mahjongcup.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "mahjongcup.net",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "maoer.com",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "metalrevolution.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "mgtv.com",
+      "match": "suffix",
+      "app": "community:mgtv",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "midasbuy.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "missevan.com",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "mojidoc.com",
+      "match": "suffix",
+      "app": "community:kuaishou",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "msstatic.com",
+      "match": "suffix",
+      "app": "community:huya",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "mszdld.cn",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "mszdld.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "mszdld.net",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "myqcloud.com",
+      "match": "suffix",
+      "app": "infra:tencent-cloud",
+      "level": "infrastructure",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261106.2",
+      "license": "MIT"
+    },
+    {
+      "domain": "nagcloudcs.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "nextstudios.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "nextvid.net",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "nextworkshop.net",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "open-douyin.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "ppkankan01.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "pps.tv",
+      "match": "suffix",
+      "app": "ndpi:54",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "ppsimg.com",
+      "match": "suffix",
+      "app": "ndpi:54",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "proximabeta.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "pubghelper.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "pubgno1.cn",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "pubgtool.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "qcloud.com",
+      "match": "suffix",
+      "app": "infra:tencent-cloud",
+      "level": "infrastructure",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261106.2",
+      "license": "MIT"
+    },
+    {
+      "domain": "qingque.cn",
+      "match": "suffix",
+      "app": "community:kuaishou",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "qishui.cn",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "qishui.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "qishui.com.cn",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "qishuimusic.cn",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "qishuimusic.com.cn",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "qiyi.com",
+      "match": "suffix",
+      "app": "ndpi:54",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "qiyipic.com",
+      "match": "suffix",
+      "app": "ndpi:54",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "qqgameapp.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "qy.net",
+      "match": "suffix",
+      "app": "ndpi:54",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "realcybertron.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "rmwxgame.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "roblox.cn",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "roblox.qq.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "robloxdev.cn",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "roco.qq.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "sccreator.cn",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "sccreators.cn",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "scescdn.cn",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "scid.cn",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "scsentry.cn",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "skydweller.cn",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "soku.com",
+      "match": "suffix",
+      "app": "community:youku",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "supercachenet.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "supercachenode.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "supercellcommunity.cn",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "supercellsupport.cn",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "syxlgame.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "tcfmglobal.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "tencent-cloud.net",
+      "match": "suffix",
+      "app": "infra:tencent-cloud",
+      "level": "infrastructure",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261106.2",
+      "license": "MIT"
+    },
+    {
+      "domain": "tencent-gcloud.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "tencentstart.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "texasholdemcup.cn",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "texasholdemcup.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "texasholdemcup.net",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "timibase.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "tudou.com",
+      "match": "suffix",
+      "app": "community:youku",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "ulpay.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "ultracachenode.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "updream.cn",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "videoxiaoyouxi.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "viviv.com",
+      "match": "suffix",
+      "app": "community:kuaishou",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "wcbygame.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "wegame.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "wegame.com.cn",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "wegameplus.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "werepository.com.cn",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "woaihuoshan.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "wohst8.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "wskwai.com",
+      "match": "suffix",
+      "app": "community:kuaishou",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "wsukwai.com",
+      "match": "suffix",
+      "app": "community:kuaishou",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "xn--owtw8cc49ajfl.cn",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "ykimg.alicdn.com",
+      "match": "exact",
+      "app": "community:youku",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "ykimg.com",
+      "match": "suffix",
+      "app": "community:youku",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "yo9.com",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "youku.com",
+      "match": "suffix",
+      "app": "community:youku",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "youku.tv",
+      "match": "suffix",
+      "app": "community:youku",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "youkuhonor.com",
+      "match": "suffix",
+      "app": "community:youku",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "youkuplay.com",
+      "match": "suffix",
+      "app": "community:youku",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "yxdmgame.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "yximg.cn",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "yximgs.com",
+      "match": "suffix",
+      "app": "community:kuaishou",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "yxwsgame.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "yzyxgame.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "zcjbgame.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "zhuoyuegame.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    }
+  ],
+  "features": []
+}

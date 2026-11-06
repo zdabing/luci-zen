@@ -40,7 +40,7 @@ const fn cs(s: &'static [u8]) -> *const c_char {
 // ubus 方法表
 // ---------------------------------------------------------------------------
 
-static METHODS: [ubus::ubus_method; 17] = [
+static METHODS: [ubus::ubus_method; 25] = [
     m(b"getStatus\0", handle_get_status),
     m(b"getDevices\0", handle_get_devices),
     m(b"getTotal\0", handle_get_total),
@@ -48,6 +48,14 @@ static METHODS: [ubus::ubus_method; 17] = [
     m(b"getInternetHistory\0", handle_get_internet_history),
     m(b"getDeviceTimeline\0", handle_get_device_timeline),
     m(b"getAppUsage\0", handle_get_app_usage),
+    m(b"getDpiDiagnostics\0", handle_get_dpi_diagnostics),
+    m(b"setDpiDiagnostics\0", handle_set_dpi_diagnostics),
+    m(b"getDpiRules\0", handle_get_dpi_rules),
+    m(b"setDpiRules\0", handle_set_dpi_rules),
+    m(b"rollbackDpiRules\0", handle_rollback_dpi_rules),
+    m(b"setDpiDns\0", handle_set_dpi_dns),
+    m(b"setDpiFeedback\0", handle_set_dpi_feedback),
+    m(b"getAppRealtime\0", handle_get_app_realtime),
     m(b"getNotifications\0", handle_get_notifications),
     m(b"setNotifications\0", handle_set_notifications),
     m(b"testNotification\0", handle_test_notification),
@@ -213,12 +221,99 @@ unsafe extern "C" fn handle_get_app_usage(ctx: *mut ubus::ubus_context, _obj: *m
         value["device"] = device;
         value["recognition"] = d.app_engine.status();
         value["hardware_offload"] = serde_json::json!(d.offload.hardware_requested || !d.offload.known);
+        value["schema"]=serde_json::json!(2);
         Ok::<_,String>(value)
     }) {
         Some(Ok(value)) => send_json(ctx, req, value),
         Some(Err(_)) => ubus::UBUS_STATUS_INVALID_ARGUMENT,
         None => ubus::UBUS_STATUS_NOT_SUPPORTED,
     }
+}
+
+unsafe extern "C" fn handle_get_dpi_diagnostics(ctx:*mut ubus::ubus_context,_obj:*mut ubus::ubus_object,
+    req:*mut ubus::ubus_request_data,_method:*const c_char,msg:*mut ubus::blob_attr) -> c_int {
+    let (mut mac,mut limit)=(None,64usize);
+    for field in ubus::parse_msg(msg) {
+        match field.name {
+            Some("mac")=>match field.as_str() {
+                Some(value) if parse_mac(value).is_some()=>mac=Some(value.to_ascii_lowercase()),
+                _=>return ubus::UBUS_STATUS_INVALID_ARGUMENT,
+            },
+            Some("limit")=>match field.as_u32() {
+                Some(n) if n<=100=>limit=n as usize,_=>return ubus::UBUS_STATUS_INVALID_ARGUMENT,
+            },
+            _=>return ubus::UBUS_STATUS_INVALID_ARGUMENT,
+        }
+    }
+    match with_daemon(|d| {
+        let mut value=d.app_engine.diagnostics(mac.as_deref(),limit,crate::state::now_mono_ms());
+        value["capture"]=serde_json::json!({"interfaces":d.ifaces_meta.iter().map(|iface|&iface.name).collect::<Vec<_>>(),
+            "hardware_offload_requested":d.offload.hardware_requested,"hardware_offload_active":d.offload.hardware_active,
+            "offload_known":d.offload.known});
+        value
+    }) {Some(value)=>send_json(ctx,req,value),None=>ubus::UBUS_STATUS_NOT_SUPPORTED}
+}
+
+unsafe extern "C" fn handle_set_dpi_diagnostics(ctx:*mut ubus::ubus_context,_obj:*mut ubus::ubus_object,
+    req:*mut ubus::ubus_request_data,_method:*const c_char,msg:*mut ubus::blob_attr) -> c_int {
+    let fields=ubus::parse_msg(msg);
+    if fields.len()!=1 || fields[0].name!=Some("seconds") {return ubus::UBUS_STATUS_INVALID_ARGUMENT;}
+    let Some(seconds)=fields[0].as_u32().filter(|n|*n<=300) else {return ubus::UBUS_STATUS_INVALID_ARGUMENT;};
+    match with_daemon(|d|d.app_engine.set_diagnostics(u64::from(seconds),crate::state::now_mono_ms())) {
+        Some(Ok(()))=>send_json(ctx,req,serde_json::json!({"ok":true,"seconds":seconds,"persisted":false})),
+        Some(Err(()))=>ubus::UBUS_STATUS_INVALID_ARGUMENT,None=>ubus::UBUS_STATUS_NOT_SUPPORTED,
+    }
+}
+
+unsafe extern "C" fn handle_get_dpi_rules(ctx:*mut ubus::ubus_context,_obj:*mut ubus::ubus_object,req:*mut ubus::ubus_request_data,_method:*const c_char,_msg:*mut ubus::blob_attr)->c_int {
+    match with_daemon(|d| {
+        let mut rules:Vec<_>=d.app_engine.rules.set.rules().cloned().collect();rules.sort_by(|a,b|a.domain.cmp(&b.domain).then(a.mode.cmp(&b.mode)));
+        let feedback=d.db.setting("dpi_feedback").ok().flatten().and_then(|data|serde_json::from_str::<serde_json::Value>(&data).ok()).unwrap_or_else(||serde_json::json!([]));
+        let hits:Vec<_>=d.app_engine.rule_hits();
+        serde_json::json!({"version":d.app_engine.rules.set.package.version,"package":d.app_engine.rules.set.package,
+            "rules":rules,"rule_hits":hits,"dns_enabled":d.app_engine.dns_active,"error":d.app_engine.rules.error,"feedback":feedback,
+            "applications":crate::app_catalog::APPS.iter().map(|a|serde_json::json!({"id":a.id,"key":a.key,"name":a.name,"category":a.category,"service":a.slug})).collect::<Vec<_>>()})
+    }) {Some(value)=>send_json(ctx,req,value),None=>ubus::UBUS_STATUS_NOT_SUPPORTED}
+}
+unsafe fn mutation_reply(ctx:*mut ubus::ubus_context,req:*mut ubus::ubus_request_data,result:Option<Result<(),String>>)->c_int {
+    match result {Some(Ok(()))=>send_json(ctx,req,serde_json::json!({"ok":true})),Some(Err(error))=>send_json(ctx,req,serde_json::json!({"ok":false,"error":error})),None=>ubus::UBUS_STATUS_NOT_SUPPORTED}
+}
+unsafe extern "C" fn handle_set_dpi_rules(ctx:*mut ubus::ubus_context,_obj:*mut ubus::ubus_object,req:*mut ubus::ubus_request_data,_method:*const c_char,msg:*mut ubus::blob_attr)->c_int {
+    let fields=ubus::parse_msg(msg);if fields.len()!=1||fields[0].name!=Some("json"){return ubus::UBUS_STATUS_INVALID_ARGUMENT;}
+    let Some(data)=fields[0].as_str() else{return ubus::UBUS_STATUS_INVALID_ARGUMENT;};
+    mutation_reply(ctx,req,with_daemon(|d|d.app_engine.update_rules(data)))
+}
+unsafe extern "C" fn handle_rollback_dpi_rules(ctx:*mut ubus::ubus_context,_obj:*mut ubus::ubus_object,req:*mut ubus::ubus_request_data,_method:*const c_char,msg:*mut ubus::blob_attr)->c_int {
+    if !ubus::parse_msg(msg).is_empty(){return ubus::UBUS_STATUS_INVALID_ARGUMENT;}
+    mutation_reply(ctx,req,with_daemon(|d|d.app_engine.rollback_rules()))
+}
+unsafe extern "C" fn handle_set_dpi_dns(ctx:*mut ubus::ubus_context,_obj:*mut ubus::ubus_object,req:*mut ubus::ubus_request_data,_method:*const c_char,msg:*mut ubus::blob_attr)->c_int {
+    let fields=ubus::parse_msg(msg);if fields.len()!=1||fields[0].name!=Some("enabled"){return ubus::UBUS_STATUS_INVALID_ARGUMENT;}
+    let enabled=fields[0].as_u32().or_else(||fields[0].as_bool().map(u32::from));
+    let Some(enabled)=enabled.filter(|n|*n<=1).map(|n|n==1) else{return ubus::UBUS_STATUS_INVALID_ARGUMENT;};
+    mutation_reply(ctx,req,with_daemon(|d| {
+        let old=d.app_engine.dns_active;d.app_engine.set_dns(&mut d.bpf,enabled)?;
+        if let Err(error)=d.db.save_setting("dpi_dns_enabled",if enabled {"1"}else{"0"}) {let _=d.app_engine.set_dns(&mut d.bpf,old);return Err(error);}
+        Ok(())
+    }))
+}
+unsafe extern "C" fn handle_set_dpi_feedback(ctx:*mut ubus::ubus_context,_obj:*mut ubus::ubus_object,req:*mut ubus::ubus_request_data,_method:*const c_char,msg:*mut ubus::blob_attr)->c_int {
+    #[derive(serde::Deserialize)] #[serde(deny_unknown_fields)] struct Input {rule_id:String,expected:String}
+    let fields=ubus::parse_msg(msg);if fields.len()!=1||fields[0].name!=Some("json"){return ubus::UBUS_STATUS_INVALID_ARGUMENT;}
+    let Some(data)=fields[0].as_str().filter(|s|s.len()<=1024) else{return ubus::UBUS_STATUS_INVALID_ARGUMENT;};
+    let Ok(input)=serde_json::from_str::<Input>(data) else{return ubus::UBUS_STATUS_INVALID_ARGUMENT;};
+    mutation_reply(ctx,req,with_daemon(|d| {
+        if !d.app_engine.rules.set.rules().any(|r|r.id()==input.rule_id)||(input.expected!="unidentified"&&crate::app_catalog::by_key(&input.expected).is_none()){return Err("invalid_feedback".into());}
+        let mut rows=d.db.setting("dpi_feedback")?.and_then(|data|serde_json::from_str::<Vec<serde_json::Value>>(&data).ok()).unwrap_or_default();
+        rows.push(serde_json::json!({"rule_id":input.rule_id,"expected":input.expected,"version":d.app_engine.rules.set.package.version,"time":now_epoch()}));
+        if rows.len()>200 {rows.drain(..rows.len()-200);}
+        d.db.save_setting("dpi_feedback",&serde_json::to_string(&rows).map_err(|_|"feedback_encoding_failed")?)
+    }))
+}
+unsafe extern "C" fn handle_get_app_realtime(ctx:*mut ubus::ubus_context,_obj:*mut ubus::ubus_object,req:*mut ubus::ubus_request_data,_method:*const c_char,msg:*mut ubus::blob_attr)->c_int {
+    let fields=ubus::parse_msg(msg);if fields.len()!=1||fields[0].name!=Some("mac"){return ubus::UBUS_STATUS_INVALID_ARGUMENT;}
+    let Some(mac)=fields[0].as_str().filter(|s|parse_mac(s).is_some()).map(str::to_ascii_lowercase) else{return ubus::UBUS_STATUS_INVALID_ARGUMENT;};
+    match with_daemon(|d|d.app_engine.realtime(&mac,crate::state::now_mono_ms())) {Some(value)=>send_json(ctx,req,value),None=>ubus::UBUS_STATUS_NOT_SUPPORTED}
 }
 
 unsafe extern "C" fn handle_get_notifications(ctx: *mut ubus::ubus_context, _obj: *mut ubus::ubus_object,
@@ -266,6 +361,9 @@ unsafe extern "C" fn handle_get_status(
     blobmsg_add_bool(&mut b, cs(b"wan_daily\0"), true);
     blobmsg_add_bool(&mut b, cs(b"device_timeline\0"), true);
     blobmsg_add_bool(&mut b, cs(b"app_usage\0"), true);
+    blobmsg_add_bool(&mut b, cs(b"dpi_diagnostics\0"), true);
+    blobmsg_add_bool(&mut b, cs(b"dpi_rules\0"), true);
+    blobmsg_add_bool(&mut b, cs(b"app_realtime\0"), true);
     add_str(&mut b, b"timeline_today\0", &local_date(now_epoch()));
     blobmsg_add_bool(&mut b, cs(b"notifications\0"), true);
     ubus::blobmsg_add_string(
@@ -761,6 +859,23 @@ static mut OBJ: std::mem::MaybeUninit<ubus::ubus_object> = std::mem::MaybeUninit
 static mut OBJ_TYPE: std::mem::MaybeUninit<ubus::ubus_object_type> =
     std::mem::MaybeUninit::uninit();
 static mut TICK: std::mem::MaybeUninit<ubus::uloop_timeout> = std::mem::MaybeUninit::uninit();
+static mut APP_POLL: std::mem::MaybeUninit<ubus::uloop_timeout> = std::mem::MaybeUninit::uninit();
+
+unsafe fn arm_app_poll() {
+    let timer=std::ptr::addr_of_mut!(APP_POLL).cast::<ubus::uloop_timeout>();
+    timer.write(ubus::uloop_timeout {list:std::mem::zeroed(),pending:false,
+        cb:Some(app_poll_cb),time:std::mem::zeroed()});
+    ubus::uloop_timeout_set(timer,20);
+}
+
+unsafe extern "C" fn app_poll_cb(timer:*mut ubus::uloop_timeout) {
+    if SHUTDOWN.load(std::sync::atomic::Ordering::SeqCst) {return;}
+    with_daemon(|d| {
+        // First establish the device counter baseline before enabling DPI.
+        if d.last_tick_mono!=0 {d.app_engine.poll(&mut d.bpf,&mut d.app_usage);}
+    });
+    ubus::uloop_timeout_set(timer,20);
+}
 
 /// uloop_init → ubus_connect → ubus_add_object → ubus_add_uloop → 启动 1s tick。
 /// 返回 ctx 供退出时 ubus_free。
@@ -812,6 +927,7 @@ pub unsafe fn start() -> Result<*mut ubus::ubus_context, String> {
         time: std::mem::zeroed(),
     });
     ubus::uloop_timeout_set(tick, TICK_MS);
+    arm_app_poll();
 
     Ok(ctx)
 }
@@ -839,6 +955,7 @@ pub unsafe fn arm_tick_only() {
         time: std::mem::zeroed(),
     });
     ubus::uloop_timeout_set(tick, TICK_MS);
+    arm_app_poll();
 }
 
 /// 信号处理（SIGTERM/SIGINT）：置位 + 写 uloop 取消标志（spike Step 5 同款）

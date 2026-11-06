@@ -28,7 +28,7 @@
 -%}
 
 <!DOCTYPE html>
-<html lang="{{ dispatcher.lang }}" data-zen-appearance="router" data-zen-authenticated="{{ ctx.authsession ? 'true' : 'false' }}" data-zen-saved="{{ appearance.saved == '1' ? 'true' : 'false' }}" data-zen-mode="{{ entityencode(appearance.mode ?? 'auto', true) }}" data-zen-layout="{{ entityencode(appearance.layout ?? 'sidebar', true) }}">
+<html lang="{{ dispatcher.lang }}" data-zen-appearance="router" data-zen-authenticated="{{ ctx.authsession ? 'true' : 'false' }}" data-zen-saved="{{ appearance.saved == '1' ? 'true' : 'false' }}" data-zen-mode="{{ entityencode(appearance.mode ?? 'auto', true) }}" data-zen-skin="{{ appearance.skin == 'apple' ? 'apple' : 'meridian' }}" data-zen-layout="{{ entityencode(appearance.layout ?? 'sidebar', true) }}">
 	<head>
 		<meta charset="utf-8">
 		<title>{{ striptags(`${boardinfo.hostname ?? '?'}${dispatched?.title ? ` | ${_(dispatched.title)}` : ''}`) }}</title>
@@ -42,6 +42,9 @@
 		<link rel="stylesheet" href="{{ media }}/device-controls.css?v={{ pkgmtime }}">
 		<link rel="stylesheet" href="{{ media }}/console.css?v={{ pkgmtime }}">
 		<link rel="stylesheet" href="{{ media }}/console-workspace.css?v={{ pkgmtime }}">
+		<link rel="stylesheet" href="{{ media }}/meridian.css?v={{ pkgmtime }}">
+		<link rel="stylesheet" href="{{ media }}/apple.css?v={{ pkgmtime }}">
+		<script defer src="{{ media }}/apple.js?v={{ pkgmtime }}"></script>
 		<script defer src="{{ media }}/console-layout.js?v={{ pkgmtime }}" data-resource-version="{{ pkgmtime }}" data-dispatch-path="{{ entityencode(join('/', ctx.path), true) }}"></script>
 		<link rel="icon" href="{{ media }}/logo.svg?v={{ pkgmtime }}" sizes="any" type="image/svg+xml">
 		{% if (dispatched?.css): %}

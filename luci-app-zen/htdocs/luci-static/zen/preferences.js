@@ -4,7 +4,7 @@
 	'use strict';
 	if (window.ZenAppearance) return;
 	const root = document.documentElement;
-	const storageKeys = { mode: 'luci-theme-zen', layout: 'luci-theme-zen-layout' };
+	const storageKeys = { mode: 'luci-theme-zen', layout: 'luci-theme-zen-layout', skin: 'luci-theme-zen-skin' };
 	const media = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
 	const router = root.dataset.zenAppearance === 'router';
 	const managed = router && root.dataset.zenAuthenticated === 'true';
@@ -13,18 +13,23 @@
 	let modal, returnFocus;
 	const forms = new Set();
 	const validMode = value => ['light', 'dark'].includes(value) ? value : 'auto';
+	const validSkin = value => value === 'apple' ? 'apple' : 'meridian';
 	const validLayout = value => value === 'top' ? 'top' : 'sidebar';
 	function read(key) { try { return localStorage.getItem(key); } catch (e) { storageOK = false; return null; } }
 	function write(key, value) { try { localStorage.setItem(key, value); } catch (e) { storageOK = false; } }
 	const state = {
 		mode: validMode(router && saved ? root.dataset.zenMode : read(storageKeys.mode)),
-		layout: validLayout(router && saved ? root.dataset.zenLayout : read(storageKeys.layout))
+		layout: validLayout(router && saved ? root.dataset.zenLayout : read(storageKeys.layout)),
+		skin: validSkin(router && saved ? root.dataset.zenSkin : read(storageKeys.skin))
 	};
 	function tr(text) {
 		const _ = value => typeof window._ === 'function' ? window._(value) : value;
 		const labels = {
 			'Theme settings': _('Theme settings'), 'Appearance & layout': _('Appearance & layout'),
-			'Mist': _('Mist'), 'A quieter view of your network.': _('A quieter view of your network.'),
+			'Visual theme': _('Visual theme'), 'Meridian': _('Meridian'),
+			'Neutral cards, orange accents and glass navigation.': _('Neutral cards, orange accents and glass navigation.'),
+			'Apple': _('Apple'), 'White cards, blue actions and colorful icons.': _('White cards, blue actions and colorful icons.'),
+			'A quieter view of your network.': _('A quieter view of your network.'),
 			'Display mode': _('Display mode'), 'Follow system': _('Follow system'), 'Light mode': _('Light mode'), 'Dark mode': _('Dark mode'),
 			'Navigation layout': _('Navigation layout'), 'Left navigation': _('Left navigation'), 'Top navigation': _('Top navigation'),
 			'Keep pages within reach in the sidebar.': _('Keep pages within reach in the sidebar.'),
@@ -68,7 +73,7 @@
 	function apply() {
 		root.dataset.theme = state.mode === 'auto' ? (media && media.matches ? 'dark' : 'light') : state.mode;
 		root.dataset.darkmode = String(root.dataset.theme === 'dark');
-		root.dataset.themeMode = state.mode; root.dataset.layout = state.layout;
+		root.dataset.themeMode = state.mode; root.dataset.layout = state.layout; root.dataset.skin = state.skin;
 		sync();
 		document.dispatchEvent(new CustomEvent('zenappearancechange', { detail: { ...state, theme: root.dataset.theme } }));
 	}
@@ -87,6 +92,7 @@
 	function set(value) {
 		const patch = {};
 		if (Object.prototype.hasOwnProperty.call(value, 'mode')) patch.mode = validMode(value.mode);
+		if (Object.prototype.hasOwnProperty.call(value, 'skin')) patch.skin = validSkin(value.skin);
 		if (Object.prototype.hasOwnProperty.call(value, 'layout')) patch.layout = validLayout(value.layout);
 		Object.assign(state, patch);
 		for (const key of Object.keys(patch)) write(storageKeys[key], patch[key]);
@@ -128,9 +134,10 @@
 	function render() {
 		const form = node('div', 'zen-preferences');
 		const intro = node('header', 'zen-pref-intro');
-		intro.append(node('span', 'zen-pref-eyebrow', 'Mist'), node('h2', '', 'A quieter view of your network.'), node('p', '', 'Changes apply immediately.'));
+		intro.append(node('span', 'zen-pref-eyebrow', 'Theme settings'), node('h2', '', 'A quieter view of your network.'), node('p', '', 'Changes apply immediately.'));
 		const controls = node('div', 'zen-pref-controls');
 		controls.append(
+			choices('skin', 'Visual theme', [['meridian', 'Meridian', 'Neutral cards, orange accents and glass navigation.'], ['apple', 'Apple', 'White cards, blue actions and colorful icons.']]),
 			choices('mode', 'Display mode', [['auto', 'Follow system'], ['light', 'Light mode'], ['dark', 'Dark mode']]),
 			choices('layout', 'Navigation layout', [['sidebar', 'Left navigation', 'Keep pages within reach in the sidebar.'], ['top', 'Top navigation', 'Use the full width with navigation above.']])
 		);
@@ -164,8 +171,9 @@
 	});
 	window.addEventListener('storage', event => {
 		if (event.key === storageKeys.mode) state.mode = validMode(event.newValue);
+		else if (event.key === storageKeys.skin) state.skin = validSkin(event.newValue);
 		else if (event.key === storageKeys.layout) state.layout = validLayout(event.newValue);
-		else if (event.key === null) { state.mode = validMode(read(storageKeys.mode)); state.layout = validLayout(read(storageKeys.layout)); }
+		else if (event.key === null) { state.mode = validMode(read(storageKeys.mode)); state.layout = validLayout(read(storageKeys.layout)); state.skin = validSkin(read(storageKeys.skin)); }
 		else return;
 		apply();
 	});

@@ -6,7 +6,7 @@
 'require view.zen.zen-share-periods as periods';
 
 const callUsage = rpc.declare({ object: 'zen.traffic', method: 'getWanUsage' });
-const COLORS = ['#327563', '#ad8c5b', '#6d8792', '#82956d', '#9f7168', '#697d6b', '#9a927c', '#798da0'];
+const COLORS = Array.from({length:8}, (_,i) => 'var(--chart-series-' + (i+1) + ')');
 const C = 2 * Math.PI * 54;
 const number = value => Math.max(0, Number.isFinite(Number(value)) ? Number(value) : 0);
 const PERIODS = [['day',_('This day')],['week',_('This week')],['month',_('This month')],['all',_('All time')]];
@@ -47,9 +47,9 @@ function breakdown(data, direction, all) {
 	let slices = rows;
 	if (!all && rows.length > 6) {
 		slices = rows.slice(0, 6).concat([{ key: 'other', label: _('Other devices'),
-			bytes: rows.slice(6).reduce((sum, d) => sum + d.bytes, 0), color: '#9099aa' }]);
+			bytes: rows.slice(6).reduce((sum, d) => sum + d.bytes, 0), color: 'var(--chart-other)' }]);
 	}
-	if (unassigned > 0) slices = slices.concat([{ key: 'unassigned', label: _('Unassigned'), bytes: unassigned, color: '#b1a69a' }]);
+	if (unassigned > 0) slices = slices.concat([{ key: 'unassigned', label: _('Unassigned'), bytes: unassigned, color: 'var(--chart-unassigned)' }]);
 	return { slices, total, observed, excess: Math.max(0, attributed - observed), devices: rows.length };
 }
 

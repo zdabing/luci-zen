@@ -3,7 +3,7 @@
 /* Measured usage presentation. Its caller supplies the traffic snapshot. */
  'use strict';
  const PERIODS={day:'本日',week:'本周',month:'本月',all:'全部'};
- const COLORS=['#1f7a5a','#b08d57','#5f7f94','#8a9a5b','#9c7972'];
+ const COLORS=Array.from({length:8},(_,i)=>'var(--chart-series-'+(i+1)+')');
  const E=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!=null)n.textContent=text;return n;};
  const bytes=n=>{const units=['B','KB','MB','GB','TB'];let unit=0,value=Math.max(0,Number(n)||0);while(value>=1024&&unit<4){value/=1024;unit++;}return value.toFixed(unit>=3?2:unit===2?1:0)+' '+units[unit];};
  const total=d=>d.upload+d.download;

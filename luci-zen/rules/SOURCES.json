@@ -1,0 +1,15 @@
+{
+  "community_input": {
+    "repository": "https://github.com/Or1a/BetterDPI",
+    "commit": "5409e18dbbce289e85a525008e47686e34dd46f4",
+    "path": "netify-stats/rules/community-rules.json",
+    "sha256": "98f5bee88ffb4900c352388d48fc78a7e12cf2c5fd03e811d5a8ded9ab810601"
+  },
+  "domain_metadata": {
+    "repository": "https://github.com/v2fly/domain-list-community",
+    "commit": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+    "license": "MIT",
+    "license_file": "LICENSE-MIT"
+  },
+  "policy": "Only manifest-reviewed service domains are dedicated; all other selected domains are diagnostic candidates. No BetterDPI GPL source code is imported."
+}

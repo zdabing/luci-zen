@@ -143,7 +143,12 @@ impl Daemon {
 
         let timeline = crate::timeline::DeviceTimeline::load(&db)?;
         let app_usage = crate::app_usage::AppUsage::load(&db)?;
-        let app_engine = crate::app_engine::AppEngine::start(&mut bpf);
+        let mut app_engine = crate::app_engine::AppEngine::start(&mut bpf);
+        let rules_path=std::path::Path::new(&cfg.db_path).parent().unwrap_or(std::path::Path::new("/etc/zen-traffic")).join("app-rules.json");
+        app_engine.configure_rules_path(&rules_path);
+        if db.setting("dpi_dns_enabled")?.as_deref()==Some("1") {
+            if let Err(error)=app_engine.set_dns(&mut bpf,true){eprintln!("[zen-trafficd] DNS metadata unavailable: {error}");}
+        }
         let mut d = Daemon {
             cfg,
             bpf,

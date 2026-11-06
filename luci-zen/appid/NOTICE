@@ -21,7 +21,15 @@ via the backend Makefile's NDPI_LICENSE_TYPE setting. The upstream
 NDPI_LICENSE_FOR_PROFIT_LGPL mode disables dual-licensed dissectors;
 NDPI_LICENSE_FOR_PROFIT_DUAL_LICENSE requires an agreement with ntop.
 
-nDPI is compiled without changes. The separate zen-appid adapter and its
-WeChat hostname refinement are supplied in this repository's appid directory.
+nDPI is compiled without changes. The separate zen-appid adapter is supplied
+in this repository's appid directory. Zen's connection attribution rules live
+in crates/zen-trafficd/src/app_rules.rs and are not changes to nDPI itself.
 The backend Makefile contains the complete source preparation and build steps.
 LICENSE.LGPL-3.0 and LICENSE.GPL-3.0 accompany this executable.
+
+Zen's selected community domain metadata comes from the MIT-licensed
+v2fly/domain-list-community snapshot identified in COMMUNITY-SOURCES.json.
+The offline importer accepts DLC lists or BetterDPI's exported domain metadata;
+it does not incorporate BetterDPI's GPL source code. COMMUNITY-LICENSE retains
+the original MIT notice. Only the explicit review manifest promotes a domain
+to application evidence; other selected entries remain diagnostic candidates.

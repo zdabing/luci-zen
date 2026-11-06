@@ -84,7 +84,7 @@
 .zen-console .zen-dash-dev-row .zen-dash-dev-rate { background: var(--bg-panel); border-radius: 999px; padding: 8px 10px; }
 .zen-console .zen-dash-dev-rate-value { font-size: 13px; font-weight: 550; }
 .zen-console dialog.zen-device-drawer { inset: 14px 14px 14px auto; width: min(540px,calc(100% - 28px)); height: calc(100dvh - 28px); max-height: calc(100dvh - 28px); border-radius: 30px; border: 1px solid var(--line); background: var(--modal-grad); backdrop-filter: blur(30px); }
-.zen-console .zen-device-drawer::backdrop,.zen-console .zen-dash-disk-dialog::backdrop { background: #14271d40; backdrop-filter: blur(9px); }
+.zen-console .zen-device-drawer::backdrop,.zen-console .zen-dash-disk-dialog::backdrop { background: var(--modal-mask); backdrop-filter: blur(9px); }
 .zen-console .zen-drawer-heading,.zen-console .zen-drawer-footer { border-color: var(--border); }
 .zen-console .zen-drawer-close { border-radius: 50%; background: var(--bg-nested); }
 .zen-console .zen-device-live > div,.zen-console .zen-device-drawer .zen-dash-dev-detail-grid { border-radius: 21px; border: 1px solid var(--line); }
@@ -94,7 +94,7 @@
 .zen-console .zen-device-facts dt { font-size: 12px; line-height: 1.5; }
 .zen-console .zen-device-facts dd { margin: 8px 0 0; font-size: 14px; font-weight: 500; line-height: 1.45; }
 .zen-console .zen-dash-device-history { border-radius: 18px; }
-.zen-console #modal_overlay { background: #14271d40; backdrop-filter: blur(10px); }
+.zen-console #modal_overlay { background: var(--modal-mask); backdrop-filter: blur(10px); }
 .zen-console #modal_overlay > .modal { border-radius: var(--radius); border: 1px solid var(--line); background: var(--modal-grad); }
 .zen-console .zen-dash-disk-dialog { border-radius: var(--radius); background: var(--modal-grad); }
 
@@ -456,7 +456,7 @@ html.zen-console .zen-traffic-page .zen-tf-tabs button { border-radius: 999px; }
 .zu-directions{display:flex;gap:16px;flex-wrap:wrap}
 .zu-directions strong{font-weight:600}
 .zu-analysis{color:var(--accent,#1f7a5a)}
-.zu-up{color:var(--rf-up,#c07a1f)}.zu-down{color:var(--accent,#1f7a5a)}
+.zu-up{color:var(--rf-up,#c07a1f)}.zu-down{color:var(--dl)}
 .zu-charts>span{font-size:13px}
 .zu-track{display:flex;gap:0;height:16px;border-radius:8px;overflow:hidden;margin:9px 0 17px;background:var(--bg-base,#eef0ea)}
 .zu-track .zu-segment{flex-grow:0;flex-shrink:1;min-width:0;height:16px;min-height:0;border:0;border-radius:0;margin:0;padding:0;transition:opacity .15s}

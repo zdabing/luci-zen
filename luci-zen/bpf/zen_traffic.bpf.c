@@ -28,6 +28,7 @@
 #include <bpf/bpf_endian.h>
 #include "device_policy.h"
 #include "app_flow.h"
+#include "dns_flow.h"
 
 /* 部分 UAPI 头不导出 struct vlan_hdr（CI 实测），BPF 程序本地自带定义 */
 #ifndef VLAN_VID_MASK
@@ -161,6 +162,7 @@ static __always_inline int account(struct __sk_buff *skb, const __u8 *mac,
 		return TC_ACT_SHOT;
 	if (!s)
 		return TC_ACT_OK;
+	dns_account(skb,mac,off,egress,is_v6);
 	if (!local)
 		app_account(skb, mac, off, egress, is_v6);
 

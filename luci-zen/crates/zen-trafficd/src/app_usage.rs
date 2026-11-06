@@ -5,7 +5,7 @@ use crate::{persistence::Db, state::{now_mono_ms, time_synced}, timeline::{local
 
 pub const ROW_LIMIT: usize = 250_000;
 const PENDING_LIMIT: usize = 16_384;
-pub type AppBuckets = BTreeMap<(u64, String, u16), AppBytes>;
+pub type AppBuckets = BTreeMap<(u64, String, u32), AppBytes>;
 
 #[derive(Clone, Debug)]
 pub struct AppBytes {
@@ -15,11 +15,12 @@ pub struct AppBytes {
 }
 
 impl AppBytes {
-    pub fn kind(&self, id: u16) -> &'static str {
+    pub fn kind(&self, id: u32) -> &'static str {
         if id == 0 { return "unknown"; }
+        if crate::app_catalog::is_infrastructure(id,&self.name) {return "infrastructure";}
         // Compatibility for protocol rows written by the old adapter's broad
         // identified flag. New decisions also use nDPI's application metadata.
-        let protocol = ["HLS", "Protobuf", "BitTorrent", "OpenVPN", "Tor", "RakNet",
+        let protocol = ["HLS", "Protobuf", "MessagePack", "MsgPack", "BitTorrent", "OpenVPN", "Tor", "RakNet",
             "HTTP", "HTTP2", "TLS", "DTLS", "QUIC", "DNS", "MDNS", "DoH_DoT",
             "DNSCrypt", "HTTP_Connect", "HTTP_Proxy", "STUN", "RTP", "NTP", "DHCP",
             "DHCPV6", "NetBIOS", "SMBv1", "SMBv23", "LLMNR", "SSH", "FTP_CONTROL", "FTP_DATA"]
@@ -31,12 +32,13 @@ impl AppBytes {
 /// Exclusive byte categories. A device/connection counter difference is never
 /// presented as an nDPI Unknown decision; protocols are not application names.
 pub fn breakdown(value: &mut serde_json::Value, device: Bytes, pending: Bytes, provisional: Bytes) {
-    let (mut applications, mut protocols, mut unknown) = (Bytes::default(), Bytes::default(), Bytes::default());
+    let (mut applications, mut protocols, mut unknown,mut infrastructure) = (Bytes::default(), Bytes::default(), Bytes::default(),Bytes::default());
     if let Some(rows) = value["applications"].as_array() {
         for row in rows {
             let target = match row["kind"].as_str() {
                 Some("application") => &mut applications,
                 Some("protocol") => &mut protocols,
+                Some("infrastructure") => &mut infrastructure,
                 _ => &mut unknown,
             };
             target.download = target.download.saturating_add(row["download"].as_u64().unwrap_or(0));
@@ -46,8 +48,8 @@ pub fn breakdown(value: &mut serde_json::Value, device: Bytes, pending: Bytes, p
     unknown.download = unknown.download.saturating_sub(provisional.download);
     unknown.upload = unknown.upload.saturating_sub(provisional.upload);
     let covered = Bytes {
-        download:applications.download.saturating_add(protocols.download).saturating_add(unknown.download).saturating_add(pending.download),
-        upload:applications.upload.saturating_add(protocols.upload).saturating_add(unknown.upload).saturating_add(pending.upload),
+        download:applications.download.saturating_add(protocols.download).saturating_add(infrastructure.download).saturating_add(unknown.download).saturating_add(pending.download),
+        upload:applications.upload.saturating_add(protocols.upload).saturating_add(infrastructure.upload).saturating_add(unknown.upload).saturating_add(pending.upload),
     };
     let difference = Bytes { download:device.download.saturating_sub(covered.download), upload:device.upload.saturating_sub(covered.upload) };
     let excess = Bytes { download:covered.download.saturating_sub(device.download), upload:covered.upload.saturating_sub(device.upload) };
@@ -55,7 +57,7 @@ pub fn breakdown(value: &mut serde_json::Value, device: Bytes, pending: Bytes, p
     value["unattributed"] = serde_json::json!({"download":device.download.saturating_sub(applications.download),"upload":device.upload.saturating_sub(applications.upload)});
     value["accounting_mismatch"] = serde_json::json!(excess != Bytes::default());
     value["breakdown"] = serde_json::json!({"applications":applications,"protocols":protocols,
-        "unknown":unknown,"pending":pending,"difference":difference,"excess":excess});
+        "unknown":unknown,"pending":pending,"difference":difference,"excess":excess,"infrastructure":infrastructure});
 }
 
 #[cfg(test)]
@@ -145,6 +147,7 @@ pub struct AppUsage {
     pub since: u64,
     pub floor: u64,
     pub hours: AppBuckets,
+    pub origins:BTreeMap<(u64,String,u32,String,String),Bytes>,
     pub(crate) corrections: BTreeMap<(u64, String), Bytes>,
     pub(crate) last_flush: u64,
 }
@@ -153,11 +156,15 @@ impl AppUsage {
     pub fn load(db: &Db) -> Result<Self, String> {
         let setting = |key| db.setting(key).map(|v| v.and_then(|s| s.parse().ok()).unwrap_or(0));
         Ok(Self { since: setting("app_usage_since")?, floor: setting("app_usage_floor")?,
-            hours: BTreeMap::new(), corrections:BTreeMap::new(), last_flush: now_mono_ms() })
+            hours: BTreeMap::new(),origins:BTreeMap::new(), corrections:BTreeMap::new(), last_flush: now_mono_ms() })
     }
 
     /// `time` is the observation time, never the later classification time.
-    pub fn record(&mut self, time: u64, mac: &str, app: u16, name: &str, identified: bool, bytes: Bytes) {
+    #[cfg(test)]
+    pub fn record(&mut self, time: u64, mac: &str, app: u32, name: &str, identified: bool, bytes: Bytes) {
+        self.record_as(time,mac,app,name,identified,bytes,"ndpi","6.0");
+    }
+    pub fn record_as(&mut self,time:u64,mac:&str,app:u32,name:&str,identified:bool,bytes:Bytes,source:&str,version:&str) {
         if !time_synced(time) || bytes == Bytes::default() { return; }
         let hour = local_hour(time);
         if hour < self.floor { return; }
@@ -169,6 +176,10 @@ impl AppUsage {
             .or_insert_with(|| AppBytes { name, identified:app != 0 && identified, bytes: Bytes::default() });
         row.bytes.download = row.bytes.download.saturating_add(bytes.download).min(i64::MAX as u64);
         row.bytes.upload = row.bytes.upload.saturating_add(bytes.upload).min(i64::MAX as u64);
+        let (source,version)=if app==0 {("unidentified","")}else{(source,version)};
+        let origin=self.origins.entry((hour,mac.to_owned(),app,source.into(),version.into())).or_default();
+        origin.download=origin.download.saturating_add(bytes.download).min(i64::MAX as u64);
+        origin.upload=origin.upload.saturating_add(bytes.upload).min(i64::MAX as u64);
         while self.hours.len() > PENDING_LIMIT {
             // In a prolonged storage outage, remove complete hours and report
             // the new availability floor rather than silently losing one app.
@@ -176,13 +187,19 @@ impl AppUsage {
             self.floor = self.floor.max(time.saturating_add(3600));
             self.hours.retain(|(hour, _, _), _| *hour >= self.floor);
             self.corrections.retain(|(hour, _), _| *hour >= self.floor);
+            self.origins.retain(|(hour,_,_,_,_),_|*hour>=self.floor);
         }
+        while self.origins.len()>PENDING_LIMIT {let Some(key)=self.origins.keys().next().cloned() else{break};self.origins.remove(&key);}
     }
 
     /// Move provisional Unknown bytes without double-counting, even if a
     /// checkpoint has already persisted them. SQL corrections and new app
     /// bytes are committed in the same transaction as the device ledger.
-    pub fn reclassify(&mut self, time: u64, mac: &str, app: u16, name: &str, identified: bool, bytes: Bytes) {
+    #[cfg(test)]
+    pub fn reclassify(&mut self, time: u64, mac: &str, app: u32, name: &str, identified: bool, bytes: Bytes) {
+        self.reclassify_as(time,mac,app,name,identified,bytes,"ndpi","6.0");
+    }
+    pub fn reclassify_as(&mut self,time:u64,mac:&str,app:u32,name:&str,identified:bool,bytes:Bytes,source:&str,version:&str) {
         let hour = local_hour(time);
         if app == 0 || hour < self.floor || !time_synced(time) { return; }
         let mut persisted = bytes;
@@ -191,24 +208,29 @@ impl AppUsage {
             let upload = row.bytes.upload.min(bytes.upload);
             row.bytes.download -= download; row.bytes.upload -= upload;
             persisted.download -= download; persisted.upload -= upload;
+            if let Some(origin)=self.origins.get_mut(&(hour,mac.to_owned(),0,"unidentified".into(),String::new())) {
+                origin.download=origin.download.saturating_sub(download);origin.upload=origin.upload.saturating_sub(upload);
+            }
         }
         if persisted != Bytes::default() {
             let correction = self.corrections.entry((hour,mac.to_owned())).or_default();
             correction.download = correction.download.saturating_add(persisted.download);
             correction.upload = correction.upload.saturating_add(persisted.upload);
         }
-        self.record(time,mac,app,name,identified,bytes);
+        self.record_as(time,mac,app,name,identified,bytes,source,version);
         while self.corrections.len() > PENDING_LIMIT {
             let Some((hour,_)) = self.corrections.keys().next().cloned() else { break };
             self.floor = self.floor.max(hour.saturating_add(3600));
             self.corrections.retain(|(hour,_),_| *hour >= self.floor);
             self.hours.retain(|(hour,_,_),_| *hour >= self.floor);
+            self.origins.retain(|(hour,_,_,_,_),_|*hour>=self.floor);
         }
     }
 
     pub fn remove_device(&mut self, mac: &str) {
         self.hours.retain(|(_, device, _), _| device != mac);
         self.corrections.retain(|(_, device), _| device != mac);
+        self.origins.retain(|(_,device,_,_,_),_|device!=mac);
     }
 
     #[cfg(test)]
@@ -219,6 +241,7 @@ impl AppUsage {
         let floor = db.save_app_usage(self, now)?;
         self.hours.clear();
         self.corrections.clear();
+        self.origins.clear();
         self.floor = floor;
         Ok(())
     }
@@ -246,11 +269,29 @@ impl AppUsage {
                 row.bytes.upload = row.bytes.upload.saturating_add(pending.bytes.upload);
             }
         }
+        let mut origins=if available {db.app_origins(mac,hour)?}else{BTreeMap::new()};
+        if let Some(correction)=self.corrections.get(&(hour,mac.to_owned())) {
+            if let Some(bytes)=origins.get_mut(&(0,"unidentified".into(),String::new())) {bytes.download=bytes.download.saturating_sub(correction.download);bytes.upload=bytes.upload.saturating_sub(correction.upload);}
+        }
+        for ((time,device,id,source,version),bytes) in &self.origins {
+            if *time==hour&&device==mac {let entry=origins.entry((*id,source.clone(),version.clone())).or_default();entry.download=entry.download.saturating_add(bytes.download);entry.upload=entry.upload.saturating_add(bytes.upload);}
+        }
         let mut applications: Vec<_> = rows.into_iter().map(|(id, row)| {
             let kind = row.kind(id);
+            let mut represented=Bytes::default();let mut sources=Vec::new();
+            for ((app,source,version),bytes) in &origins {
+                if *app!=id {continue;}
+                let download=bytes.download.min(row.bytes.download.saturating_sub(represented.download));
+                let upload=bytes.upload.min(row.bytes.upload.saturating_sub(represented.upload));
+                represented.download+=download;represented.upload+=upload;
+                if download+upload>0 {sources.push(serde_json::json!({"source":source,"version":version,"download":download,"upload":upload}));}
+            }
+            let legacy=Bytes {download:row.bytes.download.saturating_sub(represented.download),upload:row.bytes.upload.saturating_sub(represented.upload)};
+            if legacy!=Bytes::default(){sources.push(serde_json::json!({"source":"legacy","version":"","download":legacy.download,"upload":legacy.upload}));}
             serde_json::json!({
             "id":id,"name":row.name,"download":row.bytes.download,"upload":row.bytes.upload,
             "total":row.bytes.download.saturating_add(row.bytes.upload),"identified":kind == "application","kind":kind,
+            "key":crate::app_catalog::key(id),"category":crate::app_catalog::category(id),"sources":sources,
         })}).collect();
         applications.sort_by_key(|row| (std::cmp::Reverse(row["total"].as_u64().unwrap_or(0)), row["id"].as_u64().unwrap_or(0)));
         Ok(serde_json::json!({"mac":mac,"date":date,"hour":hour,"end":until,

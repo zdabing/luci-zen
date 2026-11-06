@@ -1,8 +1,8 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-zen
-PKG_VERSION:=0.2.4
-PKG_RELEASE:=3
+PKG_VERSION:=0.2.5
+PKG_RELEASE:=1
 
 PKG_MAINTAINER:=luci-zen maintainers
 PKG_LICENSE:=Apache-2.0
@@ -59,6 +59,9 @@ define Package/luci-app-zen/install
 	$(INSTALL_DATA) ./htdocs/luci-static/zen/cascade.css $(1)/www/luci-static/zen/cascade.css
 	$(INSTALL_DATA) ./htdocs/luci-static/zen/mobile.css $(1)/www/luci-static/zen/mobile.css
 	$(INSTALL_DATA) ./htdocs/luci-static/zen/theme.css $(1)/www/luci-static/zen/theme.css
+	$(INSTALL_DATA) ./htdocs/luci-static/zen/meridian.css $(1)/www/luci-static/zen/meridian.css
+	$(INSTALL_DATA) ./htdocs/luci-static/zen/apple.css $(1)/www/luci-static/zen/apple.css
+	$(INSTALL_DATA) ./htdocs/luci-static/zen/apple.js $(1)/www/luci-static/zen/apple.js
 	$(INSTALL_DATA) ./htdocs/luci-static/zen/preferences.js $(1)/www/luci-static/zen/preferences.js
 	$(INSTALL_DATA) ./htdocs/luci-static/zen/custom.css $(1)/www/luci-static/zen/custom.css
 	$(INSTALL_DATA) ./htdocs/luci-static/zen/console.css $(1)/www/luci-static/zen/console.css
@@ -103,6 +106,7 @@ define Package/luci-app-zen/install
 	$(INSTALL_DIR) $(1)/www/luci-static/resources/view/zen-traffic
 	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/zen-traffic/analysis-workspace.js $(1)/www/luci-static/resources/view/zen-traffic/analysis-workspace.js
 	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/zen-traffic/app-usage.js $(1)/www/luci-static/resources/view/zen-traffic/app-usage.js
+	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/zen-traffic/dpi-controls.js $(1)/www/luci-static/resources/view/zen-traffic/dpi-controls.js
 	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/zen-traffic/date-picker.js $(1)/www/luci-static/resources/view/zen-traffic/date-picker.js
 	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/zen-traffic/device-reset.js $(1)/www/luci-static/resources/view/zen-traffic/device-reset.js
 	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/zen-traffic/notification-settings.js $(1)/www/luci-static/resources/view/zen-traffic/notification-settings.js
