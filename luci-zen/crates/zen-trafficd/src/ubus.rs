@@ -233,7 +233,7 @@ unsafe extern "C" fn handle_get_app_usage(ctx: *mut ubus::ubus_context, _obj: *m
 unsafe extern "C" fn handle_get_dpi_diagnostics(ctx:*mut ubus::ubus_context,_obj:*mut ubus::ubus_object,
     req:*mut ubus::ubus_request_data,_method:*const c_char,msg:*mut ubus::blob_attr) -> c_int {
     let (mut mac,mut limit)=(None,64usize);
-    for field in ubus::parse_msg(msg) {
+    for field in dpi_fields(msg) {
         match field.name {
             Some("mac")=>match field.as_str() {
                 Some(value) if parse_mac(value).is_some()=>mac=Some(value.to_ascii_lowercase()),
