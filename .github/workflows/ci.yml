@@ -44,6 +44,12 @@ jobs:
           clang -O2 -g -target bpf -I/usr/include/x86_64-linux-gnu \
             -c luci-zen/bpf/zen_traffic.bpf.c -o "$RUNNER_TEMP/zen_traffic.bpf.o"
 
+      - uses: actions/upload-artifact@v7
+        with:
+          name: zen-bpf-object
+          path: ${{ runner.temp }}/zen_traffic.bpf.o
+          if-no-files-found: error
+
   frontend-check:
     name: Frontend and release script checks
     runs-on: ubuntu-24.04

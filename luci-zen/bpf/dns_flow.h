@@ -39,7 +39,11 @@ static __always_inline void dns_account(struct __sk_buff *skb,const __u8 *mac,in
     if(!event){dns_error(0);return;}
     __builtin_memcpy(key.mac,mac,6);key.protocol=17;
     event->key=key;event->length=length;event->first_seen=egress;event->time=bpf_ktime_get_ns();
-    if(bpf_skb_load_bytes(skb,l4+8,event->packet,length)){bpf_ringbuf_discard(event,0);return;}
+    /* Reload after reserve so the helper sees an unsigned, nonzero bound.
+     * Some kernels lose the UDP length lower bound across the reserve call. */
+    __u32 read_length=*(volatile __u32 *)&event->length;
+    if(read_length==0||read_length>ZEN_APP_SAMPLE_SIZE){bpf_ringbuf_discard(event,0);return;}
+    if(bpf_skb_load_bytes(skb,l4+8,event->packet,read_length)){bpf_ringbuf_discard(event,0);return;}
     bpf_ringbuf_submit(event,0);
 }
 #endif
