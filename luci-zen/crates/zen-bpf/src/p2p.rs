@@ -1,6 +1,7 @@
 //! ABI for the optional UDP endpoint-isolation filter; OpenWrt retains NAT.
 use crate::MacKey;
-use aya::maps::{HashMap, MapError};
+use aya::maps::lpm_trie::Key as LpmTrieKey;
+use aya::maps::{HashMap, LpmTrie, MapError};
 use aya::{Ebpf, Pod};
 
 #[repr(C)]
@@ -90,6 +91,29 @@ pub fn counters(bpf: &Ebpf, mac: MacKey) -> Result<P2pCounters, String> {
         Err(_) => Err("p2p_read_failed".into()),
     }
 }
+/// Replace the domain-resolved allow trie. Addresses are full-length keys:
+/// IPv4 is v4-mapped so the datapath can look up both families with one
+/// 128-bit prefix, matching the map contract in `bpf/p2p_control.h`.
+pub fn allow_sync(bpf: &mut Ebpf, previous: &[[u8; 16]], next: &[[u8; 16]]) -> Result<(), String> {
+    let map = bpf
+        .map_mut("p2p_allow")
+        .ok_or("p2p_unavailable")?;
+    let mut trie: LpmTrie<_, [u8; 16], u8> =
+        LpmTrie::try_from(map).map_err(|_| "p2p_unavailable")?;
+    for address in previous {
+        if !next.contains(address) {
+            let _ = trie.remove(&LpmTrieKey::new(128, *address));
+        }
+    }
+    for address in next {
+        if !previous.contains(address) {
+            trie.insert(&LpmTrieKey::new(128, *address), 1, 0)
+                .map_err(|_| "p2p_apply_failed".to_string())?;
+        }
+    }
+    Ok(())
+}
+
 pub fn prune(bpf: &mut Ebpf, now_ns: u64) -> Result<(), String> {
     let mut endpoints: HashMap<_, EndpointKey, Endpoint> =
         HashMap::try_from(bpf.map_mut("p2p_endpoints").ok_or("p2p_unavailable")?)

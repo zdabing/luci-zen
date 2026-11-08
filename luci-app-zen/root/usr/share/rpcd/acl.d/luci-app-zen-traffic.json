@@ -41,7 +41,9 @@
 		"read": {
 			"ubus": {
 				"zen.traffic": [
-					"getDevicePolicy"
+					"getDevicePolicy",
+					"getP2pPolicy",
+					"getP2pDomains"
 				],
 				"zen.device": [
 					"getBinding"
@@ -52,7 +54,9 @@
 			"ubus": {
 				"zen.traffic": [
 					"setHostname",
-					"setDevicePolicy"
+					"setDevicePolicy",
+					"setP2pPolicy",
+					"setP2pDomains"
 				],
 				"zen.device": [
 					"setBinding"

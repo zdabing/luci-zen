@@ -1235,3 +1235,60 @@ msgstr "P2P 策略已保存，端点锁定将按新策略重新建立。"
 
 msgid "Unable to save P2P settings. Check permissions and the traffic service."
 msgstr "无法保存 P2P 设置，请检查权限和流量服务。"
+
+msgid "Observe first"
+msgstr "先观察"
+
+msgid "Strict mode"
+msgstr "严格模式"
+
+msgid "Turn off"
+msgstr "关闭"
+
+msgid "Strict mode is on. Conflicting UDP peers are dropped; use observe if games or calls misbehave."
+msgstr "严格模式已开启，冲突的 UDP 对等端会被丢弃；若游戏或通话异常请改用观察模式。"
+
+msgid "Strict mode drops conflicting UDP peers. Games, calls, QUIC fallback and mesh VPNs may be affected. Observe first if unsure. Enable now?"
+msgstr "严格模式会丢弃冲突的 UDP 对等端，可能影响游戏、通话、QUIC 回退和组网 VPN。不确定时请先用观察模式。现在开启吗？"
+
+msgid "Domain whitelist · global (auto-resolved)"
+msgstr "域名白名单 · 全局（自动解析）"
+
+msgid "One domain per line, up to sixteen. Resolved addresses bypass the P2P lock for every device, which weakens strict blocking. IP exceptions above remain per device."
+msgstr "每行一个域名，最多十六个；解析出的地址对所有设备放行，会削弱严格拦截效果。上方的 IP 放行仍按设备生效。"
+
+msgid "Domain whitelist"
+msgstr "域名白名单"
+
+msgid "Save domains"
+msgstr "保存域名"
+
+msgid "Whitelist: %s domains · %s resolved addresses"
+msgstr "白名单：%s 个域名 · 已解析 %s 个地址"
+
+msgid "No domains configured."
+msgstr "未配置域名。"
+
+msgid "Domain refresh failed. The previous exceptions are kept."
+msgstr "域名解析失败，保留上次的放行地址。"
+
+msgid "Domain whitelist could not be loaded."
+msgstr "无法加载域名白名单。"
+
+msgid "Domain whitelist could not be saved."
+msgstr "无法保存域名白名单。"
+
+msgid "Domain whitelist saved. Addresses refresh within a minute."
+msgstr "域名白名单已保存，地址将在一分钟内刷新。"
+
+msgid "Enter up to sixteen valid domain names, one per line."
+msgstr "请输入有效域名，每行一个，最多十六个。"
+
+msgid "Saving domains failed. Check the traffic service."
+msgstr "保存域名失败，请检查流量服务。"
+
+msgid "Domain resolution failed. The previous exceptions are kept."
+msgstr "域名解析失败，保留上次的放行地址。"
+
+msgid "Domain resolution timed out. The previous exceptions are kept."
+msgstr "域名解析超时，保留上次的放行地址。"

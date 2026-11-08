@@ -28,6 +28,14 @@ struct { __uint(type,BPF_MAP_TYPE_HASH); __uint(max_entries,4096);
 struct { __uint(type,BPF_MAP_TYPE_HASH); __uint(max_entries,4096);
 	__type(key,struct mac_key); __type(value,struct p2p_counters);
 } p2p_stats SEC(".maps");
+/* Domain-resolved exceptions: remote prefixes learned from the daemon's DNS
+ * refresh. IPv4 is stored v4-mapped so one full-length trie covers both
+ * families, matching the per-policy bypass prefixes. */
+struct p2p_allow_key { __u32 prefixlen; __u8 data[16]; };
+struct { __uint(type,BPF_MAP_TYPE_LPM_TRIE); __uint(max_entries,4096);
+	__uint(map_flags,BPF_F_NO_PREALLOC);
+	__type(key,struct p2p_allow_key); __type(value,__u8);
+} p2p_allow SEC(".maps");
 struct { __uint(type,BPF_MAP_TYPE_HASH); __uint(max_entries,ZEN_P2P_ENDPOINTS);
 	__type(key,struct p2p_key); __type(value,struct p2p_endpoint);
 } p2p_endpoints SEC(".maps");
@@ -90,6 +98,13 @@ static __always_inline int p2p_account(struct __sk_buff *skb,const __u8 *mac,int
 		if(p2p_prefix_match(remote,&policy->bypass[i],key.family)) {
 			__sync_fetch_and_add(&counts->bypassed,1); return 1;
 		}
+	}
+	/* Domain-resolved exceptions refreshed by the daemon. */
+	struct p2p_allow_key allow={};
+	allow.prefixlen=128;
+	__builtin_memcpy(allow.data,remote,16);
+	if(bpf_map_lookup_elem(&p2p_allow,&allow)){
+		__sync_fetch_and_add(&counts->bypassed,1); return 1;
 	}
 	struct p2p_endpoint *endpoint=bpf_map_lookup_elem(&p2p_endpoints,&key);
 	if(!endpoint && !egress) {

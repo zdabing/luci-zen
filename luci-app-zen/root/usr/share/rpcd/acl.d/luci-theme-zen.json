@@ -147,7 +147,8 @@
 			"ubus": {
 				"zen.traffic": [
 					"getDevicePolicy",
-					"getP2pPolicy"
+					"getP2pPolicy",
+					"getP2pDomains"
 				],
 				"zen.device": [
 					"getBinding",
@@ -160,7 +161,8 @@
 				"zen.traffic": [
 					"setHostname",
 					"setDevicePolicy",
-					"setP2pPolicy"
+					"setP2pPolicy",
+					"setP2pDomains"
 				],
 				"zen.device": [
 					"setBinding"

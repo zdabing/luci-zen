@@ -51,3 +51,7 @@ dialog.zen-device-drawer.rf-device-detail{width:min(560px,100%);border-radius:24
 .rf-device-detail .rf-up{color:var(--ul)}.rf-device-detail .rf-down{color:var(--dl)}.rf-detail-retry{border:0;background:none;color:var(--accent);font:inherit;text-decoration:underline;cursor:pointer}.rf-detail-actions button:disabled{opacity:.45;cursor:default}
 
 .rf-device-detail .rf-detail-facts dd{margin:0;font-size:13px;font-weight:400}.rf-device-detail .rf-detail-facts dt{font-size:13px}
+
+.zen-p2p-domains{margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+.zen-p2p-domains summary{font-size:13px}
+.zen-p2p-domains textarea{font-family:inherit}

@@ -270,7 +270,11 @@ impl AppEngine {
             }
             app.rule=Some(outcome.rule);
         }
-        if self.dns_active&&generic&&app.source=="ndpi"&&!app.evidence.has_hostname&&!app.evidence.hostname_truncated {
+        // DNS is a fallback, not an override: it is only consulted while the
+        // flow is still generic. SNI often names a CDN host that has no rule
+        // while the queried service (e.g. the video site) does, so a hostname
+        // alone must not block this fallback.
+        if self.dns_active&&generic&&app.source=="ndpi" {
             if let Some(rule)=self.dns.lookup(key.mac,(key.family,key.server),crate::state::now_mono_ms()) {
                 let entry=crate::app_catalog::by_key(&rule.app).unwrap();
                 app.app=entry.id;app.name=entry.name.into();app.identified=true;app.source="dns";

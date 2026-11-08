@@ -37,6 +37,7 @@ mod wan;
 mod notifications;
 mod policy;
 mod p2p;
+mod domains;
 
 use state::Config;
 

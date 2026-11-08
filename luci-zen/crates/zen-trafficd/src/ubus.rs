@@ -40,7 +40,7 @@ const fn cs(s: &'static [u8]) -> *const c_char {
 // ubus 方法表
 // ---------------------------------------------------------------------------
 
-static METHODS: [ubus::ubus_method; 27] = [
+static METHODS: [ubus::ubus_method; 29] = [
     m(b"getStatus\0", handle_get_status),
     m(b"getDevices\0", handle_get_devices),
     m(b"getTotal\0", handle_get_total),
@@ -66,6 +66,8 @@ static METHODS: [ubus::ubus_method; 27] = [
     m(b"setDevicePolicy\0", handle_set_device_policy),
     m(b"getP2pPolicy\0", handle_get_p2p_policy),
     m(b"setP2pPolicy\0", handle_set_p2p_policy),
+    m(b"getP2pDomains\0", handle_get_p2p_domains),
+    m(b"setP2pDomains\0", handle_set_p2p_domains),
     m(b"resetDevice\0", handle_reset_device),
     m(b"reloadPrefixes\0", handle_reload_prefixes),
 ];
@@ -156,6 +158,30 @@ unsafe extern "C" fn handle_set_p2p_policy(ctx:*mut ubus::ubus_context,_obj:*mut
             |json|db.save_setting(crate::p2p::Policies::save_key(),json))
     }) {
         Some(Ok(policy))=>send_json(ctx,req,serde_json::json!({"ok":true,"policy":policy})),
+        Some(Err(error))=>send_json(ctx,req,serde_json::json!({"ok":false,"error":error})),
+        None=>ubus::UBUS_STATUS_NOT_SUPPORTED,
+    }
+}
+
+unsafe extern "C" fn handle_get_p2p_domains(ctx:*mut ubus::ubus_context,_obj:*mut ubus::ubus_object,
+    req:*mut ubus::ubus_request_data,_method:*const c_char,msg:*mut ubus::blob_attr)->c_int {
+    if !dpi_fields(msg).is_empty(){return ubus::UBUS_STATUS_INVALID_ARGUMENT;}
+    match with_daemon(|d|d.domains.summary()) {
+        Some(value)=>send_json(ctx,req,value),
+        None=>ubus::UBUS_STATUS_NOT_SUPPORTED,
+    }
+}
+
+unsafe extern "C" fn handle_set_p2p_domains(ctx:*mut ubus::ubus_context,_obj:*mut ubus::ubus_object,
+    req:*mut ubus::ubus_request_data,_method:*const c_char,msg:*mut ubus::blob_attr)->c_int {
+    let fields=dpi_fields(msg);
+    if fields.len()!=1 || fields[0].name!=Some("json"){return ubus::UBUS_STATUS_INVALID_ARGUMENT;}
+    let Some(input)=fields[0].as_str() else{return ubus::UBUS_STATUS_INVALID_ARGUMENT;};
+    match with_daemon(|d| {
+        let db=&d.db;
+        d.domains.set(input,|json|db.save_setting(crate::domains::Domains::save_key(),json))
+    }) {
+        Some(Ok(domains))=>send_json(ctx,req,serde_json::json!({"ok":true,"domains":domains})),
         Some(Err(error))=>send_json(ctx,req,serde_json::json!({"ok":false,"error":error})),
         None=>ubus::UBUS_STATUS_NOT_SUPPORTED,
     }

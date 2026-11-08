@@ -40,6 +40,7 @@ pub struct Daemon {
     pub notifications: crate::notifications::Notifications,
     pub policies: crate::policy::Policies,
     pub p2p: crate::p2p::Policies,
+    pub domains: crate::domains::Domains,
     pub wifi: crate::wifi::WifiCache,
     pub local_prefixes: Vec<(i32, Vec<u8>, u32)>,
 
@@ -84,6 +85,7 @@ impl Daemon {
         let notifications = crate::notifications::Notifications::load(&db)?;
         let policies = crate::policy::Policies::load(&db)?;
         let p2p = crate::p2p::Policies::load(&db)?;
+        let domains = crate::domains::Domains::load(&db)?;
 
         let mut devs: HashMap<MacKey, DevState> = HashMap::new();
         let mut user_hosts: HashMap<String, String> = HashMap::new();
@@ -148,7 +150,8 @@ impl Daemon {
         let mut app_engine = crate::app_engine::AppEngine::start(&mut bpf);
         let rules_path=std::path::Path::new(&cfg.db_path).parent().unwrap_or(std::path::Path::new("/etc/zen-traffic")).join("app-rules.json");
         app_engine.configure_rules_path(&rules_path);
-        if db.setting("dpi_dns_enabled")?.as_deref()==Some("1") {
+        // DNS metadata is on by default; an explicit "0" keeps it off.
+        if db.setting("dpi_dns_enabled")?.as_deref()!=Some("0") {
             if let Err(error)=app_engine.set_dns(&mut bpf,true){eprintln!("[zen-trafficd] DNS metadata unavailable: {error}");}
         }
         let mut d = Daemon {
@@ -167,6 +170,7 @@ impl Daemon {
             notifications,
             policies,
             p2p,
+            domains,
             local_prefixes: Vec::new(),
             last_tick_mono: 0,
             last_attr_mono: 0,
@@ -327,6 +331,7 @@ impl Daemon {
         self.realtime.flush(&self.db, now_mono, now, false);
         self.app_engine.tick(&mut self.bpf, &mut self.app_usage, now, now_mono);
         self.p2p.tick(&mut self.bpf, now_mono);
+        self.domains.tick(&mut self.bpf, now_mono);
         if let Err(e) = crate::timeline::flush_usage(&mut self.timeline, &mut self.app_usage, &self.db, now, false) {
             eprintln!("[zen-trafficd] hourly usage checkpoint (pending retained): {e}");
         }
