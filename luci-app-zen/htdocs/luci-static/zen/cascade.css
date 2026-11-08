@@ -241,24 +241,42 @@ header .container {
 	border: 1px solid transparent;
 }
 
+/* Fallback bars: three 2px rules with an even 4px gap, centred on the button
+ * centre so the 36px rule and the 44px console rule both stay symmetric.
+ * The injected sprite from view.zen.zen-icons replaces them when JS runs. */
 .showSide::before,
 .showSide::after {
 	content: "";
 	position: absolute;
-	left: 8px;
-	right: 8px;
+	left: 50%;
+	top: 50%;
+	width: 20px;
 	height: 2px;
+	margin-left: -10px;
 	border-radius: 2px;
 	background: var(--text);
 }
 
 .showSide::before {
-	top: 12px;
+	transform: translateY(-7px);
 	box-shadow: 0 6px 0 var(--text);
 }
 
 .showSide::after {
-	bottom: 12px;
+	transform: translateY(5px);
+}
+
+.showSide.has-icon::before,
+.showSide.has-icon::after {
+	display: none;
+}
+
+.showSide svg {
+	display: block;
+	position: absolute;
+	inset: 0;
+	margin: auto;
+	color: var(--text);
 }
 
 .showSide:hover {

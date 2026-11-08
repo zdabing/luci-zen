@@ -44,8 +44,15 @@ return baseclass.extend({
 
 		const showSide = document.querySelector('.showSide');
 		const darkMask = document.querySelector('.darkMask');
-		if (showSide)
+		if (showSide) {
+			/* Draw the toggle from the bundled sprite so it matches the other
+			 * header icons; the CSS bars stay as a no-JS fallback. */
+			if (!showSide.firstChild) {
+				showSide.appendChild(icons.icon('zen-i-menu', 22));
+				showSide.classList.add('has-icon');
+			}
 			showSide.addEventListener('click', ui.createHandlerFn(this, 'handleSidebarToggle'));
+		}
 		if (darkMask)
 			darkMask.addEventListener('click', ui.createHandlerFn(this, 'handleSidebarMask'));
 		document.addEventListener('click', ev => {
