@@ -1,0 +1,98 @@
+# Refresh the curated rule package from v2fly/domain-list-community.
+#
+# The daemon compiles luci-zen/rules/china-apps.json into the binary, so domain
+# coverage only moves when that file moves. Hand-editing domain lists does not
+# scale, so this job regenerates the package weekly from the MIT upstream and
+# opens a pull request: automation proposes, a human approves.
+name: Rules update
+
+on:
+  schedule:
+    # Sundays 20:17 UTC, i.e. Monday 04:17 in China.
+    - cron: '17 20 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  refresh:
+    name: Rebuild from upstream
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Fetch domain-list-community
+        run: |
+          git clone --depth 1 --filter=blob:none --sparse \
+            https://github.com/v2fly/domain-list-community "$RUNNER_TEMP/dlc"
+          git -C "$RUNNER_TEMP/dlc" sparse-checkout set data
+          git -C "$RUNNER_TEMP/dlc" rev-parse HEAD | tee "$RUNNER_TEMP/dlc-revision"
+
+      - name: Rebuild the rule package
+        run: |
+          revision=$(cat "$RUNNER_TEMP/dlc-revision")
+          echo "dlc revision: $revision"
+          python3 luci-zen/scripts/build-dlc-metadata.py \
+            --data "$RUNNER_TEMP/dlc/data" --revision "$revision" \
+            --output "$RUNNER_TEMP/dlc-metadata.json"
+
+          current=$(python3 -c 'import json;print(json.load(open("luci-zen/rules/china-apps.json"))["version"])')
+
+          # Build once at the current version: an unchanged domain set must not
+          # produce a version-only pull request every week.
+          python3 luci-zen/scripts/build-app-rules.py \
+            --source "$RUNNER_TEMP/dlc-metadata.json" --version "$current" \
+            --output "$RUNNER_TEMP/china-apps.json"
+          if python3 luci-zen/scripts/rules-release.py same-content \
+            "$RUNNER_TEMP/china-apps.json" luci-zen/rules/china-apps.json; then
+            echo "No domain changes at DLC $revision."
+            exit 0
+          fi
+
+          # Content changed, so the package needs a version the daemon accepts
+          # as an update: a rewrite under the same version is rejected.
+          next=$(python3 luci-zen/scripts/rules-release.py next-version "$current")
+          echo "rules version: $current -> $next"
+          python3 luci-zen/scripts/rules-release.py set-version luci-zen/rules/review.json "$next"
+          python3 luci-zen/scripts/build-app-rules.py \
+            --source "$RUNNER_TEMP/dlc-metadata.json" --version "$next" \
+            --output luci-zen/rules/china-apps.json
+
+      - name: Verify the regenerated package
+        run: python3 luci-zen/scripts/build-app-rules.py --verify luci-zen/rules/china-apps.json
+
+      - name: Summarise the diff
+        id: diff
+        run: |
+          if git diff --quiet -- luci-zen/rules; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No rule changes upstream."
+            exit 0
+          fi
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          git show HEAD:luci-zen/rules/china-apps.json > "$RUNNER_TEMP/old-rules.json"
+          python3 luci-zen/scripts/rules-release.py summary \
+            "$RUNNER_TEMP/old-rules.json" luci-zen/rules/china-apps.json | tee rules-diff.txt
+          git diff --stat -- luci-zen/rules
+
+      - name: Open or update the pull request
+        if: steps.diff.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: automation/rules-update
+          delete-branch: true
+          commit-message: Refresh curated app rules from domain-list-community
+          title: Refresh curated app rules from domain-list-community
+          body-path: rules-diff.txt
+          labels: rules

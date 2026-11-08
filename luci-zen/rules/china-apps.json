@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "version": "zen-cn-20261106.2",
+  "version": "zen-cn-20261108.2",
   "source_revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
   "rules": [
     {
@@ -81,7 +81,7 @@
       "app": "infra:alibaba-cloud",
       "level": "infrastructure",
       "source": "zen-reviewed",
-      "revision": "zen-cn-20261106.2",
+      "revision": "zen-cn-20261108.2",
       "license": "MIT"
     },
     {
@@ -90,7 +90,7 @@
       "app": "infra:alibaba-cloud",
       "level": "infrastructure",
       "source": "zen-reviewed",
-      "revision": "zen-cn-20261106.2",
+      "revision": "zen-cn-20261108.2",
       "license": "MIT"
     },
     {
@@ -355,6 +355,33 @@
       "license": "MIT"
     },
     {
+      "domain": "bilibiligame.cn",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "bilibiligame.co",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "bilibiligame.net",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
       "domain": "bilibilipay.cn",
       "match": "suffix",
       "app": "community:bilibili",
@@ -368,6 +395,51 @@
       "match": "suffix",
       "app": "community:bilibili",
       "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "bilicdn1.com",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "bilicdn2.com",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "bilicdn3.com",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "bilicdn4.com",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "bilicdn5.com",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "dedicated",
       "source": "dlc",
       "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
       "license": "MIT"
@@ -391,6 +463,33 @@
       "license": "MIT"
     },
     {
+      "domain": "biligame.co",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "biligame.com",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "biligame.net",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
       "domain": "biligo.com",
       "match": "suffix",
       "app": "community:bilibili",
@@ -400,10 +499,46 @@
       "license": "MIT"
     },
     {
+      "domain": "biliimg.com",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
       "domain": "biliintl.com",
       "match": "suffix",
       "app": "community:bilibili",
       "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "bilivideo.cn",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "bilivideo.com",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "bilivideo.net",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "dedicated",
       "source": "dlc",
       "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
       "license": "MIT"
@@ -661,6 +796,15 @@
       "license": "MIT"
     },
     {
+      "domain": "game.qq.com",
+      "match": "suffix",
+      "app": "ndpi:395",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261108.2",
+      "license": "MIT"
+    },
+    {
       "domain": "gamebonfire.com",
       "match": "suffix",
       "app": "ndpi:395",
@@ -836,6 +980,24 @@
       "match": "suffix",
       "app": "ndpi:395",
       "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "hdslb.com",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "dedicated",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "hdslb.org",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "dedicated",
       "source": "dlc",
       "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
       "license": "MIT"
@@ -1507,6 +1669,15 @@
       "license": "MIT"
     },
     {
+      "domain": "maoercdn.com",
+      "match": "suffix",
+      "app": "community:bilibili",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
       "domain": "metalrevolution.com",
       "match": "suffix",
       "app": "ndpi:395",
@@ -1525,9 +1696,27 @@
       "license": "MIT"
     },
     {
+      "domain": "mgtvcloud.com",
+      "match": "suffix",
+      "app": "community:mgtv",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261108.2",
+      "license": "MIT"
+    },
+    {
       "domain": "midasbuy.com",
       "match": "suffix",
       "app": "ndpi:395",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "mincdn.com",
+      "match": "suffix",
+      "app": "community:bilibili",
       "level": "candidate",
       "source": "dlc",
       "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
@@ -1593,7 +1782,7 @@
       "app": "infra:tencent-cloud",
       "level": "infrastructure",
       "source": "zen-reviewed",
-      "revision": "zen-cn-20261106.2",
+      "revision": "zen-cn-20261108.2",
       "license": "MIT"
     },
     {
@@ -1710,7 +1899,7 @@
       "app": "infra:tencent-cloud",
       "level": "infrastructure",
       "source": "zen-reviewed",
-      "revision": "zen-cn-20261106.2",
+      "revision": "zen-cn-20261108.2",
       "license": "MIT"
     },
     {
@@ -1980,7 +2169,7 @@
       "app": "infra:tencent-cloud",
       "level": "infrastructure",
       "source": "zen-reviewed",
-      "revision": "zen-cn-20261106.2",
+      "revision": "zen-cn-20261108.2",
       "license": "MIT"
     },
     {
@@ -2071,6 +2260,33 @@
       "level": "candidate",
       "source": "dlc",
       "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "upos-hz-mirrorakam.akamaized.net",
+      "match": "exact",
+      "app": "community:bilibili",
+      "level": "candidate",
+      "source": "dlc",
+      "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "v.qq.com",
+      "match": "suffix",
+      "app": "ndpi:324",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261108.2",
+      "license": "MIT"
+    },
+    {
+      "domain": "video.qq.com",
+      "match": "suffix",
+      "app": "ndpi:324",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261108.2",
       "license": "MIT"
     },
     {

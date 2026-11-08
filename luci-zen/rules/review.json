@@ -1,10 +1,10 @@
 {
-  "version":"zen-cn-20261106.2",
+  "version":"zen-cn-20261108.2",
   "services":{
     "tencent":{"app":"ndpi:324","dedicated":["video.qq.com","v.qq.com"]},
     "iqiyi":{"app":"ndpi:54","dedicated":["iqiyi.com","iqiyipic.com","qiyi.com","qiyipic.com","qy.net","iq.com","71edge.com"]},
     "youku":{"app":"community:youku","dedicated":["youku.com","youku.tv","youkuplay.com","ykimg.com","ykimg.alicdn.com","tudou.com","kumiao.com"]},
-    "bilibili":{"app":"community:bilibili","dedicated":["bilibili.com","bilibili.tv","bilibili.cn","bilibili.net","biliapi.com","biliapi.net","acgvideo.com","bilivideo.com","bilivideo.cn","bilivideo.net","hdslb.com"]},
+    "bilibili":{"app":"community:bilibili","lists":["bilibili","bilibili-cdn","bilibili-game"],"dedicated":["bilibili.com","bilibili.tv","bilibili.cn","bilibili.net","biliapi.com","biliapi.net","acgvideo.com","bilivideo.com","bilivideo.cn","bilivideo.net","hdslb.com","hdslb.org","bilicdn1.com","bilicdn2.com","bilicdn3.com","bilicdn4.com","bilicdn5.com","biliimg.com"]},
     "hunantv":{"app":"community:mgtv","dedicated":["mgtv.com","hunantv.com","hitv.com","mgtvcloud.com"]},
     "douyin":{"app":"community:douyin","dedicated":["douyin.com","douyinvod.com","douyincdn.com","douyinpic.com","douyinstatic.com","amemv.com"]},
     "kuaishou":{"app":"community:kuaishou","dedicated":["kuaishou.com","kuaishou.cn","gifshow.com","yximgs.com","kwimgs.com","kwaicdn.com","ksapisrv.com"]},

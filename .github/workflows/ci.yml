@@ -72,6 +72,9 @@ jobs:
           for folder in ('luci-app-zen', 'luci-zen'):
               for path in Path(folder).rglob('*.json'):
                   json.loads(path.read_text(encoding='utf-8'))
-          for path in Path('scripts').glob('*.py'):
+          for path in [*Path('scripts').glob('*.py'), *Path('luci-zen/scripts').glob('*.py')]:
               ast.parse(path.read_text(encoding='utf-8'), filename=str(path))
           PY
+
+      - name: Check curated rule package
+        run: python3 luci-zen/scripts/build-app-rules.py --verify luci-zen/rules/china-apps.json
