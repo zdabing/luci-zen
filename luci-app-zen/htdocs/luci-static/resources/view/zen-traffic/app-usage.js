@@ -2,6 +2,7 @@
 'require baseclass';
 'require rpc';
 'require view.zen-traffic.dpi-controls as dpiControls';
+'require view.zen.zen-brand-icons as brandIcons';
 
 const callUsage = rpc.declare({ object: 'zen.traffic', method: 'getAppUsage', params: ['mac', 'date', 'hour'], reject: true });
 const callRates = rpc.declare({ object:'zen.traffic',method:'getAppRealtime',params:['mac'],reject:true });
@@ -122,7 +123,9 @@ return baseclass.extend({
 			E('tbody', {}, rows.flatMap(app => {
 				if(app.section)return [E('tr',{class:'zen-app-section'},E('th',{colspan:4,scope:'rowgroup'},app.section))];
 				const key=app.key||String(app.id),rate=this.rates.get(app.id),sources=Array.isArray(app.sources)?app.sources.slice(0,64):[];
-				const label=E('td',{},[E('strong',{},app.label),sources.length?E('button',{type:'button',class:'zen-app-source','aria-expanded':String(this.expandedKey===key),click:()=>{this.expandedKey=this.expandedKey===key?null:key;this.draw(data);}},[...new Set(sources.map(s=>sourceName(s.source)))].join(' / ')):'',rate?E('small',{class:'zen-app-rate'},'↑ '+bytes(rate.upload)+'/s · ↓ '+bytes(rate.download)+'/s'):'']);
+				const icon=brandIcons.application(app,24);
+				const heading=E('span',{class:'zen-app-name'},[...(icon?[icon]:[]),E('strong',{},app.label)]);
+				const label=E('td',{},[heading,sources.length?E('button',{type:'button',class:'zen-app-source','aria-expanded':String(this.expandedKey===key),click:()=>{this.expandedKey=this.expandedKey===key?null:key;this.draw(data);}},[...new Set(sources.map(s=>sourceName(s.source)))].join(' / ')):'',rate?E('small',{class:'zen-app-rate'},'↑ '+bytes(rate.upload)+'/s · ↓ '+bytes(rate.download)+'/s'):'']);
 				const result=[E('tr',{class:app.identified?'':'is-unclassified'},[label,E('td',{class:'zen-tf-ul'},bytes(app.upload)),E('td',{class:'zen-tf-dl'},bytes(app.download)),E('td',{},bytes(app.upload+app.download))])];
 				if(this.expandedKey===key&&sources.length)result.push(E('tr',{},E('td',{colspan:4},E('ul',{class:'zen-app-source-list'},sources.map(source=>E('li',{},sourceName(source.source)+' · '+(source.version||'—')+' · ↑ '+bytes(source.upload)+' · ↓ '+bytes(source.download)))))));
 				return result;

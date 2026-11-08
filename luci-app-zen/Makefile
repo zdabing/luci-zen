@@ -1,8 +1,8 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=luci-app-zen
-PKG_VERSION:=0.2.5
-PKG_RELEASE:=4
+PKG_VERSION:=0.2.6
+PKG_RELEASE:=1
 
 PKG_MAINTAINER:=luci-zen maintainers
 PKG_LICENSE:=Apache-2.0
@@ -69,8 +69,12 @@ define Package/luci-app-zen/install
 	$(INSTALL_DATA) ./htdocs/luci-static/zen/console-layout.js $(1)/www/luci-static/zen/console-layout.js
 	$(INSTALL_DATA) ./htdocs/luci-static/zen/device-controls.css $(1)/www/luci-static/zen/device-controls.css
 	$(INSTALL_DATA) ./htdocs/luci-static/zen/logo.svg $(1)/www/luci-static/zen/logo.svg
+	$(INSTALL_DIR) $(1)/www/luci-static/resources/view/zen/icons/qure
+	$(INSTALL_DATA) ./htdocs/luci-static/resources/view/zen/icons/qure/*.svg $(1)/www/luci-static/resources/view/zen/icons/qure/
 	$(INSTALL_DIR) $(1)/usr/share/licenses/luci-app-zen
 	$(INSTALL_DATA) ./THIRD_PARTY_NOTICES.md $(1)/usr/share/licenses/luci-app-zen/THIRD_PARTY_NOTICES.md
+	$(INSTALL_DIR) $(1)/usr/share/licenses/luci-app-zen/qure
+	$(INSTALL_DATA) ./licenses/qure/* $(1)/usr/share/licenses/luci-app-zen/qure/
 
 	$(INSTALL_DIR) $(1)/www/luci-static/resources
 	$(INSTALL_DATA) ./htdocs/luci-static/resources/menu-zen.js $(1)/www/luci-static/resources/menu-zen.js

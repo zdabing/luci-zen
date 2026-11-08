@@ -39,6 +39,7 @@ pub struct Daemon {
     pub app_engine: crate::app_engine::AppEngine,
     pub notifications: crate::notifications::Notifications,
     pub policies: crate::policy::Policies,
+    pub p2p: crate::p2p::Policies,
     pub wifi: crate::wifi::WifiCache,
     pub local_prefixes: Vec<(i32, Vec<u8>, u32)>,
 
@@ -82,6 +83,7 @@ impl Daemon {
         let wan = crate::wan::WanUsage::load(&db, now)?;
         let notifications = crate::notifications::Notifications::load(&db)?;
         let policies = crate::policy::Policies::load(&db)?;
+        let p2p = crate::p2p::Policies::load(&db)?;
 
         let mut devs: HashMap<MacKey, DevState> = HashMap::new();
         let mut user_hosts: HashMap<String, String> = HashMap::new();
@@ -164,6 +166,7 @@ impl Daemon {
             app_engine,
             notifications,
             policies,
+            p2p,
             local_prefixes: Vec::new(),
             last_tick_mono: 0,
             last_attr_mono: 0,
@@ -187,6 +190,7 @@ impl Daemon {
         totals::detect_upstream(&mut d);
         let n = unsafe { netif::refresh(&mut d) }?;
         d.policies.restore(&mut d.bpf)?;
+        d.p2p.restore(&mut d.bpf)?;
         d.reconcile_interfaces()?;
         println!("[zen-trafficd] local_prefixes 已写入 {n} 条");
 
@@ -322,6 +326,7 @@ impl Daemon {
         self.realtime.sample(&self.upstream, &links, now_mono, now);
         self.realtime.flush(&self.db, now_mono, now, false);
         self.app_engine.tick(&mut self.bpf, &mut self.app_usage, now, now_mono);
+        self.p2p.tick(&mut self.bpf, now_mono);
         if let Err(e) = crate::timeline::flush_usage(&mut self.timeline, &mut self.app_usage, &self.db, now, false) {
             eprintln!("[zen-trafficd] hourly usage checkpoint (pending retained): {e}");
         }

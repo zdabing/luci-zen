@@ -36,6 +36,7 @@ mod wifi;
 mod wan;
 mod notifications;
 mod policy;
+mod p2p;
 
 use state::Config;
 

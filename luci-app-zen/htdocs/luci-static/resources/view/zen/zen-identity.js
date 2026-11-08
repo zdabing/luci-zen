@@ -4,6 +4,7 @@
 'require ui';
 'require view.zen.zen-icons as icons';
 'require view.zen.zen-vendors as vendors';
+'require view.zen.zen-brand-icons as brandIcons';
 
 const BRANDS = {
  realme: ['realme','R','#e7b900'], xiaomi: ['Xiaomi','mi','#f57921'],
@@ -48,7 +49,10 @@ return baseclass.extend({
  glyph(info,size) {
   if(!info.brand) return icons.typeIcon(info.type,size);
   const b=BRANDS[info.brand];
-  return E('span',{'class':'zen-device-brand','aria-hidden':'true',style:'--device-brand-color:'+b[2]},b[1]);
+  const badge=E('span',{'class':'zen-device-brand','aria-hidden':'true',style:'--device-brand-color:'+b[2]},b[1]);
+  const art=brandIcons.brand(info.brand,size||28,()=>{badge.classList.remove('zen-device-brand-art');badge.replaceChildren(b[1]);});
+  if(art){badge.classList.add('zen-device-brand-art');badge.replaceChildren(art);}
+  return badge;
  },
  edit(d,changed) {
   let previous={};try {previous=JSON.parse(saved[key(d.mac)]||'{}');}catch(e){}

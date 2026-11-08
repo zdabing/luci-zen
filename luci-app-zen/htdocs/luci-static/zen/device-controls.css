@@ -1,4 +1,11 @@
 /* Compact management drawer for the local HTML design preview. */
+.zen-p2p-controls{margin-top:20px;padding-top:16px;border-top:1px solid var(--line)}
+.zen-p2p-controls summary{cursor:pointer;font-size:14px;font-weight:600;color:var(--text)}
+.zen-p2p-controls p{font-size:12px;line-height:1.6;color:var(--text-secondary);overflow-wrap:anywhere}
+.zen-p2p-controls label{display:grid;gap:6px;margin:12px 0;font-size:12px;color:var(--text-secondary)}
+.zen-p2p-controls :is(input,select,textarea){width:100%;max-width:none;min-width:0;border:1px solid var(--line);border-radius:9px;padding:9px;background:var(--bg-panel);color:var(--text);font:inherit}
+.zen-p2p-controls textarea{resize:vertical}
+.zen-p2p-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
 dialog.zen-device-drawer.rf-device-detail{width:min(560px,100%);border-radius:24px 0 0 24px}
 .rf-device-detail .zen-drawer-heading{padding:22px 24px 18px}
 .rf-device-detail .zen-drawer-subtitle{font-family:inherit;font-size:13px;line-height:1.5;color:var(--accent);margin-top:6px}

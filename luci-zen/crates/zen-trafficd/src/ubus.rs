@@ -40,7 +40,7 @@ const fn cs(s: &'static [u8]) -> *const c_char {
 // ubus 方法表
 // ---------------------------------------------------------------------------
 
-static METHODS: [ubus::ubus_method; 25] = [
+static METHODS: [ubus::ubus_method; 27] = [
     m(b"getStatus\0", handle_get_status),
     m(b"getDevices\0", handle_get_devices),
     m(b"getTotal\0", handle_get_total),
@@ -64,6 +64,8 @@ static METHODS: [ubus::ubus_method; 25] = [
     m(b"setHostname\0", handle_set_hostname),
     m(b"getDevicePolicy\0", handle_get_device_policy),
     m(b"setDevicePolicy\0", handle_set_device_policy),
+    m(b"getP2pPolicy\0", handle_get_p2p_policy),
+    m(b"setP2pPolicy\0", handle_set_p2p_policy),
     m(b"resetDevice\0", handle_reset_device),
     m(b"reloadPrefixes\0", handle_reload_prefixes),
 ];
@@ -117,6 +119,46 @@ unsafe fn send_json(ctx: *mut ubus::ubus_context, req: *mut ubus::ubus_request_d
 
 fn policy_enforceable(d: &Daemon) -> bool {
     d.offload.known && !d.offload.hardware_requested && !d.ifaces_meta.is_empty()
+}
+
+fn p2p_enforceable(d:&Daemon)->bool {
+    policy_enforceable(d) && !d.offload.software
+}
+
+unsafe extern "C" fn handle_get_p2p_policy(ctx:*mut ubus::ubus_context,_obj:*mut ubus::ubus_object,
+    req:*mut ubus::ubus_request_data,_method:*const c_char,msg:*mut ubus::blob_attr)->c_int {
+    let fields=dpi_fields(msg);
+    if fields.len()!=1 || fields[0].name!=Some("mac"){return ubus::UBUS_STATUS_INVALID_ARGUMENT;}
+    let Some(mac)=fields[0].as_str().filter(|m|crate::policy::valid_mac(m)).map(str::to_ascii_lowercase) else{return ubus::UBUS_STATUS_INVALID_ARGUMENT;};
+    match with_daemon(|d| {
+        d.offload=crate::offload::Status::detect();
+        let counts=zen_bpf::p2p::counters(&d.bpf,parse_mac(&mac).unwrap())?;
+        Ok::<_,String>(serde_json::json!({"ok":true,"policy":d.p2p.get(&mac),"enforceable":p2p_enforceable(d),
+            "stats":{"conflicts":counts.conflicts,"dropped":counts.dropped,"bypassed":counts.bypassed,"skipped":counts.skipped,"capacity":counts.capacity},
+            "scope":"udp_ipv4_ipv6_base_headers","endpoint_capacity":16384}))
+    }) {
+        Some(Ok(value))=>send_json(ctx,req,value),
+        Some(Err(error))=>send_json(ctx,req,serde_json::json!({"ok":false,"error":error})),
+        None=>ubus::UBUS_STATUS_NOT_SUPPORTED,
+    }
+}
+
+unsafe extern "C" fn handle_set_p2p_policy(ctx:*mut ubus::ubus_context,_obj:*mut ubus::ubus_object,
+    req:*mut ubus::ubus_request_data,_method:*const c_char,msg:*mut ubus::blob_attr)->c_int {
+    let fields=dpi_fields(msg);
+    if fields.len()!=1 || fields[0].name!=Some("json"){return ubus::UBUS_STATUS_INVALID_ARGUMENT;}
+    let Some(input)=fields[0].as_str() else{return ubus::UBUS_STATUS_INVALID_ARGUMENT;};
+    match with_daemon(|d| {
+        d.offload=crate::offload::Status::detect();
+        let enforceable=p2p_enforceable(d);let bpf=&mut d.bpf;let db=&d.db;
+        d.p2p.apply(input,enforceable,
+            |mac,p|zen_bpf::p2p::set(bpf,parse_mac(mac).ok_or("invalid_mac")?,p),
+            |json|db.save_setting(crate::p2p::Policies::save_key(),json))
+    }) {
+        Some(Ok(policy))=>send_json(ctx,req,serde_json::json!({"ok":true,"policy":policy})),
+        Some(Err(error))=>send_json(ctx,req,serde_json::json!({"ok":false,"error":error})),
+        None=>ubus::UBUS_STATUS_NOT_SUPPORTED,
+    }
 }
 
 unsafe extern "C" fn handle_get_device_policy(ctx: *mut ubus::ubus_context, _obj: *mut ubus::ubus_object,
@@ -369,6 +411,7 @@ unsafe extern "C" fn handle_get_status(
     blobmsg_add_bool(&mut b, cs(b"dpi_diagnostics\0"), true);
     blobmsg_add_bool(&mut b, cs(b"dpi_rules\0"), true);
     blobmsg_add_bool(&mut b, cs(b"app_realtime\0"), true);
+    blobmsg_add_bool(&mut b, cs(b"p2p_control\0"), true);
     add_str(&mut b, b"timeline_today\0", &local_date(now_epoch()));
     blobmsg_add_bool(&mut b, cs(b"notifications\0"), true);
     ubus::blobmsg_add_string(

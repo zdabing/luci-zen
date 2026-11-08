@@ -2,6 +2,7 @@
 'require baseclass';
 'require rpc';
 'require view.zen.zen-format as fmt';
+'require view.zen.zen-p2p-controls as p2pControls';
 const calls={
  rename:rpc.declare({object:'zen.traffic',method:'setHostname',params:['mac','host'],reject:true}),
  policy:rpc.declare({object:'zen.traffic',method:'getDevicePolicy',params:['mac'],reject:true}),
@@ -50,6 +51,7 @@ async function todayUsage(mac){const [raw,clock]=await Promise.all([calls.histor
    facts.classList.add('rf-detail-facts');
    const info=el('section','rf-detail-info');info.append(el('h3','',_('Connection details')),facts);
    body.replaceChildren(actions,policy,editor,message,usage,rates,info);
+   p2pControls.mount(body,device.mac);
    const identityButton=footer.querySelector('button');
    footer.replaceChildren(el('span','rf-detail-preview',document.body.dataset.previewReady==='true'?_('Example data'):_('Device management')));
    if(identityButton){identityButton.textContent=_('Device identity');footer.append(identityButton);}

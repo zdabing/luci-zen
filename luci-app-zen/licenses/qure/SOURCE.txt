@@ -1,0 +1,4 @@
+Source: https://github.com/aaANDkk/Qure_Style_SVG
+Revision: ba24af0de3e3ae827464e4c73fcfd9beb7118ed2
+Bundled files: WeChat.svg, Bilibili.svg, iQIYI.svg, Youku.svg, Douyin.svg, Kuaishou.svg, Douyu.svg, Huya.svg, TikTok.svg, QQ.svg, Twitter.svg, Tencent.svg, TencentCloud.svg, Aliyun.svg, Cloudflare.svg, Akamai.svg, Azure.svg, Amazon.svg, YouTube.svg, Netflix.svg, Steam.svg, Telegram.svg, GitHub.svg, Apple.svg, Xiaomi.svg, Huawei.svg, Samsung.svg, OPPO.svg, Vivo.svg, Honor.svg, OnePlus.svg, Lenovo.svg, Motorola.svg, Google.svg, Synology.svg, QNAP.svg
+SVG artwork is distributed unchanged. See the upstream notices and license texts in this directory.

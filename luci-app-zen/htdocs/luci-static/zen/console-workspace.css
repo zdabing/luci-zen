@@ -162,6 +162,8 @@
 .zen-console .zen-app-usage-table td:first-child{white-space:normal;overflow-wrap:anywhere;max-width:22rem}
 .zen-app-source-list{margin:0;padding:4px 12px;list-style:none;text-align:left;white-space:normal;overflow-wrap:anywhere;color:var(--text-secondary);font-size:12px}
 .zen-app-source-list li{padding:4px 0}
+.zen-app-name{display:inline-flex;align-items:center;gap:8px;vertical-align:middle;max-width:100%}
+.zen-app-name strong{overflow-wrap:anywhere}
 .zen-dpi-controls{margin-top:14px;padding-top:12px;border-top:1px solid var(--line,#e0e5df);font-size:13px;min-width:0}
 .zen-dpi-controls summary{cursor:pointer;padding:8px 0;font-weight:600}
 .zen-dpi-controls>details{margin-top:8px}

@@ -83,6 +83,8 @@ struct {
 	__type(value, __u8);
 } local_prefixes SEC(".maps");
 
+#include "p2p_control.h"
+
 static __always_inline int is_local_v4(__be32 addr)
 {
 	struct lpm_key k;
@@ -159,6 +161,8 @@ static __always_inline int account(struct __sk_buff *skb, const __u8 *mac,
 		}
 	}
 	if (!allowed)
+		return TC_ACT_SHOT;
+	if (!local && !p2p_account(skb, mac, off, egress, is_v6, now))
 		return TC_ACT_SHOT;
 	if (!s)
 		return TC_ACT_OK;

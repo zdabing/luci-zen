@@ -21,6 +21,8 @@ use aya::maps::{HashMap, LpmTrie, Map};
 use aya::programs::{SchedClassifier, TcAttachType};
 use aya::{Ebpf, EbpfLoader, Pod};
 
+pub mod p2p;
+
 /// 与 bpf/zen_traffic.bpf.c 中 `struct mac_key` 严格一致
 #[repr(C)]
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
