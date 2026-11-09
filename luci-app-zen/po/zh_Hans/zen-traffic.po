@@ -388,6 +388,15 @@ msgstr "设备分时记录加载失败，请重试。"
 msgid "Recorded total"
 msgstr "已记录总量"
 
+msgid "P2P blocked"
+msgstr "P2P 拦截"
+
+msgid "%s packets"
+msgstr "%s 包"
+
+msgid "Packets"
+msgstr "包数"
+
 msgid "Not started"
 msgstr "尚未开始"
 

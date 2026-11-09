@@ -45,7 +45,7 @@ mod transaction_tests {
     use std::collections::HashMap;
 
     #[test]
-    fn device_and_application_hours_commit_or_retry_together() {
+    fn device_application_and_p2p_hours_commit_or_retry_together() {
         let db=Db::open(":memory:").unwrap();
         let now=crate::state::MIN_SYNC_EPOCH+370*86_400+120;
         let mac="02:00:00:00:00:09";
@@ -53,17 +53,21 @@ mod transaction_tests {
         let mut apps=crate::app_usage::AppUsage::load(&db).unwrap();
         timeline.record(now,mac.into(),1000,200);
         apps.record(now,mac,54,"iQIYI",true,crate::wan::Bytes{download:800,upload:100});
-        db.conn.execute_batch("CREATE TRIGGER reject_app BEFORE INSERT ON device_app_hour BEGIN SELECT RAISE(ABORT,'test full storage'); END;").unwrap();
-        assert!(crate::timeline::flush_usage(&mut timeline,&mut apps,&db,now,true).is_err());
         let hour=crate::timeline::local_hour(now);
+        timeline.sample_p2p(Some(hour), mac.into(), zen_bpf::p2p::P2pCounters { dropped: 7, ..Default::default() }, true);
+        db.conn.execute_batch("CREATE TRIGGER reject_p2p BEFORE INSERT ON device_p2p_hour BEGIN SELECT RAISE(ABORT,'test full storage'); END;").unwrap();
+        assert!(crate::timeline::flush_usage(&mut timeline,&mut apps,&db,now,true).is_err());
         assert!(db.device_timeline(mac,hour,hour+3600).unwrap().is_empty());
         assert!(db.app_usage(mac,hour).unwrap().is_empty());
+        assert!(db.p2p_timeline(mac,hour,hour+3600).unwrap().is_empty());
         assert_eq!(timeline.hours.len(),1);assert_eq!(apps.hours.len(),1);
-        db.conn.execute_batch("DROP TRIGGER reject_app").unwrap();
+        assert_eq!(timeline.p2p_hours.len(),1);
+        db.conn.execute_batch("DROP TRIGGER reject_p2p").unwrap();
         for _ in 0..2 {crate::timeline::flush_usage(&mut timeline,&mut apps,&db,now,true).unwrap();}
         assert_eq!(db.device_timeline(mac,hour,hour+3600).unwrap()[0].1.download,1000);
         assert_eq!(db.app_usage(mac,hour).unwrap()[&54].bytes.download,800);
-        assert!(timeline.hours.is_empty() && apps.hours.is_empty());
+        assert_eq!(db.p2p_timeline(mac,hour,hour+3600).unwrap()[&hour].dropped,7);
+        assert!(timeline.hours.is_empty() && apps.hours.is_empty() && timeline.p2p_hours.is_empty());
     }
 
     #[test]
@@ -291,6 +295,13 @@ impl Db {
                  PRIMARY KEY(mac,time)
              ) WITHOUT ROWID;
              CREATE INDEX IF NOT EXISTS device_usage_hour_time ON device_usage_hour(time);
+             CREATE TABLE IF NOT EXISTS device_p2p_hour (
+                 mac TEXT NOT NULL, time INTEGER NOT NULL,
+                 conflicts INTEGER NOT NULL, dropped INTEGER NOT NULL, bypassed INTEGER NOT NULL,
+                 skipped INTEGER NOT NULL, capacity INTEGER NOT NULL,
+                 PRIMARY KEY(mac,time)
+             ) WITHOUT ROWID;
+             CREATE INDEX IF NOT EXISTS device_p2p_hour_time ON device_p2p_hour(time);
              CREATE TABLE IF NOT EXISTS device_app_hour (
                  mac TEXT NOT NULL, time INTEGER NOT NULL, app INTEGER NOT NULL,
                  name TEXT NOT NULL, identified INTEGER NOT NULL, download INTEGER NOT NULL CHECK(download>=0),
@@ -578,6 +589,50 @@ impl Db {
         rows.collect::<Result<_, _>>().map_err(|e| e.to_string())
     }
 
+    fn write_p2p_timeline(&self, timeline: &crate::timeline::DeviceTimeline, now: u64) -> Result<u64, String> {
+        let cutoff = timeline.p2p_keep_from(now);
+        let mut insert = self.conn.prepare_cached(
+            "INSERT INTO device_p2p_hour(mac,time,conflicts,dropped,bypassed,skipped,capacity)
+             VALUES(?1,?2,?3,?4,?5,?6,?7) ON CONFLICT(mac,time) DO UPDATE SET
+             conflicts=conflicts+MIN(excluded.conflicts,9223372036854775807-conflicts),
+             dropped=dropped+MIN(excluded.dropped,9223372036854775807-dropped),
+             bypassed=bypassed+MIN(excluded.bypassed,9223372036854775807-bypassed),
+             skipped=skipped+MIN(excluded.skipped,9223372036854775807-skipped),
+             capacity=capacity+MIN(excluded.capacity,9223372036854775807-capacity)"
+        ).map_err(|e| e.to_string())?;
+        let integer = |value: u64| value.min(i64::MAX as u64) as i64;
+        for ((time, mac), counts) in &timeline.p2p_hours {
+            if *time < cutoff { continue; }
+            insert.execute(params![mac, *time as i64, integer(counts.conflicts), integer(counts.dropped),
+                integer(counts.bypassed), integer(counts.skipped), integer(counts.capacity)]).map_err(|e| e.to_string())?;
+        }
+        self.conn.execute("DELETE FROM device_p2p_hour WHERE time<?1", params![cutoff as i64]).map_err(|e| e.to_string())?;
+        let overflow: Option<i64> = self.conn.query_row(
+            "SELECT MAX(time) FROM (SELECT time FROM device_p2p_hour ORDER BY time,mac
+             LIMIT MAX(0,(SELECT COUNT(*) FROM device_p2p_hour)-?1))",
+            params![crate::timeline::ROW_LIMIT as i64], |row| row.get(0)).map_err(|e| e.to_string())?;
+        let floor = overflow.map(|time| (time as u64).saturating_add(3600)).unwrap_or(timeline.p2p_floor);
+        if floor != timeline.p2p_floor {
+            self.conn.execute("DELETE FROM device_p2p_hour WHERE time<?1", params![floor as i64]).map_err(|e| e.to_string())?;
+        }
+        self.conn.execute("INSERT INTO app_settings VALUES('p2p_hour_floor',?1) ON CONFLICT(name) DO UPDATE SET value=excluded.value",
+            params![floor.to_string()]).map_err(|e| e.to_string())?;
+        Ok(floor)
+    }
+
+    pub fn p2p_timeline(&self, mac: &str, start: u64, end: u64)
+        -> Result<std::collections::BTreeMap<u64, zen_bpf::p2p::P2pCounters>, String> {
+        let mut query = self.conn.prepare_cached("SELECT time,conflicts,dropped,bypassed,skipped,capacity
+            FROM device_p2p_hour WHERE mac=?1 AND time>=?2 AND time<?3 ORDER BY time LIMIT 25").map_err(|e| e.to_string())?;
+        let rows = query.query_map(params![mac, start as i64, end as i64], |row| {
+            Ok((nonnegative(row, 0)?, zen_bpf::p2p::P2pCounters {
+                conflicts: nonnegative(row, 1)?, dropped: nonnegative(row, 2)?, bypassed: nonnegative(row, 3)?,
+                skipped: nonnegative(row, 4)?, capacity: nonnegative(row, 5)?,
+            }))
+        }).map_err(|e| e.to_string())?;
+        rows.collect::<Result<_, _>>().map_err(|e| e.to_string())
+    }
+
     #[cfg(test)]
     pub fn save_app_usage(&self, usage: &crate::app_usage::AppUsage, now: u64) -> Result<u64, String> {
         let tx = self.conn.unchecked_transaction().map_err(|e| e.to_string())?;
@@ -633,12 +688,13 @@ impl Db {
     }
 
     pub fn save_usage_timelines(&self, timeline: &crate::timeline::DeviceTimeline, apps: &crate::app_usage::AppUsage,
-        now: u64) -> Result<(u64,u64),String> {
+        now: u64) -> Result<(u64,u64,u64),String> {
         let tx = self.conn.unchecked_transaction().map_err(|e| e.to_string())?;
         let device_floor = self.write_device_timeline(timeline,now)?;
         let app_floor = self.write_app_usage(apps,now)?;
+        let p2p_floor = self.write_p2p_timeline(timeline,now)?;
         tx.commit().map_err(|e| e.to_string())?;
-        Ok((device_floor,app_floor))
+        Ok((device_floor,app_floor,p2p_floor))
     }
 
     pub fn app_usage(&self, mac: &str, hour: u64) -> Result<std::collections::BTreeMap<u32,crate::app_usage::AppBytes>, String> {
@@ -782,6 +838,7 @@ impl Db {
         tx.execute("DELETE FROM wan_devices WHERE mac=?1", params![mac]).map_err(|e| e.to_string())?;
         tx.execute("DELETE FROM wan_daily WHERE mac=?1", params![mac]).map_err(|e| e.to_string())?;
         tx.execute("DELETE FROM device_usage_hour WHERE mac=?1", params![mac]).map_err(|e| e.to_string())?;
+        tx.execute("DELETE FROM device_p2p_hour WHERE mac=?1", params![mac]).map_err(|e| e.to_string())?;
         tx.execute("DELETE FROM device_app_hour WHERE mac=?1", params![mac]).map_err(|e| e.to_string())?;
         tx.commit().map_err(|e| e.to_string())
     }

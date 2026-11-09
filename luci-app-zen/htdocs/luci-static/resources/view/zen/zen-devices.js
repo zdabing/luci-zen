@@ -72,10 +72,11 @@ function connText(d) {
 }
 
 function detailFacts(d) {
+	const wifiRate = d.conn === 'wifi' && connectionInfo.linkRate(d);
 	return [[_('Connection'), connText(d)],
 		...(d.online && connectionInfo.duration(d.connected_seconds) ? [[_('Connected for'), connectionInfo.duration(d.connected_seconds)]] : []),
-		...(connectionInfo.linkRate(d) ? [[d.conn === 'wifi' ? _('Wi-Fi link rate') : _('Port link rate'), connectionInfo.linkRate(d)]] : []),
-		['IPv4', d.ip4 || '—'], ['IPv6', d.ip6 || '—'], [_('MAC'), d.mac],
+		...(wifiRate ? [[_('Wi-Fi link rate'), wifiRate]] : []),
+		['IPv4', d.ip4 || '—'], ...(d.ip6 && d.ip6 !== '—' ? [['IPv6', d.ip6]] : []), [_('MAC'), d.mac],
 		[_('Last activity'), d.last > 0 ? new Date(d.last * 1000).toLocaleString() : '—']];
 }
 

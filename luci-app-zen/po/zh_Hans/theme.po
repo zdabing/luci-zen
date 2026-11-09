@@ -1167,14 +1167,14 @@ msgstr "白色卡片、蓝色操作与彩色图标。"
 msgid "View traffic"
 msgstr "查看流量"
 
-msgid "Strict P2P control"
-msgstr "严格 P2P 控制"
+msgid "P2P control"
+msgstr "P2P 控制"
 
-msgid "Optional UDP endpoint isolation. It can reduce P2P hole punching, including some PCDN traffic. Games, calls and mesh VPNs may be affected."
-msgstr "可选的 UDP 端点隔离，可减少 P2P 打洞，包括部分 PCDN 流量。游戏、通话和组网 VPN 可能受到影响。"
+msgid "P2P settings"
+msgstr "P2P 设置"
 
 msgid "P2P control mode"
-msgstr "P2P 控制模式"
+msgstr "控制模式"
 
 msgid "Off"
 msgstr "关闭"
@@ -1189,19 +1189,37 @@ msgid "Idle timeout · seconds"
 msgstr "空闲超时 · 秒"
 
 msgid "Remote IP / CIDR exceptions"
-msgstr "远端 IP / CIDR 放行规则"
+msgstr "远端 IP / CIDR 放行"
 
-msgid "One remote IP or CIDR per line, up to eight. Exceptions bypass matching packets only. LAN traffic and TCP are unchanged."
-msgstr "每行一个远端 IP 或 CIDR，最多八条，仅放行匹配的数据包。局域网流量和 TCP 不受影响。"
+msgid "One IP or prefix per line, up to eight."
+msgstr "每行一条，最多 8 条。"
 
-msgid "IPv4 fragments and IPv6 extension headers are not filtered. A full endpoint table passes new endpoints and increments the capacity counter. This is not a complete PCDN blocker."
-msgstr "不处理 IPv4 分片及 IPv6 扩展头。端点表满时放行新端点并记录容量计数，不能保证阻断全部 PCDN。"
+msgid "Advanced settings"
+msgstr "高级设置"
 
-msgid "Refresh counters"
-msgstr "重新加载设置与计数"
+msgid "Reload"
+msgstr "重新加载"
 
-msgid "Packets since traffic service start: conflicts %s · dropped %s · exceptions %s · skipped %s · capacity %s"
-msgstr "流量服务启动以来的数据包：冲突 %s · 拦截 %s · 放行 %s · 跳过 %s · 容量不足 %s"
+msgid "Blocked today"
+msgstr "今日拦截"
+
+msgid "Conflicts today"
+msgstr "今日冲突"
+
+msgid "Blocked this run"
+msgstr "本次运行拦截"
+
+msgid "Conflicts this run"
+msgstr "本次运行冲突"
+
+msgid "Exceptions"
+msgstr "白名单放行"
+
+msgid "Skipped packets"
+msgstr "跳过"
+
+msgid "Capacity misses"
+msgstr "容量不足"
 
 msgid "Disable flow offloading and check the traffic interfaces before enabling P2P control."
 msgstr "启用前请关闭流量分载，并检查流量服务的接口。"
@@ -1221,41 +1239,26 @@ msgstr "恢复原策略失败，请检查流量服务。"
 msgid "The kernel P2P policy could not be updated."
 msgstr "无法更新内核 P2P 策略。"
 
-msgid "Flow offloading or unavailable interfaces may bypass this policy. You can still turn it off."
-msgstr "流量分载或接口不可用可能导致策略被绕过，仍可关闭此功能。"
+msgid "Offloading or unavailable interfaces can bypass P2P control."
+msgstr "流量分载或接口不可用时，P2P 控制可能失效。"
 
-msgid "Counters reset when the traffic service restarts. Start with observation before blocking."
-msgstr "流量服务重启后计数归零，建议先观察，再启用拦截。"
+msgid "Unable to load P2P settings."
+msgstr "无法加载 P2P 设置。"
 
-msgid "P2P settings could not be loaded. Update the traffic service or check permissions, then retry."
-msgstr "无法加载 P2P 设置，请更新流量服务或检查权限后重试。"
+msgid "P2P settings saved."
+msgstr "P2P 设置已保存。"
 
-msgid "P2P policy saved. Endpoint locks restart with this policy."
-msgstr "P2P 策略已保存，端点锁定将按新策略重新建立。"
+msgid "Unable to save P2P settings."
+msgstr "无法保存 P2P 设置。"
 
-msgid "Unable to save P2P settings. Check permissions and the traffic service."
-msgstr "无法保存 P2P 设置，请检查权限和流量服务。"
+msgid "Blocking can affect games, calls and mesh VPNs."
+msgstr "开启拦截可能影响游戏、通话和组网 VPN。"
 
-msgid "Observe first"
-msgstr "先观察"
+msgid "Global domain whitelist"
+msgstr "全局域名白名单"
 
-msgid "Strict mode"
-msgstr "严格模式"
-
-msgid "Turn off"
-msgstr "关闭"
-
-msgid "Strict mode is on. Conflicting UDP peers are dropped; use observe if games or calls misbehave."
-msgstr "严格模式已开启，冲突的 UDP 对等端会被丢弃；若游戏或通话异常请改用观察模式。"
-
-msgid "Strict mode drops conflicting UDP peers. Games, calls, QUIC fallback and mesh VPNs may be affected. Observe first if unsure. Enable now?"
-msgstr "严格模式会丢弃冲突的 UDP 对等端，可能影响游戏、通话、QUIC 回退和组网 VPN。不确定时请先用观察模式。现在开启吗？"
-
-msgid "Domain whitelist · global (auto-resolved)"
-msgstr "域名白名单 · 全局（自动解析）"
-
-msgid "One domain per line, up to sixteen. Resolved addresses bypass the P2P lock for every device, which weakens strict blocking. IP exceptions above remain per device."
-msgstr "每行一个域名，最多十六个；解析出的地址对所有设备放行，会削弱严格拦截效果。上方的 IP 放行仍按设备生效。"
+msgid "Applies to all devices. One domain per line, up to sixteen."
+msgstr "对所有设备生效，每行一个，最多 16 个。"
 
 msgid "Domain whitelist"
 msgstr "域名白名单"
@@ -1266,9 +1269,6 @@ msgstr "保存域名"
 msgid "Whitelist: %s domains · %s resolved addresses"
 msgstr "白名单：%s 个域名 · 已解析 %s 个地址"
 
-msgid "No domains configured."
-msgstr "未配置域名。"
-
 msgid "Domain refresh failed. The previous exceptions are kept."
 msgstr "域名解析失败，保留上次的放行地址。"
 
@@ -1278,8 +1278,8 @@ msgstr "无法加载域名白名单。"
 msgid "Domain whitelist could not be saved."
 msgstr "无法保存域名白名单。"
 
-msgid "Domain whitelist saved. Addresses refresh within a minute."
-msgstr "域名白名单已保存，地址将在一分钟内刷新。"
+msgid "Domain whitelist saved."
+msgstr "域名白名单已保存。"
 
 msgid "Enter up to sixteen valid domain names, one per line."
 msgstr "请输入有效域名，每行一个，最多十六个。"

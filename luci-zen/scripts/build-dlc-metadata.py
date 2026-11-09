@@ -25,13 +25,22 @@ def normalize(value):
     return value
 
 
-def build(data, revision):
+def build(data, revision, services=None):
     if not re.fullmatch(r'[a-f0-9]{40}', revision or ''):
         raise ValueError('A full DLC commit SHA is required')
+    files = {path.name: path for path in data.iterdir() if path.is_file() and not path.name.startswith('.')}
+    unmapped = []
+    if services is not None:
+        selected = {name for service, item in services.items() for name in item.get('lists', [service])}
+        missing = selected - files.keys()
+        if missing:
+            raise ValueError('Missing reviewed source lists: ' + ', '.join(sorted(missing)))
+        unmapped = sorted(name for name in files.keys() - selected
+                          if any(name == service or name.startswith(service + '-') for service in services))
+        files = {name: files[name] for name in selected}
+
     exact, suffix, skipped = {}, {}, []
-    for path in sorted(data.iterdir()):
-        if not path.is_file() or path.name.startswith('.'):
-            continue
+    for path in sorted(files.values()):
         if not NAME.fullmatch(path.name):
             raise ValueError('Invalid list name: ' + path.name)
         for raw in path.read_text(encoding='utf-8').splitlines():
@@ -64,18 +73,21 @@ def build(data, revision):
         'exact': exact,
         'suffix': suffix,
         'skipped': skipped,
+        'unmapped_lists': unmapped,
     }
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--data', type=Path, required=True, help='DLC data/ directory')
+    parser.add_argument('--manifest', type=Path, help='Read only the reviewed lists in this Zen manifest')
     parser.add_argument('--revision', required=True, help='DLC commit SHA the checkout is pinned to')
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
     if not args.data.is_dir():
         raise SystemExit('Not a directory: ' + str(args.data))
-    metadata = build(args.data, args.revision)
+    services = json.loads(args.manifest.read_text(encoding='utf-8'))['services'] if args.manifest else None
+    metadata = build(args.data, args.revision, services)
     encoded = (json.dumps(metadata, ensure_ascii=True, separators=(',', ':')) + '\n').encode()
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_bytes(encoded)
@@ -84,6 +96,7 @@ def main():
         'exact': len(metadata['exact']),
         'suffix': len(metadata['suffix']),
         'skipped': len(metadata['skipped']),
+        'unmapped_lists': metadata['unmapped_lists'],
         'sha256': hashlib.sha256(encoded).hexdigest(),
     }))
 

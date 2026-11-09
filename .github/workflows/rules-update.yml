@@ -45,6 +45,7 @@ jobs:
           echo "dlc revision: $revision"
           python3 luci-zen/scripts/build-dlc-metadata.py \
             --data "$RUNNER_TEMP/dlc/data" --revision "$revision" \
+            --manifest luci-zen/rules/review.json \
             --output "$RUNNER_TEMP/dlc-metadata.json"
 
           current=$(python3 -c 'import json;print(json.load(open("luci-zen/rules/china-apps.json"))["version"])')

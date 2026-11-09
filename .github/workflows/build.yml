@@ -27,6 +27,10 @@ on:
         description: 'Publish packages after building (disable for router acceptance)'
         type: boolean
         default: true
+      release_tag:
+        description: 'Optional version tag for an official release from the default branch'
+        type: string
+        default: ''
 
 permissions:
   contents: write
@@ -34,6 +38,9 @@ permissions:
 defaults:
   run:
     shell: bash
+
+env:
+  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && (inputs.release_tag || format('build-{0}-{1}', github.run_id, github.run_attempt)) || github.ref_name }}
 
 jobs:
   luci-zen:
@@ -48,9 +55,27 @@ jobs:
       SDK_VERSION: ${{ inputs.sdk_version || '25.12.5' }}
       SDK_TARGET: ${{ matrix.sdk_target }}
       SDK_BASE: https://downloads.openwrt.org/releases
-      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && format('build-{0}-{1}', github.run_id, github.run_attempt) || github.ref_name }}
     steps:
       - uses: actions/checkout@v7
+
+      - name: Verify requested release version
+        if: github.event_name == 'workflow_dispatch' && inputs.release_tag
+        env:
+          DEFAULT_REF: refs/heads/${{ github.event.repository.default_branch }}
+          WILL_PUBLISH: ${{ inputs.publish_release }}
+        run: |
+          test "$GITHUB_REF" = "$DEFAULT_REF" && test "$WILL_PUBLISH" = true || {
+            echo 'A named release requires publishing from the default branch.' >&2
+            exit 1
+          }
+          for makefile in luci-app-zen/Makefile luci-zen/Makefile; do
+            version=$(sed -n 's/^PKG_VERSION:=//p' "$makefile")
+            release=$(sed -n 's/^PKG_RELEASE:=//p' "$makefile")
+            test "$RELEASE_TAG" = "v${version}-r${release}" || {
+              echo "Release tag must match $makefile." >&2
+              exit 1
+            }
+          done
 
       - name: Validate version changelog before building
         run: |
@@ -272,7 +297,6 @@ jobs:
         env:
           RELEASE_SDK: ${{ inputs.sdk_version || '25.12.5' }}
           RELEASE_TARGET: ${{ inputs.sdk_target && inputs.sdk_target != 'both' && inputs.sdk_target || 'x86/64, rockchip/armv8' }}
-          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && format('build-{0}-{1}', github.run_id, github.run_attempt) || github.ref_name }}
         run: |
           python3 scripts/make-release-notes.py --tag "$RELEASE_TAG" \
             --sdk-version "$RELEASE_SDK" --target "$RELEASE_TARGET" --commit "$GITHUB_SHA"
@@ -282,12 +306,13 @@ jobs:
       - name: Publish release
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: ${{ github.event_name == 'workflow_dispatch' && format('build-{0}-{1}', github.run_id, github.run_attempt) || github.ref_name }}
+          tag_name: ${{ env.RELEASE_TAG }}
           # Existing v* tags already pin the build commit. Resolving an older
           # workflow SHA here can require Workflows:write, unavailable to GITHUB_TOKEN.
           target_commitish: ${{ github.event_name == 'workflow_dispatch' && github.sha || github.event.repository.default_branch }}
-          prerelease: ${{ github.event_name == 'workflow_dispatch' }}
-          name: "${{ github.event_name == 'workflow_dispatch' && format('SDK build #{0} ({1})', github.run_number, inputs.sdk_target || 'both') || github.ref_name }}"
+          prerelease: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag == '' }}
+          name: "${{ github.event_name == 'workflow_dispatch' && inputs.release_tag == '' && format('SDK build #{0} ({1})', github.run_number, inputs.sdk_target || 'both') || env.RELEASE_TAG }}"
+          overwrite_files: ${{ !inputs.release_tag }}
           body_path: release-notes.md
           files: |
             release-assets/**/*.apk

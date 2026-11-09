@@ -3,8 +3,15 @@ use crate::policy::valid_mac;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::net::IpAddr;
-use zen_bpf::p2p::{P2pPolicy, P2pPrefix};
+use zen_bpf::p2p::{P2pCounters, P2pPolicy, P2pPrefix};
 const SETTING: &str = "p2p_policies_v1";
+
+pub fn counters_json(counts: P2pCounters) -> serde_json::Value {
+    serde_json::json!({
+        "conflicts": counts.conflicts, "dropped": counts.dropped, "bypassed": counts.bypassed,
+        "skipped": counts.skipped, "capacity": counts.capacity,
+    })
+}
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Mode {
@@ -111,6 +118,9 @@ impl Policies {
     }
     pub fn get(&self, mac: &str) -> Policy {
         self.entries.get(mac).cloned().unwrap_or_default()
+    }
+    pub fn is_active(&self, mac: &str) -> bool {
+        self.entries.get(mac).is_some_and(|policy| policy.mode != Mode::Off)
     }
     pub fn restore(&mut self, bpf: &mut aya::Ebpf) -> Result<(), String> {
         for (mac, p) in &self.entries {

@@ -2,6 +2,7 @@
 :root {
  --chart-series-1:#168bff;--chart-series-2:#ff6a00;--chart-series-3:#6254de;--chart-series-4:#2cc653;
  --chart-series-5:#ffc900;--chart-series-6:#00adc4;--chart-series-7:#ff3b30;--chart-series-8:#af52de;
+ --chart-p2p-blocked:var(--chart-series-3);
  --bg-base:#f4f4f6;--bg-panel:#fff;--bg-nested:#f7f7fa;--bg-input:#fff;
  --text:#232326;--text-secondary:#62626c;--text-muted:#6b6b75;
  --line:#ececf0;--line-strong:#85858f;--accent:#ff6a00;--accent-strong:#a64000;
@@ -28,6 +29,7 @@
 }
 :root[data-theme="dark"] {
  color-scheme:dark;--bg-base:#000;--bg-panel:#202125;--bg-nested:#292a2f;--bg-input:#292a2f;
+ --chart-p2p-blocked:#9186ef;
  --text:#f3f3f5;--text-secondary:#b2b2bc;--text-muted:#a1a1ac;--line:#303137;--line-strong:#73737f;
  --accent:#ff6a00;--accent-strong:#ffad70;--on-accent:#232326;--accent-soft:#3a2618;--selection-fill:rgb(255 255 255 / 10%);
  --danger:#ffb4ab;--danger-soft:#412624;--ok:#82d99a;--ok-soft:#20362a;

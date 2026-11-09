@@ -330,6 +330,7 @@ impl Daemon {
         self.realtime.sample(&self.upstream, &links, now_mono, now);
         self.realtime.flush(&self.db, now_mono, now, false);
         self.app_engine.tick(&mut self.bpf, &mut self.app_usage, now, now_mono);
+        self.sample_p2p(now);
         self.p2p.tick(&mut self.bpf, now_mono);
         self.domains.tick(&mut self.bpf, now_mono);
         if let Err(e) = crate::timeline::flush_usage(&mut self.timeline, &mut self.app_usage, &self.db, now, false) {
@@ -346,6 +347,18 @@ impl Daemon {
         // ---- 6) checkpoint ----
         accounting::checkpoint_tick(self);
         self.notifications.tick(&self.db, &self.wan, &self.devs, now, now_mono);
+    }
+
+    fn sample_p2p(&mut self, now: u64) {
+        let hour = crate::state::time_synced(now).then(|| crate::timeline::local_hour(now));
+        match zen_bpf::p2p::read_counters(&self.bpf) {
+            Ok(rows) => for (mac, counters) in rows {
+                let mac = crate::persistence::mac_str(&mac.b);
+                let active = self.p2p.is_active(&mac);
+                self.timeline.sample_p2p(hour, mac, counters, active);
+            },
+            Err(error) => eprintln!("[zen-trafficd] P2P counter sample: {error}"),
+        }
     }
 
     /// 属性合并：netlink（links/neigh）+ DHCP 文件 + hostapd
@@ -372,7 +385,9 @@ impl Daemon {
             Ok(()) => println!("[zen-trafficd] 退出 checkpoint 完成"),
             Err(e) => eprintln!("[zen-trafficd] 退出 checkpoint 失败: {e}"),
         }
-        if let Err(e) = crate::timeline::flush_usage(&mut self.timeline, &mut self.app_usage, &self.db, crate::state::now_epoch(), true) {
+        let now = crate::state::now_epoch();
+        self.sample_p2p(now);
+        if let Err(e) = crate::timeline::flush_usage(&mut self.timeline, &mut self.app_usage, &self.db, now, true) {
             eprintln!("[zen-trafficd] hourly usage shutdown checkpoint: {e}");
         }
     }

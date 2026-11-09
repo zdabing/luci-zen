@@ -1,20 +1,30 @@
-//! Sparse internet-only device usage buckets. No packet logs or daily backfill.
-use std::collections::BTreeMap;
+//! Sparse internet usage and P2P counter buckets. No packet logs or backfill.
+use std::collections::{BTreeMap, HashMap};
 use crate::{persistence::Db, state::{time_synced, now_mono_ms}, wan::Bytes};
+use zen_bpf::p2p::P2pCounters;
 
 pub const HOURLY_SECS: u64 = 30 * 86_400;
 pub const ROW_LIMIT: usize = 150_000; // ~36k hourly rows for 50 continuously active devices.
 const PENDING_LIMIT: usize = 8_192; // Bound RAM while storage is unavailable.
 pub type Buckets = BTreeMap<(u64, String), Bytes>;
 
+#[derive(Default)]
+struct P2pSample {
+    counters: P2pCounters,
+    covered_hour: Option<u64>,
+}
+
 pub struct DeviceTimeline {
     pub since: u64,
     pub hours: Buckets,
     pub hour_floor: u64,
+    pub p2p_hours: BTreeMap<(u64, String), P2pCounters>,
+    pub p2p_floor: u64,
+    p2p_samples: HashMap<String, P2pSample>,
     last_flush: u64,
 }
 
-/// Persist both hourly ledgers atomically. A full disk or interrupted commit
+/// Persist the hourly ledgers atomically. A full disk or interrupted commit
 /// must not save application details independently of their device timeline.
 pub fn flush_usage(timeline: &mut DeviceTimeline, apps: &mut crate::app_usage::AppUsage,
     db: &Db, now: u64, force: bool) -> Result<(),String> {
@@ -22,9 +32,10 @@ pub fn flush_usage(timeline: &mut DeviceTimeline, apps: &mut crate::app_usage::A
     if !time_synced(now) || (!force && mono.saturating_sub(timeline.last_flush) < 300_000 &&
         mono.saturating_sub(apps.last_flush) < 300_000) { return Ok(()); }
     timeline.last_flush = mono; apps.last_flush = mono;
-    let (device_floor,app_floor) = db.save_usage_timelines(timeline,apps,now)?;
-    timeline.hours.clear(); apps.hours.clear(); apps.corrections.clear(); apps.origins.clear();
-    timeline.hour_floor = device_floor; apps.floor = app_floor;
+    let (device_floor,app_floor,p2p_floor) = db.save_usage_timelines(timeline,apps,now)?;
+    timeline.hours.clear(); timeline.p2p_hours.clear();
+    apps.hours.clear(); apps.corrections.clear(); apps.origins.clear();
+    timeline.hour_floor = device_floor; apps.floor = app_floor; timeline.p2p_floor = p2p_floor;
     Ok(())
 }
 
@@ -33,6 +44,8 @@ impl DeviceTimeline {
         let setting = |name| db.setting(name).map(|value| value.and_then(|s| s.parse().ok()).unwrap_or(0));
         Ok(Self { since: setting("timeline_since")?, hours: Buckets::new(),
             hour_floor: setting("timeline_hour_floor")?,
+            p2p_hours: BTreeMap::new(), p2p_floor: setting("p2p_hour_floor")?,
+            p2p_samples: HashMap::new(),
             last_flush: now_mono_ms() })
     }
 
@@ -53,6 +66,56 @@ impl DeviceTimeline {
 
     pub fn remove_device(&mut self, mac: &str) {
         self.hours.retain(|(_, device), _| device != mac);
+        self.p2p_hours.retain(|(_, device), _| device != mac);
+        if let Some(sample) = self.p2p_samples.get_mut(mac) {
+            sample.covered_hour = None;
+        }
+    }
+
+    pub fn sample_p2p(&mut self, hour: Option<u64>, mac: String, counters: P2pCounters, active: bool) {
+        let sample = self.p2p_samples.entry(mac.clone()).or_default();
+        let delta = counters.delta_since(sample.counters);
+        // A new daemon gets a fresh map. During clock sync, advance the baseline
+        // without assigning packets to an unreliable local hour.
+        sample.counters = counters;
+        let Some(hour) = hour.filter(|&hour| hour >= self.p2p_floor) else { return; };
+        if delta == P2pCounters::default() && (!active || sample.covered_hour == Some(hour)) {
+            return;
+        }
+        sample.covered_hour = Some(hour);
+        self.p2p_hours.entry((hour, mac)).or_default().accumulate(delta);
+        if self.p2p_hours.len() > PENDING_LIMIT {
+            let ((oldest, _), _) = self.p2p_hours.first_key_value().unwrap();
+            self.p2p_floor = self.p2p_floor.max(oldest + 3600);
+            self.p2p_hours = self.p2p_hours.split_off(&(self.p2p_floor, String::new()));
+        }
+    }
+
+    pub fn p2p_keep_from(&self, now: u64) -> u64 {
+        self.p2p_floor.max(now.saturating_sub(HOURLY_SECS + 3599))
+    }
+
+    fn p2p_rows(&self, db: &Db, mac: &str, start: u64, end: u64, now: u64)
+        -> Result<BTreeMap<u64, P2pCounters>, String> {
+        let earliest = start.max(self.p2p_keep_from(now));
+        let end = end.min(now.saturating_add(1));
+        if earliest >= end { return Ok(BTreeMap::new()); }
+        let mut rows = db.p2p_timeline(mac, earliest, end)?;
+        for ((time, device), counts) in self.p2p_hours.range((earliest, String::new())..(end, String::new())) {
+            if device == mac {
+                rows.entry(*time).or_default().accumulate(*counts);
+            }
+        }
+        Ok(rows)
+    }
+
+    pub fn today_p2p(&self, db: &Db, mac: &str, now: u64) -> Result<Option<P2pCounters>, String> {
+        if !time_synced(now) { return Ok(None); }
+        let (start, end) = day_bounds(&crate::state::local_date(now))?;
+        Ok(self.p2p_rows(db, mac, start, end, now)?.into_values().reduce(|mut total, counts| {
+            total.accumulate(counts);
+            total
+        }))
     }
 
     #[cfg(test)]
@@ -80,8 +143,10 @@ impl DeviceTimeline {
             total.download = total.download.saturating_add(bytes.download);
             total.upload = total.upload.saturating_add(bytes.upload);
         }
-        let expired = end <= now.saturating_sub(HOURLY_SECS).max(floor);
-        let samples: Vec<_> = if self.since == 0 || end <= self.since || expired { Vec::new() } else {
+        let p2p = self.p2p_rows(db, mac, start, end, now)?;
+        let bytes_expired = end <= now.saturating_sub(HOURLY_SECS).max(floor);
+        let bytes_available = self.since != 0 && end > self.since && !bytes_expired;
+        let samples: Vec<_> = if !bytes_available && p2p.is_empty() { Vec::new() } else {
             (start..end).step_by(3600).map(|time| {
                 let bytes = rows.get(&time).copied().unwrap_or_default();
                 serde_json::json!({
@@ -89,16 +154,17 @@ impl DeviceTimeline {
                         if time + step >= end { "24:00".to_owned() } else { clock(time + step) }),
                     "utc_offset":offset(time), "download":bytes.download, "upload":bytes.upload,
                     "recorded":rows.contains_key(&time),
-                    "available":time >= floor && time + step > available_from && time <= now,
-                    "partial":time < available_from && time + step > available_from,
+                    "available":bytes_available && time >= floor && time + step > available_from && time <= now,
+                    "partial":bytes_available && time < available_from && time + step > available_from,
                     "in_progress":time <= now && now < time + step,
                     "future":time > now,
+                    "p2p":p2p.get(&time).copied().map(crate::p2p::counters_json),
                 })
             }).collect()
         };
         Ok(serde_json::json!({"mac":mac,"date":date,"start":start,"end":end,"step":step,
-            "since":self.since,"now":now,"available_from":available_from,"expired":expired,
-            "hourly_days":HOURLY_SECS / 86_400,"samples":samples}))
+            "since":self.since,"now":now,"available_from":available_from,"expired":bytes_expired && p2p.is_empty(),
+            "hourly_days":HOURLY_SECS / 86_400,"p2p_history":true,"samples":samples}))
     }
 }
 
@@ -144,6 +210,53 @@ pub fn day_bounds(date: &str) -> Result<(u64, u64), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn p2p_history_distinguishes_old_hours_and_counts_only_new_packets_after_restart() {
+        let db = Db::open(":memory:").unwrap();
+        let mac = "02:00:00:00:00:08";
+        let date = "2026-10-10";
+        let (start, _) = day_bounds(date).unwrap();
+        let hour = start + 13 * 3600;
+        let now = hour + 120;
+        let counts = |dropped| P2pCounters { dropped, conflicts: dropped * 2, bypassed: dropped,
+            skipped: dropped * 3, capacity: dropped, };
+        let mut timeline = DeviceTimeline::load(&db).unwrap();
+        let mut apps = crate::app_usage::AppUsage::load(&db).unwrap();
+        timeline.sample_p2p(None, mac.into(), counts(8), true);
+        timeline.sample_p2p(Some(hour), mac.into(), counts(12), true);
+        timeline.sample_p2p(Some(hour), mac.into(), counts(13), false);
+        let p2p_only = timeline.query(&db, mac, date, now).unwrap();
+        assert_eq!(p2p_only["samples"][13]["available"], false);
+        assert_eq!(p2p_only["samples"][13]["p2p"]["dropped"], 5);
+        timeline.record(start + 60, mac.into(), 100, 200);
+        timeline.sample_p2p(Some(hour), mac.into(), counts(13), false);
+        let day = timeline.query(&db, mac, date, now).unwrap();
+        assert!(day["samples"][0]["p2p"].is_null());
+        assert_eq!(day["samples"][0]["download"], 100);
+        assert_eq!(day["samples"][13]["p2p"], crate::p2p::counters_json(counts(5)));
+        assert_eq!(timeline.today_p2p(&db, mac, now).unwrap().unwrap().dropped, 5);
+
+        flush_usage(&mut timeline, &mut apps, &db, now, true).unwrap();
+        let mut restarted = DeviceTimeline::load(&db).unwrap();
+        restarted.sample_p2p(Some(hour), mac.into(), counts(3), true);
+        restarted.sample_p2p(Some(hour + 3600), mac.into(), counts(3), true);
+        let later = now + 3600;
+        let day = restarted.query(&db, mac, date, later).unwrap();
+        assert_eq!(day["samples"][13]["p2p"]["dropped"], 8);
+        assert_eq!(day["samples"][14]["p2p"]["dropped"], 0);
+        assert!(day["samples"][15]["p2p"].is_null());
+
+        db.reset_device(mac).unwrap();
+        restarted.sample_p2p(None, mac.into(), counts(4), false);
+        restarted.remove_device(mac);
+        restarted.sample_p2p(Some(hour + 3600), mac.into(), counts(6), true);
+        assert_eq!(restarted.today_p2p(&db, mac, later).unwrap().unwrap().dropped, 2);
+        flush_usage(&mut restarted, &mut apps, &db, later, true).unwrap();
+        assert_eq!(db.p2p_timeline(mac, start, start + 86400).unwrap()[&(hour + 3600)].dropped, 2);
+        flush_usage(&mut restarted, &mut apps, &db, later + 31 * 86400, true).unwrap();
+        assert!(db.p2p_timeline(mac, start, start + 86400).unwrap().is_empty());
+    }
 
     fn recorded(value: &serde_json::Value) -> &serde_json::Value {
         value["samples"].as_array().unwrap().iter().find(|row| row["recorded"] == true).unwrap()

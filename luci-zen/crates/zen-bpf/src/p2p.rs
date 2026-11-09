@@ -1,7 +1,7 @@
 //! ABI for the optional UDP endpoint-isolation filter; OpenWrt retains NAT.
 use crate::MacKey;
 use aya::maps::lpm_trie::Key as LpmTrieKey;
-use aya::maps::{HashMap, LpmTrie, MapError};
+use aya::maps::{HashMap, LpmTrie, Map, MapData, MapError};
 use aya::{Ebpf, Pod};
 
 #[repr(C)]
@@ -21,13 +21,32 @@ pub struct P2pPolicy {
     pub bypass: [P2pPrefix; 8],
 }
 #[repr(C)]
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
 pub struct P2pCounters {
     pub conflicts: u64,
     pub dropped: u64,
     pub bypassed: u64,
     pub skipped: u64,
     pub capacity: u64,
+}
+impl P2pCounters {
+    pub fn delta_since(self, previous: Self) -> Self {
+        Self {
+            conflicts: self.conflicts.saturating_sub(previous.conflicts),
+            dropped: self.dropped.saturating_sub(previous.dropped),
+            bypassed: self.bypassed.saturating_sub(previous.bypassed),
+            skipped: self.skipped.saturating_sub(previous.skipped),
+            capacity: self.capacity.saturating_sub(previous.capacity),
+        }
+    }
+
+    pub fn accumulate(&mut self, delta: Self) {
+        self.conflicts = self.conflicts.saturating_add(delta.conflicts);
+        self.dropped = self.dropped.saturating_add(delta.dropped);
+        self.bypassed = self.bypassed.saturating_add(delta.bypassed);
+        self.skipped = self.skipped.saturating_add(delta.skipped);
+        self.capacity = self.capacity.saturating_add(delta.capacity);
+    }
 }
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -81,15 +100,22 @@ pub fn set(bpf: &mut Ebpf, mac: MacKey, value: P2pPolicy) -> Result<(), String> 
             .map_err(|_| "p2p_apply_failed".into())
     }
 }
+fn counter_map(map: &Map) -> Result<HashMap<&MapData, MacKey, P2pCounters>, String> {
+    HashMap::try_from(map).map_err(|_| "p2p_unavailable".into())
+}
+
 pub fn counters(bpf: &Ebpf, mac: MacKey) -> Result<P2pCounters, String> {
-    let stats: HashMap<_, MacKey, P2pCounters> =
-        HashMap::try_from(bpf.map("p2p_stats").ok_or("p2p_unavailable")?)
-            .map_err(|_| "p2p_unavailable")?;
+    let stats = counter_map(bpf.map("p2p_stats").ok_or("p2p_unavailable")?)?;
     match stats.get(&mac, 0) {
         Ok(v) => Ok(v),
         Err(MapError::KeyNotFound) => Ok(P2pCounters::default()),
         Err(_) => Err("p2p_read_failed".into()),
     }
+}
+
+pub fn read_counters(bpf: &Ebpf) -> Result<Vec<(MacKey, P2pCounters)>, String> {
+    let Some(map) = bpf.map("p2p_stats") else { return Ok(Vec::new()); };
+    counter_map(map)?.iter().collect::<Result<_, _>>().map_err(|e| e.to_string())
 }
 /// Replace the domain-resolved allow trie. Addresses are full-length keys:
 /// IPv4 is v4-mapped so the datapath can look up both families with one

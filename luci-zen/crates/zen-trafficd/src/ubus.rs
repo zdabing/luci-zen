@@ -135,8 +135,12 @@ unsafe extern "C" fn handle_get_p2p_policy(ctx:*mut ubus::ubus_context,_obj:*mut
     match with_daemon(|d| {
         d.offload=crate::offload::Status::detect();
         let counts=zen_bpf::p2p::counters(&d.bpf,parse_mac(&mac).unwrap())?;
+        let today = d.timeline.today_p2p(&d.db, &mac, now_epoch()).unwrap_or_else(|error| {
+            eprintln!("[zen-trafficd] P2P daily history: {error}");
+            None
+        });
         Ok::<_,String>(serde_json::json!({"ok":true,"policy":d.p2p.get(&mac),"enforceable":p2p_enforceable(d),
-            "stats":{"conflicts":counts.conflicts,"dropped":counts.dropped,"bypassed":counts.bypassed,"skipped":counts.skipped,"capacity":counts.capacity},
+            "stats":crate::p2p::counters_json(counts),"today_stats":today.map(crate::p2p::counters_json),
             "scope":"udp_ipv4_ipv6_base_headers","endpoint_capacity":16384}))
     }) {
         Some(Ok(value))=>send_json(ctx,req,value),
@@ -814,7 +818,12 @@ unsafe extern "C" fn handle_reset_device(
     };
 
     match with_daemon(|d| -> Result<(), String> {
+        let counters = d.bpf.map("p2p_stats").map(|_| zen_bpf::p2p::counters(&d.bpf, m)).transpose()?;
         d.db.reset_device(&mac_l)?;
+        if let Some(counters) = counters.filter(|counts| *counts != Default::default()) {
+            // Move the baseline forward so the surviving kernel counters are not replayed.
+            d.timeline.sample_p2p(None, mac_l.clone(), counters, false);
+        }
         d.pending_periods.remove_device(&mac_l);
         d.timeline.remove_device(&mac_l);
         d.app_usage.remove_device(&mac_l);
