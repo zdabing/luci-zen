@@ -108,7 +108,7 @@ fn read_reply(reader: &mut impl Read, fd: i32, id: u64, timeout: i32) -> Result<
     };
     let hostname=if result[85]&2!=0 {String::new()} else {
         std::str::from_utf8(&result[88..88+host_length]).ok()
-            .and_then(app_rules::normalize_hostname).unwrap_or_default()
+            .and_then(app_rules::normalize_peer_hostname).unwrap_or_default()
     };
     let evidence=Evidence {master_protocol:u16::from_be_bytes([result[80],result[81]]),
         app_protocol:u16::from_be_bytes([result[82],result[83]]),confidence:result[84],
@@ -259,7 +259,7 @@ impl AppEngine {
     }
 
     fn attribute(&mut self,key:&FlowKey,app:&mut Classification) {
-        let generic=!app.identified||matches!(app.native_app,0|48|285)||crate::app_catalog::is_infrastructure(app.app,&app.name);
+        let generic=!app.identified||matches!(app.native_app,0|48|285|418)||crate::app_catalog::is_infrastructure(app.app,&app.name);
         if let Some(outcome)=self.rules.set.classify(app.native_app,!generic,&app.evidence) {
             app.conflict=outcome.conflict;app.candidate=outcome.candidate;
             if outcome.refine {
@@ -431,6 +431,7 @@ impl AppEngine {
             .map(|map| map.iter().take(FLOW_LIMIT).filter_map(Result::ok).collect()).unwrap_or_default();
         let mono = mono_ms * 1_000_000;
         let failed = self.failed;
+        let high_pressure = rows.len() > FLOW_LIMIT / 2;
         let mut expired = Vec::new();
         for (key, stats) in rows {
             let Some(flow) = self.flow(key, stats.first_seen) else { continue };
@@ -443,7 +444,15 @@ impl AppEngine {
             }
             let app=flow.classification.as_ref().map(|app|app.app).unwrap_or(0);
             let rate=realtime.entry((key.mac,app)).or_default();rate.download=rate.download.saturating_add(bytes.download);rate.upload=rate.upload.saturating_add(bytes.upload);
-            let expired_flow = mono.saturating_sub(stats.last_seen) > 120_000_000_000;
+            let total_bytes = stats.download.saturating_add(stats.upload);
+            let idle_limit_ns = if high_pressure {
+                if flow.classification.is_some() || total_bytes < 4096 { 15_000_000_000 } else { 45_000_000_000 }
+            } else if flow.classification.is_some() && total_bytes < 65_536 {
+                30_000_000_000
+            } else {
+                120_000_000_000
+            };
+            let expired_flow = mono.saturating_sub(stats.last_seen) > idle_limit_ns;
             if flow.classification.is_some() || expired_flow {
                 flow.account(&crate::persistence::mac_str(&key.mac),usage,false);
             } else if mono.saturating_sub(stats.first_seen) > 10_000_000_000 {

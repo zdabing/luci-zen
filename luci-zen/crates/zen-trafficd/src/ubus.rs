@@ -40,11 +40,12 @@ const fn cs(s: &'static [u8]) -> *const c_char {
 // ubus 方法表
 // ---------------------------------------------------------------------------
 
-static METHODS: [ubus::ubus_method; 29] = [
+static METHODS: [ubus::ubus_method; 30] = [
     m(b"getStatus\0", handle_get_status),
     m(b"getDevices\0", handle_get_devices),
     m(b"getTotal\0", handle_get_total),
     m(b"getWanUsage\0", handle_get_wan_usage),
+    m(b"getP2pUsage\0", handle_get_p2p_usage),
     m(b"getInternetHistory\0", handle_get_internet_history),
     m(b"getDeviceTimeline\0", handle_get_device_timeline),
     m(b"getAppUsage\0", handle_get_app_usage),
@@ -125,6 +126,16 @@ fn policy_enforceable(d: &Daemon) -> bool {
 
 fn p2p_enforceable(d:&Daemon)->bool {
     policy_enforceable(d) && !d.offload.software
+}
+
+unsafe extern "C" fn handle_get_p2p_usage(ctx:*mut ubus::ubus_context,_obj:*mut ubus::ubus_object,
+    req:*mut ubus::ubus_request_data,_method:*const c_char,msg:*mut ubus::blob_attr)->c_int {
+    if !dpi_fields(msg).is_empty(){return ubus::UBUS_STATUS_INVALID_ARGUMENT;}
+    match with_daemon(|d| d.timeline.p2p_usage(&d.db, &d.devs, &d.p2p, now_epoch())) {
+        Some(Ok(value)) => send_json(ctx, req, value),
+        Some(Err(error)) => send_json(ctx, req, serde_json::json!({"ok":false,"error":error})),
+        None => ubus::UBUS_STATUS_NOT_SUPPORTED,
+    }
 }
 
 unsafe extern "C" fn handle_get_p2p_policy(ctx:*mut ubus::ubus_context,_obj:*mut ubus::ubus_object,
@@ -241,7 +252,7 @@ unsafe extern "C" fn handle_get_device_timeline(ctx: *mut ubus::ubus_context, _o
     for a in ubus::parse_msg(msg) {
         match a.name {
             Some("mac") => match a.as_str() {
-                Some(s) if parse_mac(s).is_some() => mac = s.to_ascii_lowercase(),
+                Some(s) if s.is_empty() || parse_mac(s).is_some() => mac = s.to_ascii_lowercase(),
                 _ => return ubus::UBUS_STATUS_INVALID_ARGUMENT,
             },
             Some("date") => match a.as_str() {
@@ -253,7 +264,7 @@ unsafe extern "C" fn handle_get_device_timeline(ctx: *mut ubus::ubus_context, _o
             _ => {}
         }
     }
-    if mac.is_empty() || date.is_empty() { return ubus::UBUS_STATUS_INVALID_ARGUMENT; }
+    if date.is_empty() { return ubus::UBUS_STATUS_INVALID_ARGUMENT; }
     match with_daemon(|d| d.timeline.query(&d.db, &mac, &date, now_epoch())) {
         Some(Ok(value)) => send_json(ctx, req, value),
         Some(Err(_)) => ubus::UBUS_STATUS_INVALID_ARGUMENT,
@@ -442,6 +453,7 @@ unsafe extern "C" fn handle_get_status(
     blobmsg_add_bool(&mut b, cs(b"dpi_rules\0"), true);
     blobmsg_add_bool(&mut b, cs(b"app_realtime\0"), true);
     blobmsg_add_bool(&mut b, cs(b"p2p_control\0"), true);
+    blobmsg_add_bool(&mut b, cs(b"p2p_usage\0"), true);
     add_str(&mut b, b"timeline_today\0", &local_date(now_epoch()));
     blobmsg_add_bool(&mut b, cs(b"notifications\0"), true);
     ubus::blobmsg_add_string(

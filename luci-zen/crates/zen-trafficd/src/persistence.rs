@@ -331,7 +331,20 @@ impl Db {
                  download_bytes INTEGER NOT NULL, upload_bytes INTEGER NOT NULL,
                  PRIMARY KEY(date,mac)
              );
-             CREATE TABLE IF NOT EXISTS app_settings (name TEXT PRIMARY KEY, value TEXT NOT NULL);
+             CREATE TABLE IF NOT EXISTS p2p_daily (
+                  date TEXT NOT NULL, mac TEXT NOT NULL,
+                  conflicts INTEGER NOT NULL DEFAULT 0, dropped INTEGER NOT NULL DEFAULT 0,
+                  bypassed INTEGER NOT NULL DEFAULT 0, skipped INTEGER NOT NULL DEFAULT 0,
+                  capacity INTEGER NOT NULL DEFAULT 0,
+                  PRIMARY KEY(date,mac)
+              );
+              CREATE TABLE IF NOT EXISTS p2p_devices (
+                  mac TEXT PRIMARY KEY,
+                  conflicts INTEGER NOT NULL DEFAULT 0, dropped INTEGER NOT NULL DEFAULT 0,
+                  bypassed INTEGER NOT NULL DEFAULT 0, skipped INTEGER NOT NULL DEFAULT 0,
+                  capacity INTEGER NOT NULL DEFAULT 0
+              );
+              CREATE TABLE IF NOT EXISTS app_settings (name TEXT PRIMARY KEY, value TEXT NOT NULL);
              CREATE TABLE IF NOT EXISTS wan_window (
                  id INTEGER PRIMARY KEY CHECK (id = 1),
                  since INTEGER NOT NULL,
@@ -347,7 +360,63 @@ impl Db {
              DELETE FROM app_settings WHERE name='timeline_fine_floor';
              COMMIT;",
         ).map_err(|e| format!("清理旧分时明细失败: {e}"))?;
-        Ok(Db { conn })
+        let db = Db { conn };
+        db.backfill_p2p_ledgers()?;
+        Ok(db)
+    }
+
+    fn backfill_p2p_ledgers(&self) -> Result<(), String> {
+        let hour_count: i64 = self.conn.query_row("SELECT COUNT(*) FROM device_p2p_hour", [], |r| r.get(0)).map_err(|e| e.to_string())?;
+        let dev_count: i64 = self.conn.query_row("SELECT COUNT(*) FROM p2p_devices", [], |r| r.get(0)).map_err(|e| e.to_string())?;
+        if hour_count == 0 || dev_count > 0 {
+            return Ok(());
+        }
+        let mut rows = Vec::new();
+        {
+            let mut stmt = self.conn.prepare(
+                "SELECT mac, time, conflicts, dropped, bypassed, skipped, capacity FROM device_p2p_hour"
+            ).map_err(|e| e.to_string())?;
+            let mapped = stmt.query_map([], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    nonnegative(r, 1)?,
+                    nonnegative(r, 2)?,
+                    nonnegative(r, 3)?,
+                    nonnegative(r, 4)?,
+                    nonnegative(r, 5)?,
+                    nonnegative(r, 6)?,
+                ))
+            }).map_err(|e| e.to_string())?;
+            for row in mapped {
+                rows.push(row.map_err(|e| e.to_string())?);
+            }
+        }
+        let tx = self.conn.unchecked_transaction().map_err(|e| e.to_string())?;
+        let integer = |value: u64| value.min(i64::MAX as u64) as i64;
+        for (mac, time, conflicts, dropped, bypassed, skipped, capacity) in rows {
+            let date = crate::state::local_date(time);
+            tx.execute(
+                "INSERT INTO p2p_daily(date,mac,conflicts,dropped,bypassed,skipped,capacity)
+                 VALUES(?1,?2,?3,?4,?5,?6,?7) ON CONFLICT(date,mac) DO UPDATE SET
+                 conflicts=conflicts+MIN(excluded.conflicts,9223372036854775807-conflicts),
+                 dropped=dropped+MIN(excluded.dropped,9223372036854775807-dropped),
+                 bypassed=bypassed+MIN(excluded.bypassed,9223372036854775807-bypassed),
+                 skipped=skipped+MIN(excluded.skipped,9223372036854775807-skipped),
+                 capacity=capacity+MIN(excluded.capacity,9223372036854775807-capacity)",
+                params![date, mac, integer(conflicts), integer(dropped), integer(bypassed), integer(skipped), integer(capacity)],
+            ).map_err(|e| e.to_string())?;
+            tx.execute(
+                "INSERT INTO p2p_devices(mac,conflicts,dropped,bypassed,skipped,capacity)
+                 VALUES(?1,?2,?3,?4,?5,?6) ON CONFLICT(mac) DO UPDATE SET
+                 conflicts=conflicts+MIN(excluded.conflicts,9223372036854775807-conflicts),
+                 dropped=dropped+MIN(excluded.dropped,9223372036854775807-dropped),
+                 bypassed=bypassed+MIN(excluded.bypassed,9223372036854775807-bypassed),
+                 skipped=skipped+MIN(excluded.skipped,9223372036854775807-skipped),
+                 capacity=capacity+MIN(excluded.capacity,9223372036854775807-capacity)",
+                params![mac, integer(conflicts), integer(dropped), integer(bypassed), integer(skipped), integer(capacity)],
+            ).map_err(|e| e.to_string())?;
+        }
+        tx.commit().map_err(|e| e.to_string())
     }
 
     /// 启动恢复：设备属性 + 生命周期累计
@@ -581,6 +650,14 @@ impl Db {
     }
 
     pub fn device_timeline(&self, mac: &str, start: u64, end: u64) -> Result<Vec<(u64,crate::wan::Bytes)>, String> {
+        if mac.is_empty() {
+            let mut query = self.conn.prepare("SELECT time,SUM(download),SUM(upload) FROM device_usage_hour
+                WHERE time>=?1 AND time<?2 GROUP BY time ORDER BY time LIMIT 25").map_err(|e| e.to_string())?;
+            let rows = query.query_map(params![start as i64, end as i64], |r| Ok((nonnegative(r,0)?, crate::wan::Bytes {
+                download:nonnegative(r,1)?, upload:nonnegative(r,2)?,
+            }))).map_err(|e| e.to_string())?;
+            return rows.collect::<Result<_, _>>().map_err(|e| e.to_string());
+        }
         let mut query = self.conn.prepare("SELECT time,download,upload FROM device_usage_hour
             WHERE mac=?1 AND time>=?2 AND time<?3 ORDER BY time LIMIT 25").map_err(|e| e.to_string())?;
         let rows = query.query_map(params![mac,start as i64,end as i64], |r| Ok((nonnegative(r,0)?, crate::wan::Bytes {
@@ -600,12 +677,37 @@ impl Db {
              skipped=skipped+MIN(excluded.skipped,9223372036854775807-skipped),
              capacity=capacity+MIN(excluded.capacity,9223372036854775807-capacity)"
         ).map_err(|e| e.to_string())?;
+        let mut insert_daily = self.conn.prepare_cached(
+            "INSERT INTO p2p_daily(date,mac,conflicts,dropped,bypassed,skipped,capacity)
+             VALUES(?1,?2,?3,?4,?5,?6,?7) ON CONFLICT(date,mac) DO UPDATE SET
+             conflicts=conflicts+MIN(excluded.conflicts,9223372036854775807-conflicts),
+             dropped=dropped+MIN(excluded.dropped,9223372036854775807-dropped),
+             bypassed=bypassed+MIN(excluded.bypassed,9223372036854775807-bypassed),
+             skipped=skipped+MIN(excluded.skipped,9223372036854775807-skipped),
+             capacity=capacity+MIN(excluded.capacity,9223372036854775807-capacity)"
+        ).map_err(|e| e.to_string())?;
+        let mut insert_dev = self.conn.prepare_cached(
+            "INSERT INTO p2p_devices(mac,conflicts,dropped,bypassed,skipped,capacity)
+             VALUES(?1,?2,?3,?4,?5,?6) ON CONFLICT(mac) DO UPDATE SET
+             conflicts=conflicts+MIN(excluded.conflicts,9223372036854775807-conflicts),
+             dropped=dropped+MIN(excluded.dropped,9223372036854775807-dropped),
+             bypassed=bypassed+MIN(excluded.bypassed,9223372036854775807-bypassed),
+             skipped=skipped+MIN(excluded.skipped,9223372036854775807-skipped),
+             capacity=capacity+MIN(excluded.capacity,9223372036854775807-capacity)"
+        ).map_err(|e| e.to_string())?;
         let integer = |value: u64| value.min(i64::MAX as u64) as i64;
         for ((time, mac), counts) in &timeline.p2p_hours {
             if *time < cutoff { continue; }
             insert.execute(params![mac, *time as i64, integer(counts.conflicts), integer(counts.dropped),
                 integer(counts.bypassed), integer(counts.skipped), integer(counts.capacity)]).map_err(|e| e.to_string())?;
+            let date = crate::state::local_date(*time);
+            insert_daily.execute(params![date, mac, integer(counts.conflicts), integer(counts.dropped),
+                integer(counts.bypassed), integer(counts.skipped), integer(counts.capacity)]).map_err(|e| e.to_string())?;
+            insert_dev.execute(params![mac, integer(counts.conflicts), integer(counts.dropped),
+                integer(counts.bypassed), integer(counts.skipped), integer(counts.capacity)]).map_err(|e| e.to_string())?;
         }
+        let day_cutoff = crate::state::date_shift(&crate::state::local_date(now), crate::state::RETENTION_DAYS);
+        self.conn.execute("DELETE FROM p2p_daily WHERE date < ?1", params![day_cutoff]).map_err(|e| e.to_string())?;
         self.conn.execute("DELETE FROM device_p2p_hour WHERE time<?1", params![cutoff as i64]).map_err(|e| e.to_string())?;
         let overflow: Option<i64> = self.conn.query_row(
             "SELECT MAX(time) FROM (SELECT time FROM device_p2p_hour ORDER BY time,mac
@@ -622,12 +724,45 @@ impl Db {
 
     pub fn p2p_timeline(&self, mac: &str, start: u64, end: u64)
         -> Result<std::collections::BTreeMap<u64, zen_bpf::p2p::P2pCounters>, String> {
+        if mac.is_empty() {
+            let mut query = self.conn.prepare_cached("SELECT time,SUM(conflicts),SUM(dropped),SUM(bypassed),SUM(skipped),SUM(capacity)
+                FROM device_p2p_hour WHERE time>=?1 AND time<?2 GROUP BY time ORDER BY time LIMIT 25").map_err(|e| e.to_string())?;
+            let rows = query.query_map(params![start as i64, end as i64], |row| {
+                Ok((nonnegative(row, 0)?, zen_bpf::p2p::P2pCounters {
+                    conflicts: nonnegative(row, 1)?, dropped: nonnegative(row, 2)?, bypassed: nonnegative(row, 3)?,
+                    skipped: nonnegative(row, 4)?, capacity: nonnegative(row, 5)?,
+                }))
+            }).map_err(|e| e.to_string())?;
+            return rows.collect::<Result<_, _>>().map_err(|e| e.to_string());
+        }
         let mut query = self.conn.prepare_cached("SELECT time,conflicts,dropped,bypassed,skipped,capacity
             FROM device_p2p_hour WHERE mac=?1 AND time>=?2 AND time<?3 ORDER BY time LIMIT 25").map_err(|e| e.to_string())?;
         let rows = query.query_map(params![mac, start as i64, end as i64], |row| {
             Ok((nonnegative(row, 0)?, zen_bpf::p2p::P2pCounters {
                 conflicts: nonnegative(row, 1)?, dropped: nonnegative(row, 2)?, bypassed: nonnegative(row, 3)?,
                 skipped: nonnegative(row, 4)?, capacity: nonnegative(row, 5)?,
+            }))
+        }).map_err(|e| e.to_string())?;
+        rows.collect::<Result<_, _>>().map_err(|e| e.to_string())
+    }
+
+    pub fn p2p_daily(&self) -> Result<std::collections::BTreeMap<(String, String), zen_bpf::p2p::P2pCounters>, String> {
+        let mut query = self.conn.prepare("SELECT date,mac,conflicts,dropped,bypassed,skipped,capacity FROM p2p_daily").map_err(|e| e.to_string())?;
+        let rows = query.query_map([], |r| {
+            Ok(((r.get(0)?, r.get(1)?), zen_bpf::p2p::P2pCounters {
+                conflicts: nonnegative(r, 2)?, dropped: nonnegative(r, 3)?, bypassed: nonnegative(r, 4)?,
+                skipped: nonnegative(r, 5)?, capacity: nonnegative(r, 6)?,
+            }))
+        }).map_err(|e| e.to_string())?;
+        rows.collect::<Result<_, _>>().map_err(|e| e.to_string())
+    }
+
+    pub fn p2p_devices(&self) -> Result<std::collections::BTreeMap<String, zen_bpf::p2p::P2pCounters>, String> {
+        let mut query = self.conn.prepare("SELECT mac,conflicts,dropped,bypassed,skipped,capacity FROM p2p_devices").map_err(|e| e.to_string())?;
+        let rows = query.query_map([], |r| {
+            Ok((r.get(0)?, zen_bpf::p2p::P2pCounters {
+                conflicts: nonnegative(r, 1)?, dropped: nonnegative(r, 2)?, bypassed: nonnegative(r, 3)?,
+                skipped: nonnegative(r, 4)?, capacity: nonnegative(r, 5)?,
             }))
         }).map_err(|e| e.to_string())?;
         rows.collect::<Result<_, _>>().map_err(|e| e.to_string())
@@ -839,6 +974,8 @@ impl Db {
         tx.execute("DELETE FROM wan_daily WHERE mac=?1", params![mac]).map_err(|e| e.to_string())?;
         tx.execute("DELETE FROM device_usage_hour WHERE mac=?1", params![mac]).map_err(|e| e.to_string())?;
         tx.execute("DELETE FROM device_p2p_hour WHERE mac=?1", params![mac]).map_err(|e| e.to_string())?;
+        tx.execute("DELETE FROM p2p_daily WHERE mac=?1", params![mac]).map_err(|e| e.to_string())?;
+        tx.execute("DELETE FROM p2p_devices WHERE mac=?1", params![mac]).map_err(|e| e.to_string())?;
         tx.execute("DELETE FROM device_app_hour WHERE mac=?1", params![mac]).map_err(|e| e.to_string())?;
         tx.commit().map_err(|e| e.to_string())
     }

@@ -20,7 +20,7 @@ impl AppBytes {
         if crate::app_catalog::is_infrastructure(id,&self.name) {return "infrastructure";}
         // Compatibility for protocol rows written by the old adapter's broad
         // identified flag. New decisions also use nDPI's application metadata.
-        let protocol = ["HLS", "Protobuf", "MessagePack", "MsgPack", "BitTorrent", "OpenVPN", "Tor", "RakNet",
+        let protocol = ["HLS", "Protobuf", "MessagePack", "MsgPack", "OpenVPN", "Tor", "RakNet",
             "HTTP", "HTTP2", "TLS", "DTLS", "QUIC", "DNS", "MDNS", "DoH_DoT",
             "DNSCrypt", "HTTP_Connect", "HTTP_Proxy", "STUN", "RTP", "NTP", "DHCP",
             "DHCPV6", "NetBIOS", "SMBv1", "SMBv23", "LLMNR", "SSH", "FTP_CONTROL", "FTP_DATA"]

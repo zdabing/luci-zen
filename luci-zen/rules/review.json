@@ -1,16 +1,380 @@
 {
-  "version":"zen-cn-20261108.2",
-  "services":{
-    "tencent":{"app":"ndpi:324","dedicated":["video.qq.com","v.qq.com"]},
-    "iqiyi":{"app":"ndpi:54","dedicated":["iqiyi.com","iqiyipic.com","qiyi.com","qiyipic.com","qy.net","iq.com","71edge.com"]},
-    "youku":{"app":"community:youku","dedicated":["youku.com","youku.tv","youkuplay.com","ykimg.com","ykimg.alicdn.com","tudou.com","kumiao.com"]},
-    "bilibili":{"app":"community:bilibili","lists":["bilibili","bilibili-cdn","bilibili-game"],"dedicated":["bilibili.com","bilibili.tv","bilibili.cn","bilibili.net","biliapi.com","biliapi.net","acgvideo.com","bilivideo.com","bilivideo.cn","bilivideo.net","hdslb.com","hdslb.org","bilicdn1.com","bilicdn2.com","bilicdn3.com","bilicdn4.com","bilicdn5.com","biliimg.com"]},
-    "hunantv":{"app":"community:mgtv","dedicated":["mgtv.com","hunantv.com","hitv.com","mgtvcloud.com"]},
-    "douyin":{"app":"community:douyin","dedicated":["douyin.com","douyinvod.com","douyincdn.com","douyinpic.com","douyinstatic.com","amemv.com"]},
-    "kuaishou":{"app":"community:kuaishou","dedicated":["kuaishou.com","kuaishou.cn","gifshow.com","yximgs.com","kwimgs.com","kwaicdn.com","ksapisrv.com"]},
-    "douyu":{"app":"community:douyu","dedicated":["douyu.com","douyu.tv","douyucdn.cn","douyucdn2.cn","douyuscdn.com","douyutv.com"]},
-    "huya":{"app":"community:huya","dedicated":["huya.com","msstatic.com"]},
-    "tencent-games":{"app":"ndpi:395","dedicated":["game.qq.com","qqgameapp.com","tencentstart.com","gameloop.com"]}
+  "version": "zen-cn-20261115.1",
+  "services": {
+    "tencent": {
+      "app": "ndpi:324",
+      "dedicated": [
+        "video.qq.com",
+        "v.qq.com"
+      ]
+    },
+    "iqiyi": {
+      "app": "ndpi:54",
+      "dedicated": [
+        "iqiyi.com",
+        "iqiyipic.com",
+        "qiyi.com",
+        "qiyipic.com",
+        "qy.net",
+        "iq.com",
+        "71edge.com",
+        "pps.tv",
+        "ppsimg.com",
+        "71.am"
+      ]
+    },
+    "youku": {
+      "app": "community:youku",
+      "dedicated": [
+        "youku.com",
+        "youku.tv",
+        "youkuplay.com",
+        "ykimg.com",
+        "ykimg.alicdn.com",
+        "tudou.com",
+        "kumiao.com",
+        "soku.com",
+        "youkuhonor.com"
+      ]
+    },
+    "bilibili": {
+      "app": "community:bilibili",
+      "lists": [
+        "bilibili",
+        "bilibili-cdn",
+        "bilibili-game"
+      ],
+      "dedicated": [
+        "bilibili.com",
+        "bilibili.tv",
+        "bilibili.cn",
+        "bilibili.net",
+        "biliapi.com",
+        "biliapi.net",
+        "acgvideo.com",
+        "bilivideo.com",
+        "bilivideo.cn",
+        "bilivideo.net",
+        "hdslb.com",
+        "hdslb.org",
+        "bilicdn1.com",
+        "bilicdn2.com",
+        "bilicdn3.com",
+        "bilicdn4.com",
+        "bilicdn5.com",
+        "biliimg.com",
+        "acg.tv",
+        "b23.tv",
+        "bili22.cn",
+        "bili2233.cn",
+        "bili23.cn",
+        "bili33.cn",
+        "bilibili.cc",
+        "biligame.com",
+        "biligame.net",
+        "bilibiligame.cn",
+        "bilibiligame.net",
+        "bilicomic.com",
+        "bilicomics.com",
+        "biliintl.com",
+        "maoer.com",
+        "maoercdn.com",
+        "missevan.com"
+      ]
+    },
+    "hunantv": {
+      "app": "community:mgtv",
+      "dedicated": [
+        "mgtv.com",
+        "hunantv.com",
+        "hitv.com",
+        "mgtvcloud.com",
+        "imgo.tv",
+        "hunaniptv.com",
+        "hnbntv.com",
+        "hifuntv.com"
+      ]
+    },
+    "douyin": {
+      "app": "community:douyin",
+      "dedicated": [
+        "douyin.com",
+        "douyinvod.com",
+        "douyincdn.com",
+        "douyinpic.com",
+        "douyinstatic.com",
+        "amemv.com",
+        "amemv.cn",
+        "amemv.net",
+        "iesdouyin.com",
+        "iesdouyin.net",
+        "idouyinvod.com",
+        "idouyinpic.com",
+        "idouyinstatic.com",
+        "idouyinliving.com",
+        "douyinliving.com",
+        "douyinec.com",
+        "douyinfe.com",
+        "huoshan.com",
+        "huoshancdn.com",
+        "huoshanvod.com",
+        "huoshanstatic.com",
+        "huoshanlive.com",
+        "huoshanimg.com",
+        "ihuoshanvod.com",
+        "ihuoshanstatic.com",
+        "ihuoshanlive.com",
+        "qishui.com",
+        "qishuimusic.cn",
+        "snssdk.com",
+        "pstatp.com",
+        "byteimg.com",
+        "bdurl.net",
+        "zjcdn.com",
+        "zijieapi.com"
+      ]
+    },
+    "kuaishou": {
+      "app": "community:kuaishou",
+      "dedicated": [
+        "kuaishou.com",
+        "kuaishou.cn",
+        "gifshow.com",
+        "yximgs.com",
+        "kwimgs.com",
+        "kwaicdn.com",
+        "ksapisrv.com",
+        "kuaishouzt.com",
+        "kwaishop.com",
+        "kwaixiaodian.com",
+        "kskwai.com",
+        "inkuai.com",
+        "inkwai.com",
+        "kspkg.com",
+        "eckwai.com",
+        "ecukwai.com",
+        "wskwai.com",
+        "wsukwai.com",
+        "kwai.net"
+      ]
+    },
+    "douyu": {
+      "app": "community:douyu",
+      "dedicated": [
+        "douyu.com",
+        "douyu.tv",
+        "douyucdn.cn",
+        "douyucdn2.cn",
+        "douyuscdn.com",
+        "douyutv.com",
+        "edgesrv.com"
+      ]
+    },
+    "huya": {
+      "app": "community:huya",
+      "dedicated": [
+        "huya.com",
+        "msstatic.com",
+        "huyagame.cn",
+        "peiwanlu.com"
+      ]
+    },
+    "tencent-games": {
+      "app": "ndpi:395",
+      "dedicated": [
+        "game.qq.com",
+        "qqgameapp.com",
+        "tencentstart.com",
+        "gameloop.com",
+        "wegame.com",
+        "wegame.com.cn",
+        "wegameplus.com",
+        "proximabeta.com",
+        "anticheatexpert.com",
+        "gcloudcs.com",
+        "gcloudsdk.com",
+        "gcloudsvcs.com",
+        "tencent-gcloud.com",
+        "midasbuy.com",
+        "gamebonfire.com",
+        "gameitop.com",
+        "codm.com",
+        "brawlstars.cn",
+        "roco.qq.com",
+        "gouhuo.qq.com"
+      ]
+    },
+    "quark": {
+      "app": "community:quark",
+      "dedicated": [
+        "quark.cn",
+        "myquark.cn",
+        "uc.cn",
+        "ucweb.com"
+      ]
+    },
+    "xunlei": {
+      "app": "community:xunlei",
+      "dedicated": [
+        "xunlei.com",
+        "sandai.net",
+        "thundercdn.com",
+        "xycdn.com",
+        "onethingpcs.com",
+        "peiluyou.com",
+        "00cdn.com"
+      ]
+    },
+    "baidupan": {
+      "app": "community:baidupan",
+      "dedicated": [
+        "pan.baidu.com",
+        "pcs.baidu.com",
+        "baidupcs.com",
+        "yun.baidu.com"
+      ]
+    },
+    "alipan": {
+      "app": "community:alipan",
+      "dedicated": [
+        "aliyundrive.com",
+        "alipan.com",
+        "aliyundrive.net"
+      ]
+    },
+    "115": {
+      "app": "community:115",
+      "dedicated": [
+        "115.com",
+        "115cdn.com",
+        "115cdn.net",
+        "anxia.com"
+      ]
+    },
+    "xiaohongshu": {
+      "app": "community:xiaohongshu",
+      "dedicated": [
+        "xiaohongshu.com",
+        "xhscdn.com",
+        "xhscdn.net",
+        "xhslink.com"
+      ]
+    },
+    "taobao": {
+      "app": "community:taobao",
+      "dedicated": [
+        "taobao.com",
+        "tmall.com",
+        "tbcdn.cn",
+        "mmstat.com",
+        "taobaocdn.com",
+        "alikunlun.com",
+        "tbcache.com",
+        "tmall.hk"
+      ]
+    },
+    "jd": {
+      "app": "community:jd",
+      "dedicated": [
+        "jd.com",
+        "360buyimg.com",
+        "360buy.com",
+        "jd.hk",
+        "jcloudcs.com",
+        "jdcloud.com",
+        "jdpay.com"
+      ]
+    },
+    "pinduoduo": {
+      "app": "community:pinduoduo",
+      "dedicated": [
+        "pinduoduo.com",
+        "yangkeduo.com",
+        "pddpic.com",
+        "pinduoduo.net",
+        "pddugc.com"
+      ]
+    },
+    "netease-music": {
+      "app": "community:netease",
+      "dedicated": [
+        "music.163.com",
+        "music.126.net",
+        "163yun.com"
+      ]
+    },
+    "wps": {
+      "app": "community:wps",
+      "dedicated": [
+        "wps.cn",
+        "wps.com",
+        "kdocs.cn",
+        "qwps.cn",
+        "wpscdn.cn",
+        "wpscdn.com"
+      ]
+    },
+    "meituan": {
+      "app": "community:meituan",
+      "dedicated": [
+        "meituan.com",
+        "meituan.net",
+        "dpfile.com",
+        "dianping.com",
+        "sankuai.com"
+      ]
+    },
+    "ugreen": {
+      "app": "community:ugreen",
+      "dedicated": [
+        "ug.link",
+        "ugnas.com",
+        "ugreengroup.com",
+        "ugreen.com"
+      ]
+    },
+    "heytap": {
+      "app": "community:heytap",
+      "dedicated": [
+        "heytapobi.com",
+        "heytapdl.com",
+        "heytapimage.com",
+        "heytapmobi.com",
+        "oppomobile.com",
+        "coloros.com",
+        "allawnofs.com",
+        "allawntech.com"
+      ]
+    },
+    "xiaomi": {
+      "app": "community:xiaomi",
+      "dedicated": [
+        "mi.com",
+        "xiaomi.com",
+        "xiaomi.net",
+        "miui.com",
+        "mifile.cn"
+      ]
+    },
+    "baidu": {
+      "app": "community:baidu",
+      "dedicated": [
+        "www.baidu.com",
+        "m.baidu.com",
+        "baiduboxapp.com",
+        "bdstatic.com",
+        "bdimg.com",
+        "baidustatic.com",
+        "bcebos.com",
+        "shifen.com"
+      ]
+    }
   },
-  "infrastructure":{"myqcloud.com":"infra:tencent-cloud","tencent-cloud.net":"infra:tencent-cloud","qcloud.com":"infra:tencent-cloud","alicdn.com":"infra:alibaba-cloud","aliyuncs.com":"infra:alibaba-cloud"}
+  "infrastructure": {
+    "myqcloud.com": "infra:tencent-cloud",
+    "tencent-cloud.net": "infra:tencent-cloud",
+    "qcloud.com": "infra:tencent-cloud",
+    "alicdn.com": "infra:alibaba-cloud",
+    "aliyuncs.com": "infra:alibaba-cloud"
+  }
 }

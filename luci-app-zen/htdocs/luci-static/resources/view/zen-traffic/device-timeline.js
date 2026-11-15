@@ -82,7 +82,6 @@ return baseclass.extend({
 		this.selectedAppHour = null;
 		this.body.replaceChildren(); this.summary.replaceChildren();
 		if (!this.supported) { this.notice.textContent = _('Update the traffic service to enable device time history.'); return; }
-		if (!this.mac) { this.notice.textContent = _('Choose a device above to see when it used traffic.'); return; }
 		if (!datePicker.selectable(this.date.value, this.date.min, this.date.max)) { this.notice.textContent = _('Choose a valid date.'); return; }
 		this.notice.textContent = _('Loading history…');
 		try {
@@ -195,9 +194,11 @@ return baseclass.extend({
 			readout.textContent = describe(rows[index]); tip.textContent = readout.textContent;
 			tip.hidden = !showTip;
 			if (showTip) positionTip(ev);
-			if (refreshApps || this.selectedAppHour !== rows[index].time || this.selectedAppMac !== this.mac || this.selectedAppDate !== this.date.value) {
+			if (this.mac && (refreshApps || this.selectedAppHour !== rows[index].time || this.selectedAppMac !== this.mac || this.selectedAppDate !== this.date.value)) {
 				this.selectedAppHour = rows[index].time; this.selectedAppMac = this.mac; this.selectedAppDate = this.date.value;
 				this.apps.select(this.mac, this.date.value, rows[index]);
+			} else if (!this.mac) {
+				this.apps.clear();
 			}
 		};
 		const width = slot * (showPacketAxis ? .34 : .62);

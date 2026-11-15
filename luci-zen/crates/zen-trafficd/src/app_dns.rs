@@ -203,9 +203,12 @@ impl Cache {
         }
         // The original queried service owns the CNAME chain; an intermediate
         // cloud hostname does not turn unrelated addresses into that service.
-        let candidate = rules
+        let Some(candidate) = rules
             .find(&question)
-            .filter(|rule| rule.level == Level::Dedicated);
+            .filter(|rule| matches!(rule.level, Level::Dedicated | Level::Candidate))
+        else {
+            return Some(());
+        };
         for (owner, ip, answer_ttl) in answers {
             let Some(chain_ttl) = chain.get(&owner) else {
                 continue;
@@ -219,17 +222,19 @@ impl Cache {
                 return None;
             }
             let apps = self.addresses.entry(key).or_default();
-            // Preserve ambiguity rather than overwriting the first owner.
-            let app = candidate.map(|rule| rule.app_id()).unwrap_or(0);
-            let until = now + u64::from(answer_ttl.min(*chain_ttl)) * 1000;
+            // Preserve ambiguity when multiple distinct applications share one IP,
+            // and retain unambiguous CDN endpoints across multi-minute video streams.
+            let app = candidate.app_id();
+            let ttl_secs = answer_ttl.min(*chain_ttl).max(600);
+            let until = now + u64::from(ttl_secs) * 1000;
             if apps.len() < 16 || apps.contains_key(&app) {
                 let until = apps
                     .get(&app)
                     .map(|(_, old)| until.max(*old))
                     .unwrap_or(until);
-                apps.insert(app, (candidate.cloned(), until));
+                apps.insert(app, (Some(candidate.clone()), until));
             } else {
-                apps.insert(0, (None, now + 3_600_000));
+                apps.insert(0, (None, now + 600_000));
             }
         }
         Some(())
@@ -248,7 +253,9 @@ impl Cache {
             return None;
         }
         self.hits += 1;
-        apps.values().next().and_then(|(rule, _)| rule.clone())
+        let (rule, until) = apps.values_mut().next()?;
+        *until = (*until).max(now + 300_000);
+        rule.clone()
     }
     pub fn status(&self) -> serde_json::Value {
         serde_json::json!({"queries":self.queries,"replies":self.replies,"rejected":self.rejected,"fake_ip_rejected":self.fake_ip,"ambiguous":self.ambiguous,"hits":self.hits,"pending":self.pending.len(),"addresses":self.addresses.len(),"persisted":false})

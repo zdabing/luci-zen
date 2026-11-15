@@ -6,7 +6,17 @@
 
 const callUsage = rpc.declare({ object: 'zen.traffic', method: 'getAppUsage', params: ['mac', 'date', 'hour'], reject: true });
 const callRates = rpc.declare({ object:'zen.traffic',method:'getAppRealtime',params:['mac'],reject:true });
-const names = { 49:'抖音 / TikTok',54: '爱奇艺', 120: 'X / Twitter', 197: '微信', 285: '腾讯', 324: '腾讯视频', 395: '腾讯游戏',65537:'优酷',65538:'哔哩哔哩',65539:'芒果 TV',65540:'抖音',65541:'快手',65542:'斗鱼',65543:'虎牙' };
+const names = {
+	37: 'BT 下载 (BitTorrent)', 49: '抖音 / TikTok', 54: '爱奇艺', 120: 'X / Twitter',
+	197: '微信', 285: '腾讯通用服务', 324: '腾讯视频', 395: '腾讯游戏',
+	65537: '优酷', 65538: '哔哩哔哩', 65539: '芒果 TV', 65540: '抖音',
+	65541: '快手', 65542: '斗鱼', 65543: '虎牙', 65544: '夸克网盘',
+	65545: '迅雷 / 迅雷云盘', 65546: '百度网盘', 65547: '阿里云盘', 65548: '小红书',
+	65549: '淘宝 / 天猫', 65550: '京东', 65551: '拼多多', 65552: '网易云音乐',
+	65553: 'WPS 云文档', 65554: '美团 / 大众点评', 65555: '绿联云 NAS',
+	65556: '欢太 / OPPO 云服务', 65557: '小米云服务', 65558: '百度服务', 65559: '115 网盘',
+	1048577: '腾讯云 / CDN', 1048578: '阿里云 / CDN'
+};
 const sourceName = source=>({ndpi:_('Native DPI'),dedicated_domain:_('Dedicated domain'),dns:_('DNS assistance'),feature:_('Visible features'),infrastructure:_('Infrastructure'),unidentified:_('Unidentified'),legacy:_('Unrecorded source')})[source]||_('Unrecorded source');
 
 function bytes(value) {
@@ -87,19 +97,26 @@ return baseclass.extend({
 			for (const key of ['applications', 'protocols', 'unknown', 'pending', 'difference', 'excess']) {
 				if (!validBytes(data.breakdown[key])) throw Error('breakdown');
 			}
-			const applications = data.applications.filter(app => app.kind === 'application'&&(this.mode!=='video'||['video','short_video','live'].includes(app.category)||[49,54,324].includes(app.id))).map(app => ({ ...app, label: names[app.id] || app.name }));
+			const matchCategory = app => {
+				if (this.mode === 'video') return ['video', 'short_video', 'live', 'music'].includes(app.category) || [49, 54, 324].includes(app.id);
+				if (this.mode === 'download') return ['download', 'cloud', 'nas'].includes(app.category) || [37, 65544, 65545, 65546, 65547, 65555, 65559].includes(app.id);
+				if (this.mode === 'social') return ['messaging', 'social', 'shopping', 'life', 'office'].includes(app.category) || [120, 197, 65548, 65549, 65550, 65551, 65553, 65554].includes(app.id);
+				if (this.mode === 'game') return ['game', 'vendor', 'portal'].includes(app.category) || [395, 65556, 65557, 65558].includes(app.id);
+				return true;
+			};
+			const applications = data.applications.filter(app => app.kind === 'application' && matchCategory(app)).map(app => ({ ...app, label: names[app.id] || app.name }));
 			const protocols = data.applications.filter(app => app.kind === 'protocol').map(app => ({ ...app, label: app.name }));
 			const sort = list => list.sort((a, b) => b.download + b.upload - a.download - a.upload);
 			rows = sort(applications);
-			const infrastructure=data.applications.filter(app=>app.kind==='infrastructure').map(app=>({...app,label:app.name}));
-			if (this.mode!=='video'&&infrastructure.length) rows.push({section:_('Shared CDN / cloud')},...sort(infrastructure));
-			if (this.mode!=='video'&&protocols.length) rows.push({ section: _('Protocol only') }, ...sort(protocols));
+			const infrastructure=data.applications.filter(app=>app.kind==='infrastructure').map(app=>({...app,label:names[app.id]||app.name}));
+			if (this.mode==='all'&&infrastructure.length) rows.push({section:_('Shared CDN / cloud')},...sort(infrastructure));
+			if (this.mode==='all'&&protocols.length) rows.push({ section: _('Protocol only') }, ...sort(protocols));
 			const states = [];
 			for (const [key, label] of [['unknown', _('Unidentified connections')], ['pending', _('Recognition in progress')], ['difference', _('Unattributed difference')]]) {
 				const value = data.breakdown[key];
 				if (value.download + value.upload > 0) states.push({ ...value, label, identified: false });
 			}
-			if (this.mode!=='video'&&states.length) rows.push({ section: _('Recognition status and differences') }, ...states);
+			if (this.mode==='all'&&states.length) rows.push({ section: _('Recognition status and differences') }, ...states);
 		} else {
 			// Older backends do not expose enough information to split the gap.
 			rows = data.applications.filter(app => app.identified === true).map(app => ({ ...app, label: names[app.id] || app.name }));
@@ -116,7 +133,7 @@ return baseclass.extend({
 				E('div',{},[E('span',{},_('Recorded total')),E('strong',{},bytes(total))])
 			]));
 		}
-		this.body.appendChild(E('div',{class:'zen-app-filter',role:'group','aria-label':_('Application ranking')},[['all',_('All applications')],['video',_('Video ranking')]].map(([mode,label])=>E('button',{type:'button','aria-pressed':String(this.mode===mode),class:this.mode===mode?'is-active':'',click:()=>{this.mode=mode;this.draw(data);}},label))));
+		this.body.appendChild(E('div',{class:'zen-app-filter',role:'group','aria-label':_('Application ranking')},[['all',_('All applications')],['video',_('Video ranking')],['download','网盘与下载'],['social','社交与购物'],['game','游戏与服务']].map(([mode,label])=>E('button',{type:'button','aria-pressed':String(this.mode===mode),class:this.mode===mode?'is-active':'',click:()=>{this.mode=mode;this.draw(data);}},label))));
 		if (!rows.length) { this.body.appendChild(E('p', { class: 'zen-app-muted' }, _('No application records for this hour.'))); return; }
 		this.body.appendChild(E('table', { class: 'table zen-app-usage-table' }, [
 			E('thead', {}, E('tr', {}, [_('Application / service'), _('Upload'), _('Download'), _('Total')].map(label => E('th', {}, label)))),

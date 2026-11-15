@@ -8,9 +8,9 @@ const BRANDS = {
  google:'Google',synology:'Synology',qnap:'QNAP'
 };
 const IDS = {
- 48:'QQ',49:'TikTok',54:'iQIYI',120:'Twitter',197:'WeChat',285:'Tencent',
+ 48:'QQ',49:'TikTok',54:'iQIYI',120:'Twitter',197:'WeChat',285:'Tencent',324:'Tencent',395:'Tencent',
  65537:'Youku',65538:'Bilibili',65540:'Douyin',65541:'Kuaishou',65542:'Douyu',
- 65543:'Huya',1048577:'TencentCloud',1048578:'Aliyun'
+ 65543:'Huya',65547:'Aliyun',65549:'Aliyun',65556:'OPPO',65557:'Xiaomi',1048577:'TencentCloud',1048578:'Aliyun'
 };
 const NAMES = {
  wechat:'WeChat',bilibili:'Bilibili',iqiyi:'iQIYI',youku:'Youku',douyin:'Douyin',

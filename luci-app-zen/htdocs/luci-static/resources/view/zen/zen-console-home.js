@@ -1,9 +1,12 @@
 'use strict';
 'require baseclass';
+'require rpc';
+'require poll';
 'require view.zen.zen-devices as devicesModule';
 'require view.zen.zen-format as fmt';
 'require view.zen.zen-wan-share as shares';
 'require view.zen.zen-usage-ui as usageUI';
+const callP2pUsage = rpc.declare({ object: 'zen.traffic', method: 'getP2pUsage' });
 const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!=null)n.textContent=text;return n;};
 function decorateDevices(devices) {
    devices.querySelector('h3').textContent='连接设备';
@@ -48,15 +51,29 @@ return baseclass.extend({build(dash,model){
    new MutationObserver(syncIPv6).observe(ipv6,{subtree:true,childList:true,characterData:true});syncIPv6();
    for(const field of connection.querySelectorAll('[data-connection="wan"],[data-connection="wan6"],[data-connection="lan"]')){const button=el('button','rf-copy','复制');button.type='button';button.setAttribute('aria-label','复制 '+field.previousElementSibling.textContent);const line=el('div','rf-address-line');field.before(line);line.append(field,button);button.addEventListener('click',async()=>{if(field.textContent==='—')return;try{await navigator.clipboard.writeText(field.textContent);button.textContent='已复制';}catch{button.textContent='复制失败';}setTimeout(()=>button.textContent='复制',1200);});}
  const section=el('section','zen-dash-panel zen-wan-share rf-share-bounded');
+ const p2pSection=el('section','zen-dash-panel zen-wan-share rf-share-bounded');
  const devicePlaceholder=el('section','zen-dash-panel');
  const deviceStatus=el('p','zen-dash-dev-note','正在读取连接设备…');
  deviceStatus.setAttribute('role','status');
  devicePlaceholder.append(el('h3','','连接设备'),deviceStatus);
- dash.replaceChildren(router,live,section,devicePlaceholder,systemTools,details);
+ dash.replaceChildren(router,live,section,p2pSection,devicePlaceholder,systemTools,details);
  let periodButtons=[];
  const usage=usageUI.mount(section,{analysisHref:L.url('admin','zen','analysis'),onPeriodChange:key=>periodButtons.find(b=>b.dataset.period===key)?.click()});
+ const p2pUsage=usageUI.mountP2p(p2pSection,{
+  analysisHref:L.url('admin','zen','analysis')+'#device-hourly',
+  deviceHref:mac=>shares.deviceHistoryUrl(mac)||L.url('admin','zen','analysis')
+ });
  const source=el('div'),notice=el('p','zu-empty','正在读取互联网用量…');let received=false;section.append(notice);source.style.display='none';source.setAttribute('aria-hidden','true');section.append(source);
  return async () => {
+  const refreshP2p=async()=>{
+   if(document.hidden||!p2pSection.isConnected)return;
+   try{
+    const res=await callP2pUsage();
+    const data=typeof res?.json==='string'?JSON.parse(res.json):res;
+    if(data&&data.ok)p2pUsage.update(data);
+   }catch(_e){}
+  };
+  poll.add(refreshP2p,10);refreshP2p();
   Promise.resolve(model.devicesReady).then(devices => {
    if (!dash.isConnected) return;
    if (!devices) {

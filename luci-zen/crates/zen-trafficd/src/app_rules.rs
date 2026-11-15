@@ -152,6 +152,23 @@ pub fn normalize_hostname(input: &str) -> Option<String> {
     Some(name.to_ascii_lowercase())
 }
 
+/// Strip an optional `:port` suffix from HTTP Host / peer hostnames before
+/// validating as a canonical DNS name.
+pub fn normalize_peer_hostname(input: &str) -> Option<String> {
+    let trimmed = input.trim();
+    let host = match trimmed.rsplit_once(':') {
+        Some((h, port))
+            if !port.is_empty()
+                && port.len() <= 5
+                && port.bytes().all(|b| b.is_ascii_digit()) =>
+        {
+            h
+        }
+        _ => trimmed,
+    };
+    normalize_hostname(host)
+}
+
 #[cfg(test)]
 fn matches(host: &str, rule: &Rule) -> bool {
     host == rule.domain

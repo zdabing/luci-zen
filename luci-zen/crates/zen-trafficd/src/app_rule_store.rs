@@ -182,14 +182,14 @@ impl RuleSet {
     ) -> Option<Attribution> {
         if ![evidence.master_protocol, evidence.app_protocol]
             .iter()
-            .any(|id| matches!(id, 7 | 91 | 188))
+            .any(|id| matches!(id, 7 | 91 | 188 | 221 | 418))
         {
             return None;
         }
-        let host = app_rules::normalize_hostname(&evidence.hostname)?;
+        let host = app_rules::normalize_peer_hostname(&evidence.hostname)?;
         let rule = self.find(&host)?.clone();
         let app = rule.app_id();
-        let generic = !identified || matches!(native, 0 | 48 | 285);
+        let generic = !identified || matches!(native, 0 | 48 | 285 | 418);
         let candidate = rule.level == Level::Candidate;
         Some(Attribution {
             refine: !candidate && u32::from(native) != app && generic,

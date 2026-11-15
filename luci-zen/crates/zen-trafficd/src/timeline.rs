@@ -102,11 +102,114 @@ impl DeviceTimeline {
         if earliest >= end { return Ok(BTreeMap::new()); }
         let mut rows = db.p2p_timeline(mac, earliest, end)?;
         for ((time, device), counts) in self.p2p_hours.range((earliest, String::new())..(end, String::new())) {
-            if device == mac {
+            if mac.is_empty() || device == mac {
                 rows.entry(*time).or_default().accumulate(*counts);
             }
         }
         Ok(rows)
+    }
+
+    pub fn p2p_usage(
+        &self,
+        db: &Db,
+        devs: &HashMap<zen_bpf::MacKey, crate::state::DevState>,
+        policies: &crate::p2p::Policies,
+        now: u64,
+    ) -> Result<serde_json::Value, String> {
+        let today = crate::state::local_date(now);
+        let cutoff = crate::state::date_shift(&today, crate::state::RETENTION_DAYS);
+        let mut daily = db.p2p_daily()?;
+        daily.retain(|(d, _), _| d.as_str() >= cutoff.as_str());
+        let mut totals = db.p2p_devices()?;
+        for ((time, mac), counts) in &self.p2p_hours {
+            if *time < self.p2p_keep_from(now) { continue; }
+            let d = crate::state::local_date(*time);
+            if d.as_str() >= cutoff.as_str() {
+                daily.entry((d, mac.clone())).or_default().accumulate(*counts);
+            }
+            totals.entry(mac.clone()).or_default().accumulate(*counts);
+        }
+        let mut all_time = P2pCounters::default();
+        for counts in totals.values() {
+            all_time.accumulate(*counts);
+        }
+        let mut day_totals: BTreeMap<String, P2pCounters> = BTreeMap::new();
+        let mut dev_days: HashMap<String, BTreeMap<String, P2pCounters>> = HashMap::new();
+        for ((date, mac), counts) in &daily {
+            day_totals.entry(date.clone()).or_default().accumulate(*counts);
+            dev_days.entry(mac.clone()).or_default().insert(date.clone(), *counts);
+        }
+        let since = day_totals.keys().next().cloned().unwrap_or_else(|| today.clone());
+        let days_json: Vec<_> = day_totals.iter().map(|(date, c)| {
+            serde_json::json!({
+                "date": date,
+                "conflicts": c.conflicts,
+                "dropped": c.dropped,
+                "bypassed": c.bypassed,
+                "skipped": c.skipped,
+                "capacity": c.capacity,
+            })
+        }).collect();
+
+        let mut all_macs: BTreeMap<String, Option<&crate::state::DevState>> = BTreeMap::new();
+        for d in devs.values() {
+            all_macs.insert(crate::persistence::mac_str(&d.mac.b), Some(d));
+        }
+        for mac in totals.keys() {
+            all_macs.entry(mac.clone()).or_insert(None);
+        }
+        for (_, mac) in daily.keys() {
+            all_macs.entry(mac.clone()).or_insert(None);
+        }
+
+        let mut devices_list = Vec::new();
+        for (mac, dev_opt) in all_macs {
+            let total = totals.get(&mac).copied().unwrap_or_default();
+            let policy = policies.get(&mac);
+            let per_days = dev_days.remove(&mac).unwrap_or_default();
+            if total == P2pCounters::default() && policy.mode == crate::p2p::Mode::Off && per_days.is_empty() {
+                continue;
+            }
+            let today_counts = per_days.get(&today).copied().unwrap_or_default();
+            let dev_days_json: Vec<_> = per_days.into_iter().map(|(date, c)| {
+                serde_json::json!({
+                    "date": date,
+                    "conflicts": c.conflicts,
+                    "dropped": c.dropped,
+                    "bypassed": c.bypassed,
+                    "skipped": c.skipped,
+                    "capacity": c.capacity,
+                })
+            }).collect();
+            devices_list.push((
+                total.dropped,
+                total.conflicts,
+                mac.clone(),
+                serde_json::json!({
+                    "mac": mac,
+                    "host": dev_opt.and_then(|d| d.host.clone()),
+                    "ip4": dev_opt.and_then(|d| d.ip4.clone()),
+                    "online": dev_opt.map(|d| d.online).unwrap_or(false),
+                    "mode": policy.mode,
+                    "idle_seconds": policy.idle_seconds,
+                    "total": crate::p2p::counters_json(total),
+                    "today": crate::p2p::counters_json(today_counts),
+                    "days": dev_days_json,
+                }),
+            ));
+        }
+        devices_list.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| b.1.cmp(&a.1)).then_with(|| a.2.cmp(&b.2)));
+        let devices_json: Vec<_> = devices_list.into_iter().map(|(_, _, _, v)| v).collect();
+
+        Ok(serde_json::json!({
+            "ok": true,
+            "today": today,
+            "since": since,
+            "retention_days": crate::state::RETENTION_DAYS,
+            "total": crate::p2p::counters_json(all_time),
+            "days": days_json,
+            "devices": devices_json,
+        }))
     }
 
     pub fn today_p2p(&self, db: &Db, mac: &str, now: u64) -> Result<Option<P2pCounters>, String> {
@@ -138,7 +241,7 @@ impl DeviceTimeline {
         let mut rows: BTreeMap<u64, Bytes> = db.device_timeline(mac, start, end)?.into_iter()
             .filter(|(time, _)| *time >= floor && time.saturating_add(step) > available_from).collect();
         for ((time, device), bytes) in &self.hours {
-            if device != mac || *time < start || *time >= end || *time < floor || time.saturating_add(step) <= available_from { continue; }
+            if (!mac.is_empty() && device != mac) || *time < start || *time >= end || *time < floor || time.saturating_add(step) <= available_from { continue; }
             let total = rows.entry(*time).or_default();
             total.download = total.download.saturating_add(bytes.download);
             total.upload = total.upload.saturating_add(bytes.upload);
