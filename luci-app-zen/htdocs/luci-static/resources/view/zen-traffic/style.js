@@ -22,7 +22,7 @@ return baseclass.extend({
 .zen-traffic-page .zen-date-trigger{display:flex;align-items:center;justify-content:space-between;gap:18px;width:100%;min-height:44px;border:1px solid var(--line,#dce2d9);border-radius:16px;padding:10px 14px;background:var(--bg-input,var(--bg-panel,#f7f8f3));color:var(--text,#283028);font:inherit;font-size:13px;font-variant-numeric:tabular-nums;text-align:left;cursor:pointer}
 .zen-date-trigger svg{width:19px;height:19px;color:var(--text-secondary,#7c8778);flex:none}
 .zen-date-trigger[aria-expanded="true"]{border-color:var(--accent,#278e67)}
-.zen-date-dialog{position:fixed;inset:auto;margin:0!important;width:min(320px,calc(100vw - 24px));max-width:calc(100vw - 24px);max-height:calc(100dvh - 24px);overflow:auto;padding:18px;border:1px solid var(--line,#fff);border-radius:24px;background:var(--modal-grad,var(--bg-panel,#f5f7f0));color:var(--text,#283028);font:13px/1.4 var(--font,system-ui,sans-serif);box-shadow:0 20px 65px -22px #34483155;backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px)}
+.zen-date-dialog{position:fixed;inset:auto;margin:0!important;width:min(320px,calc(100vw - 24px));max-width:calc(100vw - 24px);max-height:calc(100dvh - 24px);overflow:auto;padding:18px;border:1px solid var(--line,#fff);border-radius:16px;background:var(--bg-panel,#f5f7f0);color:var(--text,#283028);font:13px/1.4 var(--font,system-ui,sans-serif);box-shadow:var(--modal-shadow,0 20px 65px -22px #34483155)}
 .zen-date-dialog::backdrop{background:transparent}
 .zen-date-heading{display:flex;align-items:center;gap:5px;margin-bottom:15px}
 .zen-date-month{flex:1;font-size:16px;font-weight:600;letter-spacing:-.3px}

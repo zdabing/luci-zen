@@ -30,12 +30,18 @@
 }
 :root[data-skin="meridian"] body {background:var(--bg-base);color:var(--text);font-variant-numeric:tabular-nums}
 :root[data-skin="meridian"] body>header {background:var(--bg-panel);border:1px solid var(--line);box-shadow:var(--glass-shadow)}
-:root[data-skin="meridian"] :is(.zc-app-nav,.zen-settings-tabs) {background:var(--bg-panel)}
-:root[data-skin="meridian"] :is(.nav>li.active>a,.slide-menu .active>a,.zen-settings-tabs button[aria-selected="true"]) {background:var(--selection-fill);color:var(--accent-strong);border-radius:14px}
+:root[data-skin="meridian"] .zc-app-nav {margin:0 0 12px;padding:12px 0 2px;border-bottom:0;background:transparent;gap:8px}
+:root[data-skin="meridian"] .zc-app-nav a {gap:7px;min-height:40px;padding:8px 15px;border:1px solid transparent;border-radius:12px;font-weight:550;color:var(--text-secondary)}
+:root[data-skin="meridian"] .zc-app-nav a:hover {background:var(--bg-panel);color:var(--text)}
+:root[data-skin="meridian"] .zc-app-nav a[aria-current="page"] {background:var(--bg-panel);border-color:var(--line);color:var(--accent-strong);font-weight:600;box-shadow:0 1px 3px rgb(0 0 0 / 6%)}
+:root[data-skin="meridian"] .zen-settings-tabs {background:var(--bg-nested)}
+:root[data-skin="meridian"] :is(.nav>li.active>a,.slide-menu .active>a) {background:var(--selection-fill);color:var(--accent-strong);border-radius:14px}
 :root[data-skin="meridian"][data-layout="top"] #mainmenu .nav>li.active>a {background:var(--selection-fill);color:var(--accent-strong);border-radius:24px}
-:root[data-skin="meridian"] :is(.zen-mode-toggle,.zen-settings-link,.rf-system-button) {border-radius:14px}
+:root[data-skin="meridian"] :is(.zen-mode-toggle,.zen-settings-link,.zen-appearance-trigger,.rf-system-button) {border-radius:12px}
 :root[data-skin="meridian"] :is(.zen-dash-panel,.cbi-section,.za-panel,.za-detail,.zen-updates,.zen-preferences) {background:var(--bg-panel);border-color:var(--line);border-radius:20px;box-shadow:none}
 :root[data-skin="meridian"] :is(.rf-router,.rf-live,.rf-share-bounded,.zen-dash-devices) {border-radius:20px!important;background:var(--bg-panel)!important;border:1px solid var(--line)!important;padding:20px!important}
+:root[data-skin="meridian"] .zen-dash-devices .zen-dash-dev-row {background:var(--bg-nested);border-color:var(--line)}
+:root[data-skin="meridian"] .zen-dash-devices .zen-dash-dev-row:hover {background:var(--bg-nested);border-color:var(--accent)}
 :root[data-skin="meridian"] .rf-health :is(.rf-health-metric,.zen-dash-health-metric) {background:var(--bg-nested);border:1px solid var(--line);border-radius:16px}
 :root[data-skin="meridian"] .rf-health>:nth-child(1) {background:color-mix(in srgb,var(--ul) 5%,var(--bg-panel));border-color:color-mix(in srgb,var(--ul) 14%,var(--bg-panel))}
 :root[data-skin="meridian"] .rf-health>:nth-child(2) {background:color-mix(in srgb,var(--dl) 5%,var(--bg-panel));border-color:color-mix(in srgb,var(--dl) 14%,var(--bg-panel))}
@@ -61,8 +67,8 @@
 :root[data-skin="meridian"] .zen-pref-skin {grid-template-columns:repeat(2,minmax(0,1fr))}
 :root[data-skin="meridian"] .zen-pref-skin .zen-pref-choice {align-items:flex-start}
 :root[data-skin="meridian"] :is(.zen-dash-devices .zen-dash-dev-icon[data-device-type],.zen-device-brand) {background:var(--info-soft);color:var(--info)}
-:root[data-skin="meridian"] :is(.zen-segmented,.zu-periods,.zen-share-periods) {background:var(--bg-nested)}
-:root[data-skin="meridian"] :is(.zen-segmented,.zu-periods,.zen-share-periods)>button:is([aria-selected="true"],[aria-pressed="true"]) {background:var(--selection-fill);color:var(--accent-strong);box-shadow:none}
+:root[data-skin="meridian"] :is(.zen-segmented,.zu-periods,.zen-share-periods,.zen-app-filter,.za-rate-source-toggle) {background:var(--bg-nested);border:1px solid var(--line)}
+:root[data-skin="meridian"] :is(.zen-segmented,.zu-periods,.zen-share-periods,.zen-app-filter,.za-rate-source-toggle)>button:is([aria-selected="true"],[aria-pressed="true"],.is-active) {background:var(--bg-panel);color:var(--accent-strong);font-weight:600;box-shadow:0 1px 3px rgb(0 0 0 / 8%)}
 :root[data-skin="meridian"] :is(.cbi-button-save,.cbi-button-apply,.cbi-button-positive,.zen-login-submit,.cbi-button.important) {background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
 :root[data-skin="meridian"] :is(.zen-device-drawer,.zen-preferences-dialog) {background:var(--bg-panel);backdrop-filter:none;-webkit-backdrop-filter:none}
 :root[data-skin="meridian"] :is(.zen-device-drawer,.zen-dash-disk-dialog)::backdrop {background:var(--modal-mask);backdrop-filter:none}
@@ -73,9 +79,9 @@
  :root[data-skin="meridian"] body>header {background:var(--glass-fill);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);box-shadow:inset 0 1px 0 var(--glass-rim),inset 0 -1px 0 var(--glass-inner),var(--glass-shadow)}
 }
 @media(min-width:769px) {
- :root[data-skin="meridian"] body>header {top:12px;margin:12px 16px 0;width:auto;border-radius:28px}
- :root[data-skin="meridian"] .main {padding-top:24px}
- :root[data-skin="meridian"] .main-left {top:88px;height:calc(100dvh - 88px)}
+ :root[data-skin="meridian"] body>header {top:12px;margin:12px 16px 0;width:auto;border-radius:18px}
+ :root[data-skin="meridian"] .main {padding-top:20px}
+ :root[data-skin="meridian"] .main-left {top:84px;height:calc(100dvh - 84px)}
  :root[data-skin="meridian"][data-layout="top"] .main-left {height:auto}
 }
 @media(max-width:768px) {

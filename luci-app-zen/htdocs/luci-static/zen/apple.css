@@ -61,8 +61,10 @@
 :root[data-skin="apple"] .zen-dash-dev-icon[data-device-type=unknown]{background:#fff0de!important;color:#ec922a}
 :root[data-skin="apple"] .zen-dash-dev-row{background:var(--bg-panel);border:1px solid var(--line);border-radius:18px}
 :root[data-skin="apple"] .zen-dash-devices .zen-dash-dev-icon svg{color:inherit}
-:root[data-skin="apple"] .zu-periods{background:var(--bg-nested)!important;padding:4px;border:1px solid var(--line)}
-:root[data-skin="apple"] .zu-periods button.active{background:var(--accent)!important;color:#fff!important;box-shadow:none}
+:root[data-skin="apple"] .zu-periods{background:var(--bg-nested)!important;padding:3px;border:1px solid var(--line)}
+:root[data-skin="apple"] :is(.zu-periods,.zen-app-filter,.za-rate-source-toggle)>button:is([aria-pressed="true"],.is-active){background:var(--bg-panel)!important;color:var(--accent-strong,var(--accent))!important;box-shadow:0 1px 3px #0001}
+:root[data-skin="apple"] .rf-live .zen-dash-stat.tx{background:color-mix(in srgb,var(--ul) 6%,var(--bg-panel));border:1px solid color-mix(in srgb,var(--ul) 16%,var(--bg-panel))}
+:root[data-skin="apple"] .rf-live .zen-dash-stat.rx{background:color-mix(in srgb,var(--dl) 6%,var(--bg-panel));border:1px solid color-mix(in srgb,var(--dl) 16%,var(--bg-panel))}
 :root[data-skin="apple"] .cbi-button.important{background:var(--accent);border-color:var(--accent);color:#fff}
 :root[data-skin="apple"] .zen-pref-choice.is-selected,:root[data-skin="apple"] .zen-pref-choice[aria-checked=true]{background:var(--accent-soft);border-color:var(--accent)}
 :root[data-skin="apple"][data-theme="dark"]{--bg-base:#17191e;--body-grad:#17191e;--bg-panel:#23262d;--surface-raised:#23262d;--bg-overview:#23262d;--bg-input:#2c3039;--bg-nested:#2c3039;--header-bg:#23262d;--text:#f2f3f6;--text-secondary:#afb4c0;--text-muted:#9ba2b1;--line:#333842;--line-strong:#5c6473;--accent:#4399ff;--accent-strong:#67adff;--accent-soft:#233c60;--dl:#4399ff;--ul:#b89be8;--progress-track:#3b414d}

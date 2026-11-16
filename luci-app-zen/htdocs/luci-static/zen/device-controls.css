@@ -7,7 +7,7 @@ dialog.zen-device-drawer.rf-device-detail{width:min(560px,100%);border-radius:24
 .rf-detail-actions button{border:1px solid var(--line);border-radius:11px;background:transparent;color:var(--text);min-height:40px;padding:8px 7px;margin:0;font:inherit;font-size:13px;white-space:nowrap;cursor:pointer;justify-content:center}
 .rf-detail-actions button:hover,.rf-detail-actions button[aria-expanded=true]{background:var(--bg-base);border-color:var(--accent)}
 .rf-detail-actions .rf-detail-action-set{color:var(--accent);background:var(--rf-green-bg)}
-.rf-detail-danger{color:#b94136!important}
+.rf-detail-danger{color:var(--danger,#b94136)!important}
 .rf-detail-policy{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--accent);margin-top:12px}
 .rf-detail-editor{margin-top:16px;padding:16px;background:var(--bg-base);border-radius:14px}
 .rf-device-detail h3{margin:0;padding:0;border:0;font-size:16px;font-weight:600;line-height:1.5;color:var(--text)}
@@ -21,7 +21,7 @@ dialog.zen-device-drawer.rf-device-detail{width:min(560px,100%);border-radius:24
 .rf-detail-form-actions .rf-detail-save{background:var(--accent);border-color:var(--accent);color:var(--on-accent,var(--bg-panel))}
 .rf-detail-form-actions .rf-detail-reset{margin-right:auto;background:transparent}
 .rf-detail-message{margin:12px 0 0;font-size:12px;color:var(--accent)}
-.rf-detail-error{margin:10px 0 0;font-size:12px;color:#b94136}
+.rf-detail-error{margin:10px 0 0;font-size:12px;color:var(--danger,#b94136)}
 .rf-detail-usage{margin-top:22px;padding:18px 0;border-block:1px solid var(--line)}
 .rf-detail-section-head{display:flex;justify-content:space-between;align-items:center;gap:12px}
 .rf-detail-history{font-size:12px;color:var(--accent)}

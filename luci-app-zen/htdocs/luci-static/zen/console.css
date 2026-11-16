@@ -314,7 +314,7 @@ html.zen-console .zen-traffic-page .zen-tf-tabs button { border-radius: 999px; }
 .zen-console .rf-live h3{font-size:var(--section-title-size)!important;font-weight:600;margin:0;line-height:1.5}
 .rf-live-readings{grid-area:values;min-width:0}
 .zen-console .rf-live .zen-dash-traffic-stats{display:flex;flex-direction:column;gap:14px;padding:0;margin:0}
-.zen-console .rf-live .zen-dash-stat{display:flex;flex-direction:column;align-items:flex-start;gap:1px;border:0;padding:0;margin:0;box-shadow:none;background:none!important;min-width:0;order:0}
+.zen-console .rf-live .zen-dash-stat{display:flex;flex-direction:column;align-items:flex-start;gap:1px;border:0;padding:0;margin:0;box-shadow:none;background:none;min-width:0;order:0}
 .zen-console .rf-live .zen-dash-stat .k{margin:0;font-size:13px;font-weight:400}
 .zen-console .rf-live .zen-dash-stat .v{display:flex;align-items:baseline;gap:5px;line-height:1.1;margin:0}
 .zen-console .rf-live .zen-dash-stat.tx :is(.k,.v){color:var(--rf-up)}
