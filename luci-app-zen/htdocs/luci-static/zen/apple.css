@@ -13,16 +13,17 @@
 :root[data-skin="apple"] .zc-app-nav{padding-block:12px;background:var(--bg-base);gap:9px}
 :root[data-skin="apple"] .zc-app-nav a{gap:7px;min-height:42px;border:1px solid transparent;padding:8px 16px;border-radius:12px;font-weight:550;box-shadow:none}
 :root[data-skin="apple"] .zc-app-nav a[aria-current=page]{background:var(--accent);color:#fff;border-color:var(--accent)}
-:root[data-skin="apple"] .apple-icon{display:inline-grid;place-items:center;flex:none;width:36px;height:36px;border-radius:11px;background:var(--icon-bg);color:var(--icon-ink)}
-:root[data-skin="apple"] .apple-icon svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+:root:is([data-skin="apple"],[data-skin="meridian"]) .apple-icon{display:inline-grid;place-items:center;flex:none;width:36px;height:36px;border-radius:11px;background:var(--icon-bg);color:var(--icon-ink)}
+:root:is([data-skin="apple"],[data-skin="meridian"]) .apple-icon svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .apple-icon-blue{--icon-bg:#e5f1ff;--icon-ink:#007aff}.apple-icon-green{--icon-bg:#e8f8eb;--icon-ink:#2ebc5a}.apple-icon-orange{--icon-bg:#fff0de;--icon-ink:#ec922a}.apple-icon-purple{--icon-bg:#f0e9fc;--icon-ink:#9670d9}.apple-icon-teal{--icon-bg:#e2f4f8;--icon-ink:#1a9cbb}
-:root[data-skin="apple"] .apple-icon-label{display:flex!important;align-items:center;gap:10px}
-:root[data-skin="apple"] .apple-small-icon{width:29px;height:29px;border-radius:9px}
-:root[data-skin="apple"] .apple-small-icon svg{width:17px;height:17px}
-:root[data-skin="apple"] .apple-section-icon{width:31px;height:31px;border-radius:10px}
-:root[data-skin="apple"] .apple-section-icon svg{width:18px;height:18px}
-:root[data-skin="apple"] .apple-nav-icon{width:24px;height:24px;border-radius:7px;background:transparent;color:var(--icon-ink)}
-:root[data-skin="apple"] .apple-nav-icon svg{width:18px;height:18px}
+:root[data-theme="dark"] .apple-icon{--icon-bg:color-mix(in srgb,var(--icon-ink) 16%,transparent)}
+:root:is([data-skin="apple"],[data-skin="meridian"]) .apple-icon-label{display:flex!important;align-items:center;gap:10px}
+:root:is([data-skin="apple"],[data-skin="meridian"]) .apple-small-icon{width:29px;height:29px;border-radius:9px}
+:root:is([data-skin="apple"],[data-skin="meridian"]) .apple-small-icon svg{width:17px;height:17px}
+:root:is([data-skin="apple"],[data-skin="meridian"]) .apple-section-icon{width:31px;height:31px;border-radius:10px}
+:root:is([data-skin="apple"],[data-skin="meridian"]) .apple-section-icon svg{width:18px;height:18px}
+:root:is([data-skin="apple"],[data-skin="meridian"]) .apple-nav-icon{width:24px;height:24px;border-radius:7px;background:transparent;color:var(--icon-ink)}
+:root:is([data-skin="apple"],[data-skin="meridian"]) .apple-nav-icon svg{width:18px;height:18px}
 :root[data-skin="apple"] .zc-app-nav a[aria-current=page] .apple-nav-icon{color:#fff}
 :root[data-skin="apple"] #zen-dashboard .rf-router{background:transparent!important;border:0!important;padding:0!important;box-shadow:none!important}
 :root[data-skin="apple"] .rf-router-head{margin:4px 0 20px;gap:16px}

@@ -22,7 +22,7 @@ function decorateDevices(devices) {
 }
 
 return baseclass.extend({build(dash,model){
-   model.compactChart=true;model.lastW=0;
+   model.compactChart=true;model.lastW=0;dash.dataset.homeLayout='split';
    const live=dash.querySelector('.zen-dash-traffic'),trend=dash.querySelector('.zen-dash-trend');
    live.classList.add('rf-live');live.querySelector('h3').textContent='实时网速';
    const details=el('details','rf-system');details.append(el('summary','','系统与接口详情'));
@@ -33,9 +33,11 @@ return baseclass.extend({build(dash,model){
    for(const [selector,label] of [['.ul','上传'],['.dl','下载']]){const item=trend.querySelector('.zen-dash-chart-legend '+selector);item.replaceChildren(item.querySelector('.swatch'),document.createTextNode(label));}
    const chartCaption=el('span','rf-chart-caption','每 5 秒更新 · 最近 5 分钟');trend.querySelector('.zen-dash-chart-legend').append(chartCaption);
    const chartFoot=el('div','rf-chart-foot');chartFoot.append(el('span','','5 分钟前'),el('span','','现在'));live.append(chartFoot);
-   const systemTools=el('div','rf-system-tools');const systemButton=el('button','rf-system-button','系统与接口详情 ›');systemButton.type='button';details.id='rf-system-details';systemButton.setAttribute('aria-controls',details.id);systemButton.addEventListener('click',()=>{details.open=!details.open;if(details.open)details.scrollIntoView({block:'nearest',behavior:'smooth'});});details.addEventListener('toggle',()=>systemButton.setAttribute('aria-expanded',String(details.open)));systemButton.setAttribute('aria-expanded','false');systemTools.append(systemButton);
    const router=el('section','rf-router');router.setAttribute('aria-label','网络概览');const routerHead=el('div','rf-router-head'),health=el('div','rf-health');
    routerHead.append(el('h1','rf-router-title','网络概览'));
+   const routerMeta=el('span','rf-router-meta');routerHead.append(routerMeta);
+   const syncMeta=()=>{const parts=['host','firmware'].map(key=>details.querySelector('[data-system="'+key+'"]')?.textContent.trim()).filter(v=>v&&v!==fmt.MISSING);routerMeta.textContent=parts.join(' · ');routerMeta.hidden=!parts.length;};
+   new MutationObserver(syncMeta).observe(details,{subtree:true,childList:true,characterData:true});syncMeta();
    const connection=dash.querySelector('.zen-dash-connections'),wanPill=el('div','rf-wan-pill');
    const wanState=el('span','rf-wan-status');wanState.append(el('span','','WAN'),connection.querySelector('[data-connection="state"]'));
    wanPill.append(wanState,connection.querySelector('[data-health-metric="latency"]'));routerHead.append(wanPill);router.append(routerHead,health,connection);
@@ -56,7 +58,8 @@ return baseclass.extend({build(dash,model){
  const deviceStatus=el('p','zen-dash-dev-note','正在读取连接设备…');
  deviceStatus.setAttribute('role','status');
  devicePlaceholder.append(el('h3','','连接设备'),deviceStatus);
- dash.replaceChildren(router,live,section,p2pSection,devicePlaceholder,systemTools,details);
+ details.hidden=true;details.setAttribute('aria-hidden','true');
+  dash.replaceChildren(router,live,section,p2pSection,devicePlaceholder,details);
  let periodButtons=[];
  const usage=usageUI.mount(section,{analysisHref:L.url('admin','zen','analysis'),onPeriodChange:key=>periodButtons.find(b=>b.dataset.period===key)?.click()});
  const p2pUsage=usageUI.mountP2p(p2pSection,{

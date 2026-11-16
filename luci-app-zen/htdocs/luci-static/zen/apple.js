@@ -11,6 +11,7 @@
   chart:['M4 3v17h17','M8 15V9m5 6V5m5 10v-4'],
   wave:['M3 13h4l3-7 4 13 3-6h4'],
   devices:['M3 4h15v11H3zM7 20h7M10.5 15v5','M19 10h3v11h-7v-4'],
+  shield:['M12 3 5 6v6c0 4.5 3 7.7 7 9 4-1.3 7-4.5 7-9V6l-7-3Z','m9.5 12 1.8 1.8 3.4-3.6'],
   settings:['M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z','M10 2h4l1 3 3-1 2 3-2 3 3 1v4l-3 1 1 3-3 2-3-2-1 3H8l-1-3-3 1-2-3 2-3-3-1v-4l3-1-1-3 3-2 3 2Z'],
   arrow:['M5 12h14m-5-5 5 5-5 5']
  };
@@ -36,10 +37,10 @@
   }
   add(doc,doc.querySelector('.rf-live h3'),'wave','blue','apple-section-icon');
   add(doc,doc.querySelector('.zen-dash-devices h3'),'devices','purple','apple-section-icon');
-  add(doc,doc.querySelector('.rf-share-bounded .zu-usage h2'),'chart','green','apple-section-icon');
+  for(const [idx,h2] of [...doc.querySelectorAll('.rf-share-bounded .zu-usage h2')].entries())add(doc,h2,idx?'shield':'chart',idx?'purple':'green','apple-section-icon');
   for(const [i,link] of [...doc.querySelectorAll('.zc-app-nav a')].entries())add(doc,link,['wave','chart','settings'][i],['blue','purple','teal'][i],'apple-nav-icon');
   const head=doc.querySelector('.rf-router-head');
-  if(head&&!head.querySelector('.apple-primary-button')){
+  if(doc.documentElement.dataset.skin==='apple'&&head&&!head.querySelector('.apple-primary-button')){
    const actions=doc.createElement('div');actions.className='apple-head-actions';
    const state=head.querySelector('.rf-wan-pill');if(state)actions.append(state);
    const button=doc.createElement('a');button.className='apple-primary-button';
@@ -50,9 +51,10 @@
   }
  }
  let queued=false;
+ function hasIconSkin(){const s=document.documentElement.dataset.skin;return s==='apple'||s==='meridian';}
  function schedule(){
-  if(queued||document.documentElement.dataset.skin!=='apple')return;
-  queued=true;requestAnimationFrame(()=>{queued=false;if(document.documentElement.dataset.skin==='apple')decorate(document);});
+  if(queued||!hasIconSkin())return;
+  queued=true;requestAnimationFrame(()=>{queued=false;if(hasIconSkin())decorate(document);});
  }
  new MutationObserver(schedule).observe(document.documentElement,{subtree:true,childList:true});
  document.addEventListener('zenappearancechange',schedule);

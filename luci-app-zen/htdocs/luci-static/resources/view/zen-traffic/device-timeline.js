@@ -50,10 +50,19 @@ return baseclass.extend({
 		this.routerNow = Number(status?.now || status?.since) || 0;
 		this.loadedAt = Date.now();
 		this.mac = ''; this.request = (this.request || 0) + 1;
-		this.date = E('input', { type: 'date', value: status?.timeline_today || '', max: status?.timeline_today || '',
-			change: () => this.query() });
+		this.pinnedIndex = null; this.lastRangeKey = ''; this.suppressChange = false;
+		const today = status?.timeline_today || '';
+		const minDay = today ? datePicker.shift(today, -29) : '';
+		this.date = E('input', { type: 'date', value: today, min: minDay, max: today,
+			change: () => { if (!this.suppressChange) this.onDateChange('start'); } });
+		this.endDate = E('input', { type: 'date', value: today, min: minDay, max: today,
+			change: () => { if (!this.suppressChange) this.onDateChange('end'); } });
 		this.date.disabled = !this.supported;
-		const dateControl = datePicker.create(this.date, { today: status?.timeline_today });
+		this.endDate.disabled = !this.supported;
+		const dateControl = datePicker.create(this.date, { today });
+		const endDateControl = datePicker.create(this.endDate, { today });
+		this.startDateControl = dateControl;
+		this.endDateControl = endDateControl;
 		this.notice = E('p', { class: 'zen-app-muted', role: 'status' });
 		this.summary = E('div', { class: 'zen-rt-summary' });
 		this.body = E('div');
@@ -62,7 +71,7 @@ return baseclass.extend({
 		this.container = E('section', { id: 'device-hourly', class: 'cbi-section zen-device-timeline', tabindex: '-1' }, [
 			E('h3', {}, _('Hourly device internet usage')),
 			E('div', { class: 'zen-timeline-controls' }, [
-				E('label', { class: 'zen-history-field' }, [_('Date'), dateControl])
+				E('label', { class: 'zen-history-field' }, [_('Date'), dateControl, E('span', { class: 'za-date-sep' }, '至'), endDateControl])
 			]),
 			E('p', { class: 'zen-app-muted' }, _('Router local time · hourly usage retained for 30 days.')),
 			this.notice, this.summary, this.body, this.appUsage
@@ -71,9 +80,58 @@ return baseclass.extend({
 		return this.container;
 	},
 
+	syncPickerLabels() {
+		this.suppressChange = true;
+		try {
+			this.date.dispatchEvent(new Event('change'));
+			this.endDate.dispatchEvent(new Event('change'));
+		} finally {
+			this.suppressChange = false;
+		}
+	},
+
+	onDateChange(which) {
+		const s = this.date.value, e = this.endDate.value;
+		if (s && e && s > e) {
+			if (which === 'start') this.endDate.value = s;
+			else this.date.value = e;
+			this.syncPickerLabels();
+		}
+		this.pinnedIndex = null;
+		this.onRangeChange?.(this.date.value, this.endDate.value);
+		return this.query();
+	},
+
+	setRange(start, end) {
+		if (!this.date || !this.endDate) return;
+		let s = start || this.date.max || '', e = end || s;
+		if (this.date.min && s < this.date.min) s = this.date.min;
+		if (this.date.max && e > this.date.max) e = this.date.max;
+		if (this.date.min && e < this.date.min) e = this.date.min;
+		if (this.date.max && s > this.date.max) s = this.date.max;
+		if (s > e) s = e;
+		this.date.value = s;
+		this.endDate.value = e;
+		this.syncPickerLabels();
+		this.pinnedIndex = null;
+		return this.query();
+	},
+
 	select(mac) {
 		this.mac = mac || '';
+		this.pinnedIndex = null;
 		return this.query();
+	},
+
+	highlightHour(index) {
+		if (!Array.isArray(this._groups)) return;
+		this._groups.forEach((group, i) => group.classList.toggle('is-rate-hover', index != null && i === index));
+	},
+
+	pinHour(index) {
+		if (!this._syncPinned || !Array.isArray(this._rows) || !this._rows[index]) return;
+		this.pinnedIndex = this.pinnedIndex === index ? null : index;
+		this._syncPinned();
 	},
 
 	async query() {
@@ -82,32 +140,98 @@ return baseclass.extend({
 		this.selectedAppHour = null;
 		this.body.replaceChildren(); this.summary.replaceChildren();
 		if (!this.supported) { this.notice.textContent = _('Update the traffic service to enable device time history.'); return; }
-		if (!datePicker.selectable(this.date.value, this.date.min, this.date.max)) { this.notice.textContent = _('Choose a valid date.'); return; }
+		const startStr = this.date.value, endStr = this.endDate?.value || startStr;
+		if (!datePicker.selectable(startStr, this.date.min, this.date.max) ||
+			!datePicker.selectable(endStr, this.endDate?.min, this.endDate?.max) ||
+			startStr > endStr) {
+			this.notice.textContent = _('Choose a valid date.'); return;
+		}
+		const daysList = [];
+		for (let d = startStr; d && d <= endStr && daysList.length < 31; d = datePicker.shift(d, 1)) daysList.push(d);
 		this.notice.textContent = _('Loading history…');
 		try {
-			const reply = await callTimeline(this.mac, this.date.value);
+			const replies = await Promise.all(daysList.map(d => callTimeline(this.mac, d).then(reply => JSON.parse(reply.json))));
 			if (request !== this.request) return;
-			const data = JSON.parse(reply.json);
-			if (data.step !== 3600 || !Array.isArray(data.samples) || data.samples.length > 25 ||
-				!Number.isSafeInteger(data.start) || !Number.isSafeInteger(data.end) ||
-				data.end - data.start < 23 * 3600 || data.end - data.start > 25 * 3600 ||
-				data.samples.some(row => !Number.isSafeInteger(row.time) || row.time < data.start || row.time >= data.end ||
-					(row.time - data.start) % 3600 !== 0 || !Number.isFinite(row.download) || row.download < 0 ||
-					!Number.isFinite(row.upload) || row.upload < 0)) throw Error('response');
-			this.draw(data);
+			for (const data of replies) {
+				if (data.step !== 3600 || !Array.isArray(data.samples) || data.samples.length > 25 ||
+					!Number.isSafeInteger(data.start) || !Number.isSafeInteger(data.end) ||
+					data.end - data.start < 23 * 3600 || data.end - data.start > 25 * 3600 ||
+					data.samples.some(row => !Number.isSafeInteger(row.time) || row.time < data.start || row.time >= data.end ||
+						(row.time - data.start) % 3600 !== 0 || !Number.isFinite(row.download) || row.download < 0 ||
+						!Number.isFinite(row.upload) || row.upload < 0)) throw Error('response');
+			}
+			if (daysList.length === 1) {
+				this.draw(replies[0], daysList);
+			} else {
+				const base = replies[replies.length - 1];
+				const buckets = Array.from({ length: 24 }, () => ({
+					download: 0, upload: 0, dropped: 0, observed: 0,
+					hasP2p: false, recorded: false, available: false, partial: false, future: true, in_progress: false
+				}));
+				for (const dayData of replies) {
+					if (dayData.expired && !dayData.samples.length) continue;
+					const byTime = new Map((dayData.samples || []).map(r => [r.time, r]));
+					for (let time = dayData.start, idx = 0; time < dayData.end && idx < 24; time += 3600, idx++) {
+						const s = byTime.get(time), b = buckets[idx];
+						if (s) {
+							b.download += Number(s.download) || 0;
+							b.upload += Number(s.upload) || 0;
+							if (s.recorded) b.recorded = true;
+							if (s.available) b.available = true;
+							if (s.partial) b.partial = true;
+							if (!s.future) b.future = false;
+							if (s.in_progress) b.in_progress = true;
+							if (s.p2p && Number.isFinite(s.p2p.dropped)) {
+								b.hasP2p = true;
+								b.dropped += s.p2p.dropped;
+								b.observed += Number(s.p2p.observed) || 0;
+							}
+						} else if (time + 3600 <= (dayData.now || base.now || 0)) {
+							b.future = false;
+						}
+					}
+				}
+				const mergedSamples = buckets.map((b, idx) => {
+					const time = base.start + idx * 3600;
+					const label = String(idx).padStart(2, '0') + ':00–' + String(idx + 1).padStart(2, '0') + ':00';
+					return {
+						time, label, download: b.download, upload: b.upload,
+						recorded: b.recorded, available: b.available, partial: b.partial,
+						in_progress: b.in_progress, future: b.future,
+						p2p: b.hasP2p ? { dropped: b.dropped, observed: b.observed } : null
+					};
+				});
+				this.draw({
+					start: base.start, end: base.end, step: 3600, now: base.now,
+					available_from: replies[0].available_from,
+					expired: replies.every(r => r.expired && !r.samples.length),
+					p2p_history: replies.some(r => r.p2p_history === true),
+					samples: mergedSamples
+				}, daysList);
+			}
 		} catch (error) {
 			if (request === this.request) this.notice.textContent = _('Unable to load device time history. Please try again.');
 		}
 	},
 
-	draw(data) {
+	draw(data, daysList) {
+		const days = Array.isArray(daysList) && daysList.length ? daysList : [this.date.value];
+		const isMultiDay = days.length > 1;
+		const startStr = days[0], endStr = days[days.length - 1];
+		const rangeKey = this.mac + '|' + startStr + '|' + endStr;
+		if (this.lastRangeKey !== rangeKey) {
+			this.pinnedIndex = null;
+			this.lastRangeKey = rangeKey;
+		}
 		if (data.expired || !data.samples.length) {
+			this._rows = []; this._groups = []; this._syncPinned = null;
 			this.notice.textContent = data.expired ? _('Time detail is no longer available for this period. Daily totals are kept separately.') :
 				_('No device time records for this period. Older totals cannot be reconstructed.');
+			this.onDataReady?.({ mac: this.mac, startStr, endStr, isMultiDay, days, rows: [], now: 0, pinned: null });
 			return;
 		}
 		this.notice.textContent = '';
-		if (data.available_from > data.start) this.notice.textContent += ' ' + _('This period is only partially recorded.');
+		if (!isMultiDay && data.available_from > data.start) this.notice.textContent += ' ' + _('This period is only partially recorded.');
 		// Also fill sparse hourly responses from previous daemons, without detail RPCs.
 		const byTime = new Map(data.samples.map(row => [row.time, row]));
 		const now = data.now ?? (this.routerNow ? this.routerNow + (Date.now() - this.loadedAt) / 1000 : data.end);
@@ -188,18 +312,59 @@ return baseclass.extend({
 			tip.style.left = Math.max(8, Math.min(x + 12, frame.clientWidth - tip.offsetWidth - 8)) + 'px';
 			tip.style.top = Math.max(8, Math.min(y - tip.offsetHeight - 12, frame.clientHeight - tip.offsetHeight - 8)) + 'px';
 		};
-		const select = (index, ev, showTip = true, refreshApps = false) => {
-			this.chosenHour = rows[index].time; this.chosenMac = this.mac; this.chosenDate = this.date.value;
-			groups.forEach((group, i) => group.setAttribute('aria-pressed', String(i === index)));
-			readout.textContent = describe(rows[index]); tip.textContent = readout.textContent;
+		const rangeLabel = isMultiDay
+			? (startStr.slice(5).replace('-', '/') + ' – ' + endStr.slice(5).replace('-', '/') + '（' + days.length + ' 天汇总）')
+			: (startStr.replaceAll('-', '/') + ' 全天汇总');
+		const rangeParts = [rangeLabel, _('Total') + ' ' + bytes(total.download + total.upload),
+			_('Download') + ' ' + bytes(total.download), _('Upload') + ' ' + bytes(total.upload)];
+		if (p2pHistory && total.blocked != null) rangeParts.push(_('P2P blocked') + ' ' + packets(total.blocked));
+		const rangeSummaryText = rangeParts.join(' · ');
+		const preview = (index, ev, showTip = true) => {
+			if (!rows[index]) return;
+			const text = describe(rows[index]);
+			readout.textContent = text;
+			tip.textContent = text;
 			tip.hidden = !showTip;
 			if (showTip) positionTip(ev);
-			if (this.mac && (refreshApps || this.selectedAppHour !== rows[index].time || this.selectedAppMac !== this.mac || this.selectedAppDate !== this.date.value)) {
-				this.selectedAppHour = rows[index].time; this.selectedAppMac = this.mac; this.selectedAppDate = this.date.value;
-				this.apps.select(this.mac, this.date.value, rows[index]);
-			} else if (!this.mac) {
-				this.apps.clear();
+			this.onHoverHour?.(index);
+		};
+		let readyEmitted = false;
+		const payloadForPin = idx => idx != null && rows[idx] ? { mac: this.mac, startStr, endStr, isMultiDay, index: idx, row: rows[idx] } : null;
+		const syncPinned = () => {
+			const idx = this.pinnedIndex;
+			groups.forEach((group, i) => group.setAttribute('aria-pressed', String(i === idx)));
+			if (idx == null || !rows[idx]) {
+				readout.textContent = rangeSummaryText;
+				const appKey = 'range|' + this.mac + '|' + startStr + '|' + endStr;
+				if (this.selectedAppHour !== appKey) {
+					this.selectedAppHour = appKey;
+					this.apps.selectRange(this.mac, startStr, endStr, { download: total.download, upload: total.upload, label: rangeLabel });
+				}
+			} else {
+				readout.textContent = describe(rows[idx]);
+				if (isMultiDay) {
+					const appKey = 'range|' + this.mac + '|' + startStr + '|' + endStr;
+					if (this.selectedAppHour !== appKey) {
+						this.selectedAppHour = appKey;
+						this.apps.selectRange(this.mac, startStr, endStr, { download: total.download, upload: total.upload, label: rangeLabel });
+					}
+				} else {
+					const appKey = 'hour|' + this.mac + '|' + startStr + '|' + rows[idx].time;
+					if (this.selectedAppHour !== appKey) {
+						this.selectedAppHour = appKey;
+						this.apps.select(this.mac, startStr, rows[idx], () => {
+							this.pinnedIndex = null;
+							syncPinned();
+						});
+					}
+				}
 			}
+			if (readyEmitted) this.onPinChange?.(payloadForPin(idx));
+		};
+		this._rows = rows; this._groups = groups; this._syncPinned = syncPinned;
+		const togglePin = index => {
+			this.pinnedIndex = this.pinnedIndex === index ? null : index;
+			syncPinned();
 		};
 		const width = slot * (showPacketAxis ? .34 : .62);
 		const gap = slot * .12;
@@ -218,33 +383,34 @@ return baseclass.extend({
 					width, height: packetHeight, rx: 2, class: 'zen-timeline-block-bar', 'aria-hidden': 'true' }));
 			}
 			group.appendChild(svg('title', {}, describe(row)));
-			for (const event of ['pointermove', 'focus']) group.addEventListener(event, ev => select(index, ev, false));
-			group.addEventListener('click', ev => select(index, ev, false, true));
+			for (const event of ['pointermove', 'focus']) group.addEventListener(event, ev => preview(index, ev, false));
+			group.addEventListener('click', () => togglePin(index));
 			group.addEventListener('keydown', ev => {
-				if (['Enter', ' '].includes(ev.key)) { ev.preventDefault(); select(index, ev, false, true); }
+				if (['Enter', ' '].includes(ev.key)) { ev.preventDefault(); togglePin(index); }
 				if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(ev.key)) {
 					ev.preventDefault();
 					const next = ev.key === 'Home' ? 0 : ev.key === 'End' ? rows.length - 1 : Math.max(0, Math.min(rows.length - 1, index + (ev.key === 'ArrowLeft' ? -1 : 1)));
 					groups[next].focus();
 				}
-				if (ev.key === 'Escape') tip.hidden = true;
+				if (ev.key === 'Escape') { tip.hidden = true; if (this.pinnedIndex != null) { this.pinnedIndex = null; syncPinned(); } }
 			});
 			groups.push(group); chart.appendChild(group);
 			if(index%4===0||index===rows.length-1)chart.appendChild(svg('text', { x: x + slot / 2, y: H - bottom + 22, 'text-anchor': 'middle', class: 'zen-tf-ax' }, row.label.split('–')[0]));
 		});
-		chart.addEventListener('pointerleave', () => { tip.hidden = true; });
-		chart.addEventListener('focusout', ev => { if (!chart.contains(ev.relatedTarget)) tip.hidden = true; });
+		const restoreReadout = () => {
+			tip.hidden = true;
+			readout.textContent = this.pinnedIndex != null && rows[this.pinnedIndex] ? describe(rows[this.pinnedIndex]) : rangeSummaryText;
+			this.onHoverHour?.(null);
+		};
+		chart.addEventListener('pointerleave', restoreReadout);
+		chart.addEventListener('focusout', ev => { if (!chart.contains(ev.relatedTarget)) restoreReadout(); });
 		const legend = E('div', { class: 'zen-tf-legend' }, [
 			E('span', { class: 'zen-tf-ul' }, _('Upload')), E('span', { class: 'zen-tf-dl' }, _('Download')),
 			...(showPacketAxis ? [E('span', { class: 'zen-timeline-block-legend' }, _('P2P blocked'))] : [])
 		]);
 		this.body.replaceChildren(frame, legend, E('p', { class: 'zen-app-muted zen-timeline-scroll-hint' }, _('Swipe horizontally to view all hours.')), readout);
-		const saved = this.chosenMac === this.mac && this.chosenDate === this.date.value ? rows.findIndex(row => row.time === this.chosenHour) : -1;
-		const initial = saved >= 0 ? saved : rows.findIndex(row => row.in_progress && (row.upload + row.download > 0 || blockedPackets(row) > 0));
-		const busiest = rows.reduce((best, row, index) => {
-			const difference = row.download + row.upload - (rows[best].download + rows[best].upload);
-			return difference > 0 || (difference === 0 && (blockedPackets(row) ?? 0) > (blockedPackets(rows[best]) ?? 0)) ? index : best;
-		}, 0);
-		select(initial >= 0 ? initial : busiest, null, false);
+		syncPinned();
+		readyEmitted = true;
+		this.onDataReady?.({ mac: this.mac, startStr, endStr, isMultiDay, days, rows, now, pinned: payloadForPin(this.pinnedIndex) });
 	}
 });

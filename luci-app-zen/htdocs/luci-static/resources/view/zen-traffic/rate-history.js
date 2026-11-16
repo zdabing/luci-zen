@@ -45,7 +45,7 @@ return baseclass.extend({
   }).catch(() => ({error:true}));
  },
  render(initial) {
-  styles(); trafficStyle.inject(); this.requestId = 0; this.page = 0;
+  styles(); trafficStyle.inject(); this.requestId = 0;
   this.iface = E('select', { 'aria-label': _('Interface') });
   this.range = E('select', {}, [
    ['3600', _('Last hour')], ['86400', _('Last 24 hours')],
@@ -61,12 +61,6 @@ return baseclass.extend({
   this.summary = E('div', {'class':'zen-rt-summary'});
   this.chart = E('div', {'class':'zen-rt-chart'});
   this.note = E('p', {'class':'zen-rt-note','aria-live':'polite'});
-  this.rows = E('tbody');
-  this.previous = E('button', {type:'button','class':'cbi-button'},_('Previous'));
-  this.next = E('button', {type:'button','class':'cbi-button'},_('Next'));
-  this.pageText = E('span');
-  this.previous.addEventListener('click', () => { if(this.page > 0) { this.page--; this.drawTable(); } });
-  this.next.addEventListener('click', () => { if(this.page + 1 < Math.ceil(this.data.samples.length / 20)) { this.page++; this.drawTable(); } });
   this.button.addEventListener('click', () => this.query());
   this.iface.addEventListener('change', () => this.query());
   this.range.addEventListener('change', () => this.setRange());
@@ -81,11 +75,6 @@ return baseclass.extend({
    E('section',{'class':'cbi-section'},[this.summary,
     E('div',{'class':'zen-rt-legend'},[E('span',{'class':'zen-rt-ul'},'┄ '+_('Upload')),E('span',{'class':'zen-rt-dl'},'— '+_('Download')),E('span',{},_('Independent scales'))]),
     this.chart,this.note
-   ]),
-   E('section',{'class':'cbi-section'},[
-    E('table',{'class':'table zen-rt-table'},[
-     E('thead',{},E('tr',{},[_('Time'),_('Download rate'),_('Upload rate')].map(label=>E('th',{scope:'col'},label)))),this.rows
-    ]),E('div',{'class':'zen-rt-pagination'},[this.previous,this.pageText,this.next])
    ])
   ]);
   if(initial.data) this.showData(initial.data);
@@ -140,7 +129,7 @@ return baseclass.extend({
   }
  },
  showData(data) {
-  this.data=Object.assign({samples:[],interfaces:[],step:5},data);this.page=0;
+  this.data=Object.assign({samples:[],interfaces:[],step:5},data);
   const selected=data.interface || this.iface.value;
   this.iface.replaceChildren(...this.data.interfaces.map(name=>E('option',{value:name},name)));
   this.iface.value=selected;
@@ -149,7 +138,7 @@ return baseclass.extend({
    [_('Maximum displayed upload'), Math.max(0,...this.data.samples.map(s=>s.upload)), 'zen-rt-ul']
   ].map(([label,value,cls])=>E('div',{},[E('span',{},label),E('strong',{'class':cls},rate(value))])));
   this.note.textContent=_('%d points · %d-second intervals').format(this.data.samples.length,this.data.step);
-  this.drawChart();this.drawTable();
+  this.drawChart();
  },
  drawChart() {
   if(!this.data) return;
@@ -214,14 +203,6 @@ return baseclass.extend({
   chart.addEventListener('pointerleave',()=>{tip.hidden=true;cross.setAttribute('visibility','hidden');});
   select(samples[samples.length-1]);tip.hidden=true;cross.setAttribute('visibility','hidden');
   this.chart.appendChild(tip);this.chart.appendChild(chart);this.chart.appendChild(readout);
- },
- drawTable() {
-  const samples=this.data.samples, pages=Math.max(1,Math.ceil(samples.length/20));
-  this.rows.replaceChildren(...samples.slice(this.page*20,this.page*20+20).map(s=>E('tr',{},[
-   E('td',{},new Date(s.time*1000).toLocaleString()),E('td',{'class':'zen-rt-dl'},rate(s.download)),E('td',{'class':'zen-rt-ul'},rate(s.upload))
-  ])));
-  this.previous.disabled=this.page===0;this.next.disabled=this.page>=pages-1;
-  this.pageText.textContent='%d / %d'.format(this.page+1,pages);
  },
  handleSaveApply:null,handleSave:null,handleReset:null
 });

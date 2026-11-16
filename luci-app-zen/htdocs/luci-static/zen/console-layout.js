@@ -24,10 +24,10 @@
    if(key===page)link.setAttribute('aria-current','page');nav.append(link);
   }
   view.before(nav);
+  // The active nav tab already names the page; keep the heading for screen readers only.
   if(page!=='dashboard'){
-   const heading=document.createElement('div');heading.className='rf-page-head';
-   const h1=document.createElement('h1');h1.textContent=title;heading.append(h1);
-   view.before(heading);
+   const h1=document.createElement('h1');h1.textContent=title;h1.className='zc-sr-only';
+   view.before(h1);
   }
   observer.disconnect();
  }

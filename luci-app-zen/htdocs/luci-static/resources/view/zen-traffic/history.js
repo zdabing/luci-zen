@@ -2,7 +2,6 @@
 'require view';
 'require rpc';
 'require ui';
-'require view.zen-traffic.device-reset as deviceReset';
 'require view.zen-traffic.rate-history as rateHistory';
 'require view.zen-traffic.device-timeline as deviceTimeline';
 'require view.zen-traffic.style as trafficStyle';
@@ -195,9 +194,6 @@ return view.extend({
 			this.refresh();
 		}}, [internetOption,E('option',{value:'all'},_('Internet + local (existing history)'))]);
 		scope.value = this.scope;
-		this.resetView = Object.create(deviceReset);
-		const reset = this.resetView.build(devs, () => this.mac, () => this.refresh());
-		this.resetButton = reset;
 		this.rateView = Object.create(rateHistory);
 		this.timelineView = Object.create(deviceTimeline);
 
@@ -208,7 +204,7 @@ return view.extend({
 			E('div', { 'class': 'cbi-section zen-history-controls' }, [
 				E('label', { 'class': 'zen-history-field', 'for': 'zen-tf-history-device' }, [_('Device'), sel]),
 				E('div', { 'class': 'zen-history-actions' }, [
-					tabs, E('label', { 'class': 'zen-history-field' }, [_('Traffic scope'), scope]), reset
+					tabs, E('label', { 'class': 'zen-history-field' }, [_('Traffic scope'), scope])
 				])
 			]),
 			E('div', { 'class': 'cbi-section' },

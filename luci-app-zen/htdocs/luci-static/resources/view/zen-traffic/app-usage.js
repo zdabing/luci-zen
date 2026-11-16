@@ -1,7 +1,6 @@
 'use strict';
 'require baseclass';
 'require rpc';
-'require view.zen-traffic.dpi-controls as dpiControls';
 'require view.zen.zen-brand-icons as brandIcons';
 
 const callUsage = rpc.declare({ object: 'zen.traffic', method: 'getAppUsage', params: ['mac', 'date', 'hour'], reject: true });
@@ -31,41 +30,68 @@ return baseclass.extend({
 		this.supported = !!status?.app_usage;
 		this.hasRates=!!status?.app_realtime;this.mode='all';this.expandedKey=null;this.rates=new Map();
 		this.request = 0;
+		this.today = status?.timeline_today || '';
+		this.onUnpin = null;
 		this.title = E('h4', {}, _('Application usage'));
+		this.unpinBtn = E('button', { type: 'button', class: 'za-text-button zen-app-unpin', hidden: true, click: () => this.onUnpin?.() }, '返回全天汇总 ×');
+		this.head = E('div', { class: 'zen-app-head' }, [this.title, this.unpinBtn]);
 		this.notice = E('p', { class: 'zen-app-muted', role: 'status' });
 		this.body = E('div', { class: 'zen-app-usage-body' });
-		this.controls=dpiControls.render(status);
-		this.container = E('div', { class: 'zen-app-usage' }, [this.title, this.notice, this.body,this.controls]);
+		this.container = E('div', { class: 'zen-app-usage' }, [this.head, this.notice, this.body]);
 		return this.container;
 	},
 
 	clear() {
 		clearTimeout(this.timer); this.request++;
+		this.onUnpin = null;
+		if (this.unpinBtn) this.unpinBtn.hidden = true;
 		this.body?.replaceChildren();
 		if (this.container) this.container.hidden = true;
 		if (this.notice) this.notice.textContent = '';
 	},
 
-	select(mac, date, row) {
+	selectRange(mac, startDate, endDate, summaryRow) {
+		return this._loadUsage(mac, startDate, {
+			...summaryRow,
+			queryHour: endDate || startDate,
+			available: true,
+			future: false,
+			time: 0
+		}, null);
+	},
+
+	select(mac, date, row, onUnpin) {
+		return this._loadUsage(mac, date, {
+			...row,
+			queryHour: String(row?.time || 0)
+		}, onUnpin || null);
+	},
+
+	_loadUsage(mac, date, row, onUnpin) {
 		this.clear();
-		this.expandedKey=null;this.rates=new Map();dpiControls.setDevice(mac);
+		this.expandedKey=null;this.rates=new Map();this.onUnpin=onUnpin||null;
+		if (this.unpinBtn) this.unpinBtn.hidden = !this.onUnpin;
 		this.container.hidden = false;
 		this.title.textContent = _('Application usage') + (row?.label ? ' · ' + row.label : '');
 		if (!this.supported) { this.notice.textContent = _('Update the traffic service to enable application usage.'); return; }
-		if (!mac || !row?.available || row.future) { this.notice.textContent = _('No application records for this hour.'); return; }
+		if (mac == null || !row?.available || row.future) { this.notice.textContent = _('No application records for this hour.'); return; }
 		this.notice.textContent = _('Loading application usage…');
 		const request = this.request;
+		const isRange = row.time === 0;
+		const queryHour = String(row.queryHour ?? row.time);
+		const nowSec = Date.now() / 1000;
+		const includesNow = isRange ? (!this.today || (date <= this.today && queryHour >= this.today)) : (row.time <= nowSec && nowSec < row.time + 3600);
 		const load = async () => {
 			if (request !== this.request || !this.container.isConnected) return;
 			try {
-				const [reply,rateReply] = await Promise.all([callUsage(mac,date,String(row.time)),this.hasRates&&row.time<=Date.now()/1000&&Date.now()/1000<row.time+3600?callRates(mac).catch(()=>null):Promise.resolve(null)]);
+				const [reply,rateReply] = await Promise.all([callUsage(mac,date,queryHour),this.hasRates&&includesNow?callRates(mac).catch(()=>null):Promise.resolve(null)]);
 				if (request !== this.request || !this.container.isConnected) return;
 				const data = JSON.parse(reply.json);
-				if (data.mac !== mac || data.date !== date || data.hour !== row.time || !Array.isArray(data.applications) ||
+				if ((data.mac || '') !== (mac || '') || data.date !== date || (isRange ? data.hour !== 0 : data.hour !== row.time) || !Array.isArray(data.applications) ||
 					data.applications.length > 2048 || data.applications.some(app => !Number.isInteger(app.id) || app.id < 0 || app.id > 4294967295 ||
 						typeof app.name !== 'string' || app.name.length > 64 || ![app.download, app.upload].every(n => Number.isFinite(n) && n >= 0))) throw Error('response');
 				this.rates=new Map();
-				try{const rate=rateReply?JSON.parse(rateReply.json):null;if(rate?.mac===mac&&rate.age_ms<10000&&Array.isArray(rate.applications)&&rate.applications.length<=2048)for(const item of rate.applications)if([item.download,item.upload].every(n=>Number.isFinite(n)&&n>=0))this.rates.set(item.id,item);}catch(_error){}
+				try{const rate=rateReply?JSON.parse(rateReply.json):null;if((rate?.mac||'')===(mac||'')&&rate.age_ms<10000&&Array.isArray(rate.applications)&&rate.applications.length<=2048)for(const item of rate.applications)if([item.download,item.upload].every(n=>Number.isFinite(n)&&n>=0))this.rates.set(item.id,item);}catch(_error){}
 				this.data=data;
 				this.draw(data);
 				if (data.in_progress || (data.breakdown?.pending?.download || 0) + (data.breakdown?.pending?.upload || 0) > 0) {
