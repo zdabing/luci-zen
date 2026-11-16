@@ -133,7 +133,7 @@ return baseclass.extend({
 				E('div',{},[E('span',{},_('Recorded total')),E('strong',{},bytes(total))])
 			]));
 		}
-		this.body.appendChild(E('div',{class:'zen-app-filter',role:'group','aria-label':_('Application ranking')},[['all',_('All applications')],['video',_('Video ranking')],['download','网盘与下载'],['social','社交与购物'],['game','游戏与服务']].map(([mode,label])=>E('button',{type:'button','aria-pressed':String(this.mode===mode),class:this.mode===mode?'is-active':'',click:()=>{this.mode=mode;this.draw(data);}},label))));
+		this.body.appendChild(E('div',{class:'zen-app-filter zen-segmented zu-periods',role:'group','aria-label':_('Application ranking')},[['all',_('All applications')],['video',_('Video ranking')],['download','网盘与下载'],['social','社交与购物'],['game','游戏与服务']].map(([mode,label])=>E('button',{type:'button','aria-pressed':String(this.mode===mode),class:this.mode===mode?'is-active':'',click:()=>{this.mode=mode;this.draw(data);}},label))));
 		if (!rows.length) { this.body.appendChild(E('p', { class: 'zen-app-muted' }, _('No application records for this hour.'))); return; }
 		this.body.appendChild(E('table', { class: 'table zen-app-usage-table' }, [
 			E('thead', {}, E('tr', {}, [_('Application / service'), _('Upload'), _('Download'), _('Total')].map(label => E('th', {}, label)))),

@@ -80,7 +80,7 @@
 .zen-console .za-total-label{font-size:12px;margin-bottom:4px}
 .zen-console .za-total{font-size:32px;letter-spacing:-.7px;line-height:1.2;white-space:nowrap}
 .zen-console .za-total small{font-size:13px;margin-left:6px}
-.zen-console .za-totals-directions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;margin:0}
+.zen-console .za-totals-directions{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:0;margin:0}
 .zen-console .za-totals-directions>div{border-left:1px solid var(--line);padding-left:24px}
 .zen-console .za-totals-directions span{font-size:12px;margin-bottom:4px}
 .zen-console .za-totals-directions strong{font-size:27px;font-weight:600;white-space:nowrap}
@@ -155,9 +155,9 @@
 .zen-app-coverage>div{display:flex;flex-direction:column;gap:4px;min-width:0}
 .zen-app-coverage span{color:var(--text-secondary);font-size:12px;line-height:1.5}
 .zen-app-coverage strong{font-size:19px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
-.zen-app-filter{display:flex;gap:4px;margin-bottom:10px;border-bottom:1px solid var(--line,#e0e5df)}
-.zen-app-filter button{border:0;border-bottom:2px solid transparent;background:transparent;padding:9px 12px;color:var(--text-secondary);cursor:pointer;font:inherit}
-.zen-app-filter button.is-active{color:var(--primary,#1d7e62);border-bottom-color:currentColor;font-weight:600}
+.zen-app-filter{display:inline-flex;flex-wrap:wrap;gap:2px;margin-bottom:12px;padding:3px;border:0;border-radius:10px;background:var(--bg-base,#eef0ea)}
+.zen-app-filter button{min-height:32px;padding:6px 14px;border:0;border-radius:7px;background:none;color:var(--text-secondary,#4f5d55);cursor:pointer;font:inherit;font-size:13px;white-space:nowrap}
+.zen-app-filter button:is(.is-active,[aria-pressed=true]){background:var(--bg-panel,#fbfbf8);color:var(--accent,#1f7a5a);box-shadow:0 1px 4px #0002;font-weight:600}
 .zen-app-source{display:block;max-width:100%;padding:3px 0;border:0;background:transparent;color:var(--text-secondary);font:inherit;font-size:11px;text-align:left;white-space:normal;cursor:pointer}
 .zen-app-source:hover{text-decoration:underline;color:var(--primary,#1d7e62)}
 .zen-console .zen-app-usage-table .zen-app-source{display:inline-flex;align-items:center;min-height:26px;height:auto;line-height:1.3;margin:0 0 0 6px;padding:2px 4px;border-radius:4px;background:var(--bg-input)}
