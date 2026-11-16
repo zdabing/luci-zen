@@ -4,7 +4,7 @@
 # 只打 .apk 包（OpenWrt 25 默认 apk 包管理器）。必须走 SDK 交叉编译（rust-package.mk 导出 target cargo/linker、
 # bpf.mk 走 llvm-bpf 工具链），不允许用普通 Linux binary 代替。
 #
-# 标签发布和手动构建默认同时构建 x86/64 和 rockchip/armv8。
+# 标签发布和手动构建默认同时构建 x86/64、rockchip/armv8 和 mediatek/filogic。
 # 不同版本/目标使用独立签名软件源。
 name: SDK Build
 
@@ -17,8 +17,8 @@ on:
         description: 'OpenWrt release version'
         default: '25.12.5'
       sdk_target:
-        description: 'SDK targets: both = x86/64 + rockchip/armv8; or one target/subtarget'
-        default: 'both'
+        description: 'SDK targets: all = x86/64 + rockchip/armv8 + mediatek/filogic; both = x86/64 + rockchip/armv8; or one target/subtarget'
+        default: 'all'
       publish_repository:
         description: 'Publish signed SDK-specific APK feed (requires ZEN_APK_SIGNING_KEY secret)'
         type: boolean
@@ -50,7 +50,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        sdk_target: ${{ inputs.sdk_target && inputs.sdk_target != 'both' && fromJSON(format('["{0}"]', inputs.sdk_target)) || fromJSON('["x86/64","rockchip/armv8"]') }}
+        sdk_target: ${{ inputs.sdk_target == 'both' && fromJSON('["x86/64","rockchip/armv8"]') || ((!inputs.sdk_target || inputs.sdk_target == 'all') && fromJSON('["x86/64","rockchip/armv8","mediatek/filogic"]') || fromJSON(format('["{0}"]', inputs.sdk_target))) }}
     env:
       SDK_VERSION: ${{ inputs.sdk_version || '25.12.5' }}
       SDK_TARGET: ${{ matrix.sdk_target }}
@@ -289,14 +289,15 @@ jobs:
       - name: Verify release assets
         run: |
           count=$(find release-assets -mindepth 2 -maxdepth 2 -name zen-update.json | wc -l)
-          test "$count" -eq "${{ inputs.sdk_target && inputs.sdk_target != 'both' && 1 || 2 }}"
+          expected="${{ inputs.sdk_target == 'both' && 2 || ((!inputs.sdk_target || inputs.sdk_target == 'all') && 3 || 1) }}"
+          test "$count" -eq "$expected"
           test "$(find release-assets -type f -name '*.apk' | wc -l)" -eq "$((count * 2))"
           find release-assets -type f -name '*.apk' -print
 
       - name: Prepare release notes
         env:
           RELEASE_SDK: ${{ inputs.sdk_version || '25.12.5' }}
-          RELEASE_TARGET: ${{ inputs.sdk_target && inputs.sdk_target != 'both' && inputs.sdk_target || 'x86/64, rockchip/armv8' }}
+          RELEASE_TARGET: ${{ inputs.sdk_target == 'both' && 'x86/64, rockchip/armv8' || ((!inputs.sdk_target || inputs.sdk_target == 'all') && 'x86/64, rockchip/armv8, mediatek/filogic' || inputs.sdk_target) }}
         run: |
           python3 scripts/make-release-notes.py --tag "$RELEASE_TAG" \
             --sdk-version "$RELEASE_SDK" --target "$RELEASE_TARGET" --commit "$GITHUB_SHA"
@@ -328,7 +329,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        sdk_target: ${{ inputs.sdk_target && inputs.sdk_target != 'both' && fromJSON(format('["{0}"]', inputs.sdk_target)) || fromJSON('["x86/64","rockchip/armv8"]') }}
+        sdk_target: ${{ inputs.sdk_target == 'both' && fromJSON('["x86/64","rockchip/armv8"]') || ((!inputs.sdk_target || inputs.sdk_target == 'all') && fromJSON('["x86/64","rockchip/armv8","mediatek/filogic"]') || fromJSON(format('["{0}"]', inputs.sdk_target))) }}
     concurrency:
       group: zen-feed-${{ inputs.sdk_version }}-${{ matrix.sdk_target }}
       cancel-in-progress: false

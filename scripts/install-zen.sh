@@ -11,11 +11,17 @@ case "$scope" in
 esac
 command -v apk >/dev/null
 . /etc/openwrt_release
-[ "$DISTRIB_ID" = OpenWrt ] || {
-  echo 'This feed supports official OpenWrt releases. Custom/ImmortalWrt builds need their own validated feed.' >&2
+case "${DISTRIB_ID:-}" in
+  OpenWrt|ImmortalWrt) ;;
+  *)
+    echo "Unsupported distribution: ${DISTRIB_ID:-unknown} (OpenWrt 25 / ImmortalWrt 25 required)." >&2
+    exit 1
+    ;;
+esac
+printf '%s\n' "${DISTRIB_RELEASE:-}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || {
+  echo "Release '${DISTRIB_RELEASE:-unknown}' has no signed APK feed tag; install matching .apk packages manually with: apk add --allow-untrusted /tmp/luci-zen-*.apk /tmp/luci-app-zen-*.apk" >&2
   exit 1
 }
-printf '%s\n' "$DISTRIB_RELEASE" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'
 printf '%s\n' "$DISTRIB_TARGET" | grep -Eq '^[a-z0-9_-]+/[a-z0-9_-]+$'
 printf '%s\n' "$fingerprint" | grep -Eq '^[a-f0-9]{64}$'
 [ "$(sha256sum "$key" | cut -d ' ' -f 1)" = "$fingerprint" ] || {

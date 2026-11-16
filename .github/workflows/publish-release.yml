@@ -8,7 +8,7 @@ on:
         required: true
         default: 'v0.2.1'
       build_run_id:
-        description: 'SDK Build run with successful x86/64 and rockchip/armv8 artifacts'
+        description: 'SDK Build run with successful target artifacts'
         required: true
 
 permissions:
@@ -59,8 +59,9 @@ jobs:
           if target['type'] != 'commit' or target['sha'] != run['head_sha']:
               raise SystemExit('Tag and source build must refer to the same commit')
           jobs = get('/actions/runs/' + run_id + '/jobs?per_page=100')['jobs']
+          built = [job for job in jobs if job['name'].startswith('SDK build Zen suite (') and job['conclusion'] == 'success']
           for name in ('SDK build Zen suite (x86/64)', 'SDK build Zen suite (rockchip/armv8)'):
-              if not any(job['name'] == name and job['conclusion'] == 'success' for job in jobs):
+              if not any(job['name'] == name for job in built):
                   raise SystemExit('Missing successful target build: ' + name)
           with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
               output.write('sha=' + run['head_sha'] + '\n')
@@ -94,11 +95,12 @@ jobs:
           spec.loader.exec_module(module)
           metadata = module.merge_builds(root, assets, os.environ['RELEASE_TAG'])
           builds = [metadata, *metadata.get('builds', [])]
-          if {build['target'] for build in builds} != {'x86/64', 'rockchip/armv8'}:
-              raise SystemExit('Both supported targets are required')
+          targets = sorted({build['target'] for build in builds})
+          if not {'x86/64', 'rockchip/armv8'}.issubset(targets):
+              raise SystemExit('x86/64 and rockchip/armv8 targets are required')
           files = sorted(assets.glob('*/*.apk'), key=lambda file: file.name)
-          if len(files) != 4 or len({file.name for file in files}) != 4:
-              raise SystemExit('Expected four distinct APKs')
+          if len(files) != len(targets) * 2 or len({file.name for file in files}) != len(files):
+              raise SystemExit('Expected two distinct APKs per target')
           body = json.dumps(metadata, ensure_ascii=False, separators=(',', ':'))
           (assets / 'zen-update.json').write_text(body + '\n', encoding='utf-8')
           import hashlib
@@ -109,7 +111,7 @@ jobs:
           import subprocess
           subprocess.run(['python3', 'scripts/make-release-notes.py',
               '--tag', os.environ['RELEASE_TAG'], '--sdk-version', sdk,
-              '--target', 'x86/64, rockchip/armv8', '--commit', os.environ['BUILD_SHA'],
+              '--target', ', '.join(targets), '--commit', os.environ['BUILD_SHA'],
               '--source-build', os.environ['BUILD_RUN_ID']], check=True)
           notes = (root / 'release-notes.md').read_text(encoding='utf-8')
           notes += '\n<!-- zen-update-metadata\n' + body + '\n-->\n'
