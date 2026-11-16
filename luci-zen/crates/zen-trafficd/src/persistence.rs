@@ -888,13 +888,16 @@ impl Db {
         } else {
             query.query(params![mac, start as i64, end as i64]).map_err(|e| e.to_string())?
         };
-        while let Some(r) = rows.next().map_err(|e| e.to_string())? {
-            let app: u32 = r.get(0).map_err(|e| e.to_string())?;
-            out.insert(app, crate::app_usage::AppBytes {
-                name: r.get(1).map_err(|e| e.to_string())?,
-                identified: nonnegative(r, 2)? != 0,
+        let parse = |r: &rusqlite::Row<'_>| -> rusqlite::Result<_> {
+            Ok((r.get::<_, u32>(0)?, crate::app_usage::AppBytes {
+                name: r.get(1)?,
+                identified: r.get::<_, i64>(2)? != 0,
                 bytes: crate::wan::Bytes { download: nonnegative(r, 3)?, upload: nonnegative(r, 4)? },
-            });
+            }))
+        };
+        while let Some(r) = rows.next().map_err(|e| e.to_string())? {
+            let (app, entry) = parse(r).map_err(|e| e.to_string())?;
+            out.insert(app, entry);
         }
         Ok(out)
     }
@@ -912,13 +915,13 @@ impl Db {
         } else {
             query.query(params![mac, start as i64, end as i64]).map_err(|e| e.to_string())?
         };
+        let parse = |r: &rusqlite::Row<'_>| -> rusqlite::Result<_> {
+            Ok(((r.get::<_, u32>(0)?, r.get::<_, String>(1)?, r.get::<_, String>(2)?),
+                crate::wan::Bytes { download: nonnegative(r, 3)?, upload: nonnegative(r, 4)? }))
+        };
         while let Some(r) = rows.next().map_err(|e| e.to_string())? {
-            let key = (
-                r.get(0).map_err(|e| e.to_string())?,
-                r.get(1).map_err(|e| e.to_string())?,
-                r.get(2).map_err(|e| e.to_string())?,
-            );
-            out.insert(key, crate::wan::Bytes { download: nonnegative(r, 3)?, upload: nonnegative(r, 4)? });
+            let (key, bytes) = parse(r).map_err(|e| e.to_string())?;
+            out.insert(key, bytes);
         }
         Ok(out)
     }
