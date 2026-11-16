@@ -666,6 +666,23 @@ impl Db {
         rows.collect::<Result<_, _>>().map_err(|e| e.to_string())
     }
 
+    pub fn device_timeline_total(&self, mac: &str, start: u64, end: u64) -> Result<crate::wan::Bytes, String> {
+        let row = if mac.is_empty() {
+            self.conn.query_row(
+                "SELECT COALESCE(SUM(download),0),COALESCE(SUM(upload),0) FROM device_usage_hour WHERE time>=?1 AND time<?2",
+                params![start as i64, end as i64],
+                |r| Ok(crate::wan::Bytes { download: nonnegative(r, 0)?, upload: nonnegative(r, 1)? }),
+            )
+        } else {
+            self.conn.query_row(
+                "SELECT COALESCE(SUM(download),0),COALESCE(SUM(upload),0) FROM device_usage_hour WHERE mac=?1 AND time>=?2 AND time<?3",
+                params![mac, start as i64, end as i64],
+                |r| Ok(crate::wan::Bytes { download: nonnegative(r, 0)?, upload: nonnegative(r, 1)? }),
+            )
+        };
+        row.map_err(|e| e.to_string())
+    }
+
     fn write_p2p_timeline(&self, timeline: &crate::timeline::DeviceTimeline, now: u64) -> Result<u64, String> {
         let cutoff = timeline.p2p_keep_from(now);
         let mut insert = self.conn.prepare_cached(
@@ -833,6 +850,14 @@ impl Db {
     }
 
     pub fn app_usage(&self, mac: &str, hour: u64) -> Result<std::collections::BTreeMap<u32,crate::app_usage::AppBytes>, String> {
+        if mac.is_empty() {
+            let mut query = self.conn.prepare("SELECT app,MAX(name),MAX(identified),SUM(download),SUM(upload) FROM device_app_hour
+                WHERE time=?1 GROUP BY app ORDER BY app").map_err(|e| e.to_string())?;
+            let rows = query.query_map(params![hour as i64], |r| Ok((r.get(0)?,crate::app_usage::AppBytes {
+                name:r.get(1)?, identified:r.get::<_, i64>(2)? != 0, bytes:crate::wan::Bytes { download:nonnegative(r,3)?,upload:nonnegative(r,4)? },
+            }))).map_err(|e| e.to_string())?;
+            return rows.collect::<Result<_, _>>().map_err(|e| e.to_string());
+        }
         let mut query = self.conn.prepare("SELECT app,name,identified,download,upload FROM device_app_hour
             WHERE mac=?1 AND time=?2 ORDER BY app").map_err(|e| e.to_string())?;
         let rows = query.query_map(params![mac,hour as i64], |r| Ok((r.get(0)?,crate::app_usage::AppBytes {
@@ -842,8 +867,60 @@ impl Db {
     }
 
     pub fn app_origins(&self,mac:&str,hour:u64)->Result<std::collections::BTreeMap<(u32,String,String),crate::wan::Bytes>,String>{
+        if mac.is_empty() {
+            let mut query=self.conn.prepare("SELECT app,source,version,SUM(download),SUM(upload) FROM device_app_origin_hour WHERE time=?1 GROUP BY app,source,version ORDER BY app,source,version LIMIT 8192").map_err(|e|e.to_string())?;
+            return query.query_map(params![hour as i64],|r|Ok(((r.get(0)?,r.get(1)?,r.get(2)?),crate::wan::Bytes {download:nonnegative(r,3)?,upload:nonnegative(r,4)?}))).map_err(|e|e.to_string())?.collect::<Result<_,_>>().map_err(|e|e.to_string());
+        }
         let mut query=self.conn.prepare("SELECT app,source,version,download,upload FROM device_app_origin_hour WHERE mac=?1 AND time=?2 ORDER BY app,source,version LIMIT 8192").map_err(|e|e.to_string())?;
         query.query_map(params![mac,hour as i64],|r|Ok(((r.get(0)?,r.get(1)?,r.get(2)?),crate::wan::Bytes {download:nonnegative(r,3)?,upload:nonnegative(r,4)?}))).map_err(|e|e.to_string())?.collect::<Result<_,_>>().map_err(|e|e.to_string())
+    }
+
+    pub fn app_usage_range(&self, mac: &str, start: u64, end: u64) -> Result<std::collections::BTreeMap<u32,crate::app_usage::AppBytes>, String> {
+        let mut out = std::collections::BTreeMap::new();
+        let sql = if mac.is_empty() {
+            "SELECT app,MAX(name),MAX(identified),SUM(download),SUM(upload) FROM device_app_hour WHERE time>=?1 AND time<?2 GROUP BY app ORDER BY app"
+        } else {
+            "SELECT app,MAX(name),MAX(identified),SUM(download),SUM(upload) FROM device_app_hour WHERE mac=?1 AND time>=?2 AND time<?3 GROUP BY app ORDER BY app"
+        };
+        let mut query = self.conn.prepare(sql).map_err(|e| e.to_string())?;
+        let mut rows = if mac.is_empty() {
+            query.query(params![start as i64, end as i64]).map_err(|e| e.to_string())?
+        } else {
+            query.query(params![mac, start as i64, end as i64]).map_err(|e| e.to_string())?
+        };
+        while let Some(r) = rows.next().map_err(|e| e.to_string())? {
+            let app: u32 = r.get(0).map_err(|e| e.to_string())?;
+            out.insert(app, crate::app_usage::AppBytes {
+                name: r.get(1).map_err(|e| e.to_string())?,
+                identified: nonnegative(r, 2)? != 0,
+                bytes: crate::wan::Bytes { download: nonnegative(r, 3)?, upload: nonnegative(r, 4)? },
+            });
+        }
+        Ok(out)
+    }
+
+    pub fn app_origins_range(&self, mac: &str, start: u64, end: u64) -> Result<std::collections::BTreeMap<(u32,String,String),crate::wan::Bytes>, String> {
+        let mut out = std::collections::BTreeMap::new();
+        let sql = if mac.is_empty() {
+            "SELECT app,source,version,SUM(download),SUM(upload) FROM device_app_origin_hour WHERE time>=?1 AND time<?2 GROUP BY app,source,version ORDER BY app,source,version LIMIT 8192"
+        } else {
+            "SELECT app,source,version,SUM(download),SUM(upload) FROM device_app_origin_hour WHERE mac=?1 AND time>=?2 AND time<?3 GROUP BY app,source,version ORDER BY app,source,version LIMIT 8192"
+        };
+        let mut query = self.conn.prepare(sql).map_err(|e| e.to_string())?;
+        let mut rows = if mac.is_empty() {
+            query.query(params![start as i64, end as i64]).map_err(|e| e.to_string())?
+        } else {
+            query.query(params![mac, start as i64, end as i64]).map_err(|e| e.to_string())?
+        };
+        while let Some(r) = rows.next().map_err(|e| e.to_string())? {
+            let key = (
+                r.get(0).map_err(|e| e.to_string())?,
+                r.get(1).map_err(|e| e.to_string())?,
+                r.get(2).map_err(|e| e.to_string())?,
+            );
+            out.insert(key, crate::wan::Bytes { download: nonnegative(r, 3)?, upload: nonnegative(r, 4)? });
+        }
+        Ok(out)
     }
 
     pub fn wan_window(&self) -> Result<Option<(u64, u64, u64)>, String> {

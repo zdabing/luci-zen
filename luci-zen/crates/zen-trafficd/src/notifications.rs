@@ -201,26 +201,18 @@ impl Notifications {
             let value = match rule.metric.as_str() { "upload" => usage.upload, "download" => usage.download,
                 _ => usage.download.saturating_add(usage.upload) };
             if value < rule.bytes { continue; }
-            let name = if rule.mac.is_empty() { "整个网络".to_owned() } else {
-                crate::daemon::parse_mac(&rule.mac).and_then(|m| devs.get(&m))
-                    .and_then(|d| d.host.clone().or(d.ip4.clone())).unwrap_or(rule.mac.clone())
-            };
+            let name = if rule.mac.is_empty() { "整个网络" } else { device_label(devs, &rule.mac) };
             let metric = match rule.metric.as_str() { "upload" => "上传", "download" => "下载", _ => "总用量" };
-            let text = format!("Zen 流量提醒\n{day} · {name}\n今日互联网{metric}已达 {}，设定值 {}\n上传 {} · 下载 {}\n{}",
+            let mut text = format!("Zen 流量提醒\n{day} · {name}\n今日互联网{metric}已达 {}，设定值 {}\n上传 {} · 下载 {}\n{}",
                 format_bytes(value), format_bytes(rule.bytes), format_bytes(usage.upload), format_bytes(usage.download), coverage(wan, &day));
+            append_top_devices(&mut text, wan, devs, &day);
             self.enqueue(&day, &rule.id, "threshold", &text, now, None);
         }
         if self.settings.daily_enabled && local_minute(now) >= minute(&self.settings.daily_time).unwrap() {
             let usage = wan.today("");
-            let mut text = format!("Zen 每日流量报告\n{day} · 截至路由器本地时间 {:02}:{:02}\n整个网络：上传 {} · 下载 {}\n{}\n设备互联网用量前五：",
+            let mut text = format!("Zen 每日流量报告\n{day} · 截至路由器本地时间 {:02}:{:02}\n整个网络：上传 {} · 下载 {}\n{}",
                 local_minute(now)/60, local_minute(now)%60, format_bytes(usage.upload), format_bytes(usage.download), coverage(wan, &day));
-            let mut devices: Vec<_> = wan.daily.iter().filter(|((d, mac), _)| d == &day && !mac.is_empty()).collect();
-            devices.sort_by_key(|(_, b)| std::cmp::Reverse(b.download.saturating_add(b.upload)));
-            for ((_, mac), b) in devices.iter().take(5) {
-                let name = crate::daemon::parse_mac(mac).and_then(|m| devs.get(&m)).and_then(|d| d.host.as_deref()).unwrap_or(mac);
-                text.push_str(&format!("\n{}：↑ {} · ↓ {}", name, format_bytes(b.upload), format_bytes(b.download)));
-            }
-            if devices.is_empty() { text.push_str("\n暂无设备流量"); }
+            append_top_devices(&mut text, wan, devs, &day);
             self.enqueue(&day, "daily-report", "daily", &text, now, None);
         }
     }
@@ -304,6 +296,19 @@ fn format_bytes(bytes: u64) -> String {
 fn coverage(wan: &WanUsage, day: &str) -> &'static str {
     if local_date(wan.daily_since) == day { "今日记录从功能启用时开始，未满整日；不含局域网传输。" }
     else { "统计范围：互联网流量，不含局域网传输。" }
+}
+fn device_label<'a>(devs: &'a HashMap<MacKey, DevState>, mac: &'a str) -> &'a str {
+    crate::daemon::parse_mac(mac).and_then(|m| devs.get(&m))
+        .and_then(|d| d.host.as_deref().or(d.ip4.as_deref())).unwrap_or(mac)
+}
+fn append_top_devices(text: &mut String, wan: &WanUsage, devs: &HashMap<MacKey, DevState>, day: &str) {
+    text.push_str("\n设备互联网用量前五：");
+    let mut devices: Vec<_> = wan.daily.iter().filter(|((d, mac), _)| d == day && !mac.is_empty()).collect();
+    devices.sort_by_key(|(_, b)| std::cmp::Reverse(b.download.saturating_add(b.upload)));
+    for ((_, mac), b) in devices.iter().take(5) {
+        text.push_str(&format!("\n{}：↑ {} · ↓ {}", device_label(devs, mac), format_bytes(b.upload), format_bytes(b.download)));
+    }
+    if devices.is_empty() { text.push_str("\n暂无设备流量"); }
 }
 
 fn payload(name: &str, channel: &Channel, text: &str, epoch: u64) -> Value {
@@ -400,6 +405,9 @@ mod tests {
             Rule { id:"device".into(), enabled:true, mac:mac_str(&mac.b), metric:"upload".into(), bytes:15 }];
         db.save_setting("notifications_config", &serde_json::to_string(&n.settings).unwrap()).unwrap();
         n.evaluate(&wan, &HashMap::new(), epoch); assert_eq!(n.deliveries.len(), 2); // network + report, device has only 10
+        assert!(n.deliveries[0].text.contains("设备互联网用量前五："));
+        assert!(n.deliveries[0].text.contains(&mac_str(&mac.b)));
+        assert!(n.deliveries[1].text.contains("设备互联网用量前五："));
         wan.device_delta(mac, 0, 5); n.evaluate(&wan, &HashMap::new(), epoch); assert_eq!(n.deliveries.len(), 3);
         for d in &mut n.deliveries { d.status = "sent".into(); }
         n.persist(&db).unwrap(); let mut restarted = Notifications::load(&db).unwrap();

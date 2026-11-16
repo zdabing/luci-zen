@@ -251,30 +251,60 @@ impl AppUsage {
         if hour < start || hour >= end || (hour - start) % 3600 != 0 || hour > now {
             return Err("Invalid hour".into());
         }
-        let until = (hour + 3600).min(end);
+        self.query_window(db, mac, date, date, hour, hour, (hour + 3600).min(end), now, true)
+    }
+
+    pub fn query_range(&self, db: &Db, mac: &str, start_date: &str, end_date: &str, now: u64) -> Result<serde_json::Value, String> {
+        let (start, _) = crate::timeline::day_bounds(start_date)?;
+        let (_, end) = crate::timeline::day_bounds(end_date)?;
+        if start >= end || start > now {
+            return Err("Invalid date range".into());
+        }
+        self.query_window(db, mac, start_date, end_date, 0, start, end.min(now.saturating_add(1)), now, false)
+    }
+
+    fn query_window(&self, db: &Db, mac: &str, start_date: &str, end_date: &str, hour_field: u64,
+        win_start: u64, win_end: u64, now: u64, single_hour: bool) -> Result<serde_json::Value, String> {
         let available_from = self.since.max(self.floor).max(now.saturating_sub(HOURLY_SECS));
-        let available = self.since != 0 && hour >= self.floor && until > available_from;
-        let mut rows = if available { db.app_usage(mac, hour)? } else { BTreeMap::new() };
+        let available = self.since != 0 && win_end > self.floor && win_end > available_from && win_start <= now;
+        let in_win = |time: u64, device: &str| {
+            time >= win_start && time < win_end && time >= self.floor && (mac.is_empty() || device == mac)
+        };
+        let mut rows = if !available { BTreeMap::new() } else if single_hour {
+            db.app_usage(mac, win_start)?
+        } else {
+            db.app_usage_range(mac, win_start, win_end)?
+        };
+        let mut origins = if !available { BTreeMap::new() } else if single_hour {
+            db.app_origins(mac, win_start)?
+        } else {
+            db.app_origins_range(mac, win_start, win_end)?
+        };
         if available {
-            if let Some(correction) = self.corrections.get(&(hour,mac.to_owned())) {
-                if let Some(row) = rows.get_mut(&0) {
-                    row.bytes.download = row.bytes.download.saturating_sub(correction.download);
-                    row.bytes.upload = row.bytes.upload.saturating_sub(correction.upload);
+            for ((time, device), correction) in &self.corrections {
+                if in_win(*time, device) {
+                    if let Some(row) = rows.get_mut(&0) {
+                        row.bytes.download = row.bytes.download.saturating_sub(correction.download);
+                        row.bytes.upload = row.bytes.upload.saturating_sub(correction.upload);
+                    }
+                    if let Some(bytes) = origins.get_mut(&(0,"unidentified".into(),String::new())) {
+                        bytes.download = bytes.download.saturating_sub(correction.download);
+                        bytes.upload = bytes.upload.saturating_sub(correction.upload);
+                    }
                 }
             }
             for ((time, device, app), pending) in &self.hours {
-                if *time != hour || device != mac { continue; }
+                if !in_win(*time, device) { continue; }
                 let row = rows.entry(*app).or_insert_with(|| AppBytes { name: pending.name.clone(), identified:pending.identified, bytes: Bytes::default() });
                 row.bytes.download = row.bytes.download.saturating_add(pending.bytes.download);
                 row.bytes.upload = row.bytes.upload.saturating_add(pending.bytes.upload);
             }
-        }
-        let mut origins=if available {db.app_origins(mac,hour)?}else{BTreeMap::new()};
-        if let Some(correction)=self.corrections.get(&(hour,mac.to_owned())) {
-            if let Some(bytes)=origins.get_mut(&(0,"unidentified".into(),String::new())) {bytes.download=bytes.download.saturating_sub(correction.download);bytes.upload=bytes.upload.saturating_sub(correction.upload);}
-        }
-        for ((time,device,id,source,version),bytes) in &self.origins {
-            if *time==hour&&device==mac {let entry=origins.entry((*id,source.clone(),version.clone())).or_default();entry.download=entry.download.saturating_add(bytes.download);entry.upload=entry.upload.saturating_add(bytes.upload);}
+            for ((time,device,id,source,version),bytes) in &self.origins {
+                if !in_win(*time, device) { continue; }
+                let entry=origins.entry((*id,source.clone(),version.clone())).or_default();
+                entry.download=entry.download.saturating_add(bytes.download);
+                entry.upload=entry.upload.saturating_add(bytes.upload);
+            }
         }
         let mut applications: Vec<_> = rows.into_iter().map(|(id, row)| {
             let kind = row.kind(id);
@@ -294,9 +324,9 @@ impl AppUsage {
             "key":crate::app_catalog::key(id),"category":crate::app_catalog::category(id),"sources":sources,
         })}).collect();
         applications.sort_by_key(|row| (std::cmp::Reverse(row["total"].as_u64().unwrap_or(0)), row["id"].as_u64().unwrap_or(0)));
-        Ok(serde_json::json!({"mac":mac,"date":date,"hour":hour,"end":until,
+        Ok(serde_json::json!({"mac":mac,"date":start_date,"end_date":end_date,"hour":hour_field,"end":win_end,
             "since":self.since,"available_from":available_from,"available":available,
-            "partial":available && hour < available_from,"in_progress":hour <= now && now < until,
+            "partial":available && win_start < available_from,"in_progress":win_start <= now && now < win_end,
             "retention_days":HOURLY_SECS/86_400,"applications":applications}))
     }
 }

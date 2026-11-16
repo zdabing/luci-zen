@@ -274,38 +274,71 @@ unsafe extern "C" fn handle_get_device_timeline(ctx: *mut ubus::ubus_context, _o
 
 unsafe extern "C" fn handle_get_app_usage(ctx: *mut ubus::ubus_context, _obj: *mut ubus::ubus_object,
     req: *mut ubus::ubus_request_data, _method: *const c_char, msg: *mut ubus::blob_attr) -> c_int {
-    let (mut mac, mut date, mut hour) = (String::new(),String::new(),None);
+    enum AppUsageScope { Hour(u64), RangeEnd(String) }
+    let (mut mac, mut date, mut scope) = (String::new(), String::new(), None);
     for field in ubus::parse_msg(msg) {
         match field.name {
             Some("mac") => match field.as_str() {
-                Some(value) if parse_mac(value).is_some() => mac = value.to_ascii_lowercase(),
+                Some(value) if value.is_empty() || parse_mac(value).is_some() => mac = value.to_ascii_lowercase(),
                 _ => return ubus::UBUS_STATUS_INVALID_ARGUMENT,
             },
             Some("date") => match field.as_str() {
                 Some(value) if crate::timeline::day_bounds(value).is_ok() => date = value.to_owned(),
                 _ => return ubus::UBUS_STATUS_INVALID_ARGUMENT,
             },
-            Some("hour") => hour = field.as_str().and_then(|value| value.parse::<u64>().ok()),
+            Some("hour") => match field.as_str() {
+                Some(value) if value.is_empty() || value == "all" => scope = Some(AppUsageScope::RangeEnd(String::new())),
+                Some(value) => if let Ok(h) = value.parse::<u64>() {
+                    scope = Some(AppUsageScope::Hour(h));
+                } else if crate::timeline::day_bounds(value).is_ok() {
+                    scope = Some(AppUsageScope::RangeEnd(value.to_owned()));
+                } else {
+                    return ubus::UBUS_STATUS_INVALID_ARGUMENT;
+                },
+                None => return ubus::UBUS_STATUS_INVALID_ARGUMENT,
+            },
             _ => {},
         }
     }
-    let Some(hour) = hour else { return ubus::UBUS_STATUS_INVALID_ARGUMENT };
-    if mac.is_empty() || date.is_empty() { return ubus::UBUS_STATUS_INVALID_ARGUMENT; }
+    let Some(scope) = scope else { return ubus::UBUS_STATUS_INVALID_ARGUMENT };
+    if date.is_empty() { return ubus::UBUS_STATUS_INVALID_ARGUMENT; }
     match with_daemon(|d| {
-        let mut value = d.app_usage.query(&d.db, &mac, &date, hour, now_epoch())?;
-        let device = d.timeline.query(&d.db, &mac, &date, now_epoch())?["samples"].as_array()
-            .and_then(|samples| samples.iter().find(|sample| sample["time"].as_u64() == Some(hour))).cloned()
-            .unwrap_or_else(|| serde_json::json!({"download":0,"upload":0}));
-        let download = device["download"].as_u64().unwrap_or(0);
-        let upload = device["upload"].as_u64().unwrap_or(0);
-        let (pending,provisional) = d.app_engine.pending_usage(&mac,hour);
+        let now = now_epoch();
+        let (mut value, dev_bytes, pending, provisional, device) = match scope {
+            AppUsageScope::Hour(hour) => {
+                let value = d.app_usage.query(&d.db, &mac, &date, hour, now)?;
+                let device = d.timeline.query(&d.db, &mac, &date, now)?["samples"].as_array()
+                    .and_then(|samples| samples.iter().find(|sample| sample["time"].as_u64() == Some(hour))).cloned()
+                    .unwrap_or_else(|| serde_json::json!({"download":0,"upload":0}));
+                let download = device["download"].as_u64().unwrap_or(0);
+                let upload = device["upload"].as_u64().unwrap_or(0);
+                let (pending, provisional) = d.app_engine.pending_usage(&mac, hour);
+                (value, crate::wan::Bytes { download, upload }, pending, provisional, device)
+            }
+            AppUsageScope::RangeEnd(end_arg) => {
+                let end_date = if end_arg.is_empty() { date.clone() } else { end_arg };
+                let (start, _) = crate::timeline::day_bounds(&date)?;
+                let (_, end) = crate::timeline::day_bounds(&end_date)?;
+                let value = d.app_usage.query_range(&d.db, &mac, &date, &end_date, now)?;
+                let mut dev_bytes = d.db.device_timeline_total(&mac, start, end)?;
+                for ((time, device), bytes) in &d.timeline.hours {
+                    if *time >= start && *time < end && *time >= d.timeline.hour_floor && (mac.is_empty() || device == &mac) {
+                        dev_bytes.download = dev_bytes.download.saturating_add(bytes.download);
+                        dev_bytes.upload = dev_bytes.upload.saturating_add(bytes.upload);
+                    }
+                }
+                let (pending, provisional) = d.app_engine.pending_usage_range(&mac, start, end);
+                let device = serde_json::json!({"download": dev_bytes.download, "upload": dev_bytes.upload});
+                (value, dev_bytes, pending, provisional, device)
+            }
+        };
         if pending != crate::wan::Bytes::default() { value["available"] = serde_json::json!(true); }
-        crate::app_usage::breakdown(&mut value,crate::wan::Bytes { download,upload },pending,provisional);
+        crate::app_usage::breakdown(&mut value, dev_bytes, pending, provisional);
         value["device"] = device;
         value["recognition"] = d.app_engine.status();
         value["hardware_offload"] = serde_json::json!(d.offload.hardware_requested || !d.offload.known);
-        value["schema"]=serde_json::json!(2);
-        Ok::<_,String>(value)
+        value["schema"] = serde_json::json!(2);
+        Ok::<_, String>(value)
     }) {
         Some(Ok(value)) => send_json(ctx, req, value),
         Some(Err(_)) => ubus::UBUS_STATUS_INVALID_ARGUMENT,
@@ -400,7 +433,7 @@ unsafe extern "C" fn handle_set_dpi_feedback(ctx:*mut ubus::ubus_context,_obj:*m
 }
 unsafe extern "C" fn handle_get_app_realtime(ctx:*mut ubus::ubus_context,_obj:*mut ubus::ubus_object,req:*mut ubus::ubus_request_data,_method:*const c_char,msg:*mut ubus::blob_attr)->c_int {
     let fields=ubus::parse_msg(msg);if fields.len()!=1||fields[0].name!=Some("mac"){return ubus::UBUS_STATUS_INVALID_ARGUMENT;}
-    let Some(mac)=fields[0].as_str().filter(|s|parse_mac(s).is_some()).map(str::to_ascii_lowercase) else{return ubus::UBUS_STATUS_INVALID_ARGUMENT;};
+    let Some(mac)=fields[0].as_str().filter(|s|s.is_empty()||parse_mac(s).is_some()).map(str::to_ascii_lowercase) else{return ubus::UBUS_STATUS_INVALID_ARGUMENT;};
     match with_daemon(|d|d.app_engine.realtime(&mac,crate::state::now_mono_ms())) {Some(value)=>send_json(ctx,req,value),None=>ubus::UBUS_STATUS_NOT_SUPPORTED}
 }
 

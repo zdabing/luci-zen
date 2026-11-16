@@ -297,8 +297,15 @@ impl AppEngine {
         self.dns_active=enabled;self.dns.clear();Ok(())
     }
     pub fn realtime(&self,mac:&str,now_ms:u64)->serde_json::Value {
-        let rows:Vec<_>=self.realtime.iter().filter(|((device,_),_)|crate::persistence::mac_str(device)==mac)
-            .map(|((_,id),bytes)|serde_json::json!({"id":id,"key":crate::app_catalog::key(*id),
+        let mut summed=std::collections::BTreeMap::<u32,Bytes>::new();
+        for ((device,id),bytes) in &self.realtime {
+            if mac.is_empty() || crate::persistence::mac_str(device)==mac {
+                let entry=summed.entry(*id).or_default();
+                entry.download=entry.download.saturating_add(bytes.download);
+                entry.upload=entry.upload.saturating_add(bytes.upload);
+            }
+        }
+        let rows:Vec<_>=summed.into_iter().map(|(id,bytes)|serde_json::json!({"id":id,"key":crate::app_catalog::key(id),
                 "download":bytes.download.saturating_mul(1000)/self.realtime_interval,
                 "upload":bytes.upload.saturating_mul(1000)/self.realtime_interval})).collect();
         serde_json::json!({"mac":mac,"interval_ms":self.realtime_interval,"age_ms":now_ms.saturating_sub(self.realtime_at),"applications":rows})
@@ -310,17 +317,23 @@ impl AppEngine {
     }
 
     pub fn pending_usage(&self, mac: &str, hour: u64) -> (Bytes,Bytes) {
+        self.pending_usage_range(mac, hour, hour.saturating_add(3600))
+    }
+
+    pub fn pending_usage_range(&self, mac: &str, start: u64, end: u64) -> (Bytes,Bytes) {
         let (mut pending,mut provisional) = (Bytes::default(),Bytes::default());
         for (key,flow) in &self.flows {
-            if flow.classification.is_some() || crate::persistence::mac_str(&key.mac) != mac { continue; }
+            if flow.classification.is_some() || (!mac.is_empty() && crate::persistence::mac_str(&key.mac) != mac) { continue; }
             for (time,bytes) in &flow.provisional {
-                if crate::timeline::local_hour(*time) == hour {
+                let hr = crate::timeline::local_hour(*time);
+                if hr >= start && hr < end {
                     provisional.download = provisional.download.saturating_add(bytes.download);
                     provisional.upload = provisional.upload.saturating_add(bytes.upload);
                 }
             }
             for (time,bytes) in flow.pending.iter().chain(&flow.provisional) {
-                if crate::timeline::local_hour(*time) == hour {
+                let hr = crate::timeline::local_hour(*time);
+                if hr >= start && hr < end {
                     pending.download = pending.download.saturating_add(bytes.download);
                     pending.upload = pending.upload.saturating_add(bytes.upload);
                 }
