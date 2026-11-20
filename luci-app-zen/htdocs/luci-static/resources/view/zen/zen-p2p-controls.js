@@ -6,6 +6,7 @@ const set=rpc.declare({object:'zen.traffic',method:'setP2pPolicy',params:['json'
 const getDomains=rpc.declare({object:'zen.traffic',method:'getP2pDomains',reject:true});
 const setDomains=rpc.declare({object:'zen.traffic',method:'setP2pDomains',params:['json'],reject:true});
 const access=rpc.declare({object:'session',method:'access',params:['scope','object','function'],reject:true});
+const accessCache=new Map();
 const unwrap=raw=>raw&&typeof raw.json==='string'?JSON.parse(raw.json):raw;
 const checked=raw=>{const v=unwrap(raw);if(!v||v.ok!==true)throw Error(v?.error||'failed');return v;};
 const modes = { off: _('Off'), observe: _('Observe only'), enforce: _('Block conflicting peers') };
@@ -85,7 +86,16 @@ return baseclass.extend({
   host.append(root);
 
   let writable = false, domainsWritable = false, busy = false, policy = null;
-  const canWrite = method => access('ubus', 'zen.traffic', method).then(result => result === true || result?.access === true, () => false);
+  const canWrite = method => {
+   let pending = accessCache.get(method);
+   if (!pending) {
+    pending = access('ubus', 'zen.traffic', method)
+     .then(result => result === true || result?.access === true)
+     .catch(() => { accessCache.delete(method); return false; });
+    accessCache.set(method, pending);
+   }
+   return pending;
+  };
   function lock() {
    save.disabled = busy || !writable || !policy;
    refresh.disabled = busy;

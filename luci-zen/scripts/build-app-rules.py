@@ -23,7 +23,7 @@ def list_map(manifest):
     mapping = {}
     for service, item in manifest['services'].items():
         names = item.get('lists', [service])
-        if not names or len(set(names)) != len(names):
+        if not isinstance(names, list) or len(set(names)) != len(names):
             raise ValueError('Duplicate or empty list alias for ' + service)
         for name in names:
             if not re.fullmatch(r'[a-z0-9][a-z0-9_-]{0,80}', name):

@@ -9,6 +9,51 @@ pub struct Bytes {
     pub upload: u64,
 }
 
+#[derive(Default)]
+pub struct PeriodSummary {
+    pub interface: Bytes,
+    pub devices: BTreeMap<String, Bytes>,
+}
+
+pub struct WanPeriods {
+    pub today: String,
+    pub since: u64,
+    pub day: PeriodSummary,
+    pub week: PeriodSummary,
+    pub month: PeriodSummary,
+}
+
+fn parse_ymd(date: &str) -> Option<(i64, i64, i64)> {
+    let bytes = date.as_bytes();
+    if bytes.len() != 10
+        || bytes[4] != b'-'
+        || bytes[7] != b'-'
+        || !bytes.iter().enumerate().all(|(i, b)| i == 4 || i == 7 || b.is_ascii_digit())
+    {
+        return None;
+    }
+    let y: i64 = date[0..4].parse().ok()?;
+    let m: i64 = date[5..7].parse().ok()?;
+    let d: i64 = date[8..10].parse().ok()?;
+    if !(1..=12).contains(&m) || !(1..=31).contains(&d) {
+        return None;
+    }
+    Some((y, m, d))
+}
+
+fn week_start_date(today: &str) -> Option<String> {
+    let (y, m, d) = parse_ymd(today)?;
+    let adj_y = y - i64::from(m <= 2);
+    let era = adj_y.div_euclid(400);
+    let yoe = adj_y - era * 400;
+    let doy = (153 * (m + if m > 2 { -3 } else { 9 }) + 2) / 5 + d - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    let days = era * 146_097 + doe - 719_468;
+    // 1970-01-01 was Thursday (Mon=0..Sun=6 => 3).
+    let offset = (days + 3).rem_euclid(7) as u32;
+    Some(crate::state::date_shift(today, offset))
+}
+
 pub struct WanUsage {
     pub since: u64,
     pub interface: Bytes,
@@ -85,38 +130,173 @@ impl WanUsage {
         self.daily.retain(|(_, device), _| device != &key);
     }
 
-    pub fn history(&self, agg: &str, mac: &str) -> serde_json::Value {
-        let mut periods = BTreeMap::<String, Bytes>::new();
-        for ((date, device), bytes) in &self.daily {
-            if device != mac { continue; }
-            let key = if agg == "month" { &date[..7] } else { date.as_str() };
-            let total = periods.entry(key.to_owned()).or_default();
-            total.download = total.download.saturating_add(bytes.download);
-            total.upload = total.upload.saturating_add(bytes.upload);
+    pub fn periods(&self) -> Option<WanPeriods> {
+        if self.daily_since == 0 || !self.day_synced {
+            return None;
         }
-        let rows: Vec<_> = periods.into_iter().map(|(date, bytes)| if agg == "month" {
-            serde_json::json!({"month":date,"download":bytes.download,"upload":bytes.upload})
-        } else { serde_json::json!({"date":date,"download":bytes.download,"upload":bytes.upload}) }).collect();
-        // Month totals cover the daily ledger's retained 90-day window only.
-        let mut result = if agg == "month" { serde_json::json!({"agg":agg,"months":rows,"since":self.daily_since,"retention_days":90}) }
-        else { serde_json::json!({"agg":agg,"days":rows,"since":self.daily_since,"retention_days":90}) };
+        let today = self.day.as_str();
+        let week_start = week_start_date(today)?;
+        let month_start = format!("{}-01", &today[..7]);
+        let earliest = if week_start.as_str() < month_start.as_str() {
+            week_start.as_str()
+        } else {
+            month_start.as_str()
+        };
+        let mut day = PeriodSummary::default();
+        let mut week = PeriodSummary::default();
+        let mut month = PeriodSummary::default();
+        for ((date, mac), bytes) in &self.daily {
+            if date.as_str() > today || date.as_str() < earliest {
+                continue;
+            }
+            let targets: [(&mut PeriodSummary, bool); 3] = [
+                (&mut day, date.as_str() == today),
+                (&mut week, date.as_str() >= week_start.as_str()),
+                (&mut month, date.as_str() >= month_start.as_str()),
+            ];
+            if mac.is_empty() {
+                for (summary, active) in targets {
+                    if active {
+                        summary.interface.download =
+                            summary.interface.download.saturating_add(bytes.download);
+                        summary.interface.upload =
+                            summary.interface.upload.saturating_add(bytes.upload);
+                    }
+                }
+            } else if bytes.download > 0 || bytes.upload > 0 {
+                for (summary, active) in targets {
+                    if active {
+                        let entry = summary.devices.entry(mac.clone()).or_default();
+                        entry.download = entry.download.saturating_add(bytes.download);
+                        entry.upload = entry.upload.saturating_add(bytes.upload);
+                    }
+                }
+            }
+        }
+        Some(WanPeriods {
+            today: self.day.clone(),
+            since: self.daily_since,
+            day,
+            week,
+            month,
+        })
+    }
+
+    pub fn history(&self, agg: &str, mac: &str) -> serde_json::Value {
+        self.history_with_devices(agg, mac, false)
+    }
+
+    pub fn history_with_devices(
+        &self,
+        agg: &str,
+        mac: &str,
+        include_devices: bool,
+    ) -> serde_json::Value {
+        let collect_devices = include_devices && agg == "day" && mac.is_empty();
+        let mut periods = BTreeMap::<String, Bytes>::new();
         let mut by_device = BTreeMap::<String, Bytes>::new();
-        for ((_, device), bytes) in &self.daily {
+        let mut per_device_days = BTreeMap::<&str, Vec<(&str, Bytes)>>::new();
+        for ((date, device), bytes) in &self.daily {
+            if device == mac {
+                let key = if agg == "month" {
+                    date.get(..7).unwrap_or(date.as_str())
+                } else {
+                    date.as_str()
+                };
+                let total = periods.entry(key.to_owned()).or_default();
+                total.download = total.download.saturating_add(bytes.download);
+                total.upload = total.upload.saturating_add(bytes.upload);
+            }
             let b = by_device.entry(device.clone()).or_default();
             b.download = b.download.saturating_add(bytes.download);
             b.upload = b.upload.saturating_add(bytes.upload);
+            if collect_devices && !device.is_empty() && (bytes.download > 0 || bytes.upload > 0) {
+                per_device_days
+                    .entry(device.as_str())
+                    .or_default()
+                    .push((date.as_str(), *bytes));
+            }
+        }
+        let rows: Vec<_> = periods
+            .into_iter()
+            .map(|(date, bytes)| {
+                if agg == "month" {
+                    serde_json::json!({"month":date,"download":bytes.download,"upload":bytes.upload})
+                } else {
+                    serde_json::json!({"date":date,"download":bytes.download,"upload":bytes.upload})
+                }
+            })
+            .collect();
+        // Month totals cover the daily ledger's retained 90-day window only.
+        let mut result = if agg == "month" {
+            serde_json::json!({"agg":agg,"months":rows,"since":self.daily_since,"retention_days":90})
+        } else {
+            serde_json::json!({"agg":agg,"days":rows,"since":self.daily_since,"retention_days":90})
+        };
+        if self.day_synced && parse_ymd(&self.day).is_some() {
+            result["today"] = serde_json::json!(self.day);
         }
         let network = by_device.remove("").unwrap_or_default();
         let attributed = by_device.values().fold(Bytes::default(), |mut b, v| {
-            b.download = b.download.saturating_add(v.download); b.upload = b.upload.saturating_add(v.upload); b
+            b.download = b.download.saturating_add(v.download);
+            b.upload = b.upload.saturating_add(v.upload);
+            b
         });
         let mut ranking: Vec<_> = by_device.into_iter().collect();
         ranking.sort_by_key(|(_, b)| std::cmp::Reverse(b.upload.saturating_add(b.download)));
-        result["ranking"] = serde_json::json!(ranking.into_iter().map(|(mac,b)| serde_json::json!({"mac":mac,"upload":b.upload,"download":b.download})).collect::<Vec<_>>());
-        for (key, value) in [("network_upload",network.upload),("network_download",network.download),
-            ("unassigned_upload",network.upload.saturating_sub(attributed.upload)),("unassigned_download",network.download.saturating_sub(attributed.download)),
-            ("excess_upload",attributed.upload.saturating_sub(network.upload)),("excess_download",attributed.download.saturating_sub(network.download))] {
+        result["ranking"] = serde_json::json!(
+            ranking
+                .iter()
+                .map(|(mac, b)| serde_json::json!({"mac":mac,"upload":b.upload,"download":b.download}))
+                .collect::<Vec<_>>()
+        );
+        for (key, value) in [
+            ("network_upload", network.upload),
+            ("network_download", network.download),
+            (
+                "unassigned_upload",
+                network.upload.saturating_sub(attributed.upload),
+            ),
+            (
+                "unassigned_download",
+                network.download.saturating_sub(attributed.download),
+            ),
+            (
+                "excess_upload",
+                attributed.upload.saturating_sub(network.upload),
+            ),
+            (
+                "excess_download",
+                attributed.download.saturating_sub(network.download),
+            ),
+        ] {
             result[key] = serde_json::json!(value);
+        }
+        if collect_devices {
+            const MAX_DEVICE_DAYS_BYTES: usize = 512 * 1024;
+            let mut device_days = serde_json::Map::new();
+            let mut used_bytes = 2usize;
+            let mut complete = true;
+            for (dev_mac, _) in &ranking {
+                let rows = per_device_days
+                    .get(dev_mac.as_str())
+                    .map(Vec::as_slice)
+                    .unwrap_or(&[]);
+                let encoded = serde_json::Value::Array(
+                    rows.iter()
+                        .map(|(date, b)| serde_json::json!([date, b.download, b.upload]))
+                        .collect(),
+                );
+                let entry_bytes = dev_mac.len() + 6 + encoded.to_string().len();
+                if !device_days.is_empty() && used_bytes + entry_bytes > MAX_DEVICE_DAYS_BYTES {
+                    complete = false;
+                    break;
+                }
+                used_bytes += entry_bytes;
+                device_days.insert(dev_mac.clone(), encoded);
+            }
+            result["device_days"] = serde_json::Value::Object(device_days);
+            result["devices_complete"] = serde_json::json!(complete);
         }
         result
     }
@@ -221,5 +401,60 @@ mod tests {
         assert!(!wan.begin_if_synced(crate::state::MIN_SYNC_EPOCH + 1));
         wan.device_delta(mac, 40, 10);
         assert_eq!(wan.attributed(), Bytes { download: 40, upload: 10 });
+    }
+
+    #[test]
+    fn periods_and_batched_history_handle_cross_month_weeks_and_compact_rows() {
+        let db = Db::open(":memory:").unwrap();
+        let epoch = crate::state::MIN_SYNC_EPOCH + 12 * 3600;
+        let mac1 = "02:00:00:00:00:11".to_owned();
+        let mac2 = "02:00:00:00:00:12".to_owned();
+        let mut wan = WanUsage::load(&db, epoch).unwrap();
+        wan.day = "2026-11-01".to_owned(); // Sunday; week starts 2026-10-26, month starts 2026-11-01
+        wan.day_synced = true;
+        wan.daily_since = epoch;
+
+        assert_eq!(week_start_date("2026-11-01").as_deref(), Some("2026-10-26"));
+        assert_eq!(week_start_date("2026-11-20").as_deref(), Some("2026-11-16"));
+
+        wan.daily.insert(("2026-10-25".into(), String::new()), Bytes { download: 1000, upload: 100 });
+        wan.daily.insert(("2026-10-25".into(), mac1.clone()), Bytes { download: 900, upload: 90 });
+        wan.daily.insert(("2026-10-28".into(), String::new()), Bytes { download: 300, upload: 30 });
+        wan.daily.insert(("2026-10-28".into(), mac1.clone()), Bytes { download: 250, upload: 25 });
+        wan.daily.insert(("2026-11-01".into(), String::new()), Bytes { download: 500, upload: 50 });
+        wan.daily.insert(("2026-11-01".into(), mac1.clone()), Bytes { download: 400, upload: 40 });
+        wan.daily.insert(("2026-11-01".into(), mac2.clone()), Bytes { download: 80, upload: 8 });
+        // Future date should be ignored by periods()
+        wan.daily.insert(("2026-11-02".into(), String::new()), Bytes { download: 9999, upload: 999 });
+
+        let p = wan.periods().expect("periods available");
+        assert_eq!(p.today, "2026-11-01");
+        assert_eq!(p.day.interface, Bytes { download: 500, upload: 50 });
+        assert_eq!(p.day.devices.get(&mac1).copied(), Some(Bytes { download: 400, upload: 40 }));
+        assert_eq!(p.day.devices.get(&mac2).copied(), Some(Bytes { download: 80, upload: 8 }));
+        assert_eq!(p.week.interface, Bytes { download: 800, upload: 80 });
+        assert_eq!(p.week.devices.get(&mac1).copied(), Some(Bytes { download: 650, upload: 65 }));
+        assert_eq!(p.month.interface, Bytes { download: 500, upload: 50 });
+        assert_eq!(p.month.devices.get(&mac1).copied(), Some(Bytes { download: 400, upload: 40 }));
+
+        let plain = wan.history("day", "");
+        assert_eq!(plain["today"], "2026-11-01");
+        assert!(plain.get("device_days").is_none());
+
+        let batched = wan.history_with_devices("day", "", true);
+        assert_eq!(batched["today"], "2026-11-01");
+        assert_eq!(batched["devices_complete"], true);
+        assert_eq!(
+            batched["device_days"][&mac1],
+            serde_json::json!([
+                ["2026-10-25", 900, 90],
+                ["2026-10-28", 250, 25],
+                ["2026-11-01", 400, 40]
+            ])
+        );
+        assert_eq!(
+            batched["device_days"][&mac2],
+            serde_json::json!([["2026-11-01", 80, 8]])
+        );
     }
 }

@@ -87,6 +87,30 @@ return baseclass.extend({
 .zen-traffic-page .zen-rt-chart{background:var(--zt-nested);border-radius:18px;padding:12px 0}.zen-traffic-page .zen-rt-field{min-width:0;flex:1 1 150px}
 .zen-traffic-page .zen-rt-field[hidden]{display:none}
 .zen-traffic-page .zen-rt-field input,.zen-traffic-page .zen-rt-field select{width:100%}.zen-traffic-page .zen-rt-table{width:100%;table-layout:fixed}.zen-rt-table th:first-child{width:42%}.zen-rt-table td{font-variant-numeric:tabular-nums;font-size:13px;overflow-wrap:anywhere}
+.zen-unmatched-panel{display:grid;gap:12px}.zen-unmatched-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}
+.zen-unmatched-head-actions{display:flex;flex-wrap:wrap;gap:8px}.zen-unmatched-bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:12px;border-radius:14px;background:var(--zt-nested,#f1f1f1)}
+.zen-unmatched-checkall{display:inline-flex;align-items:center;gap:8px;font-size:13px;cursor:pointer}.zen-unmatched-bar select{flex:1 1 200px;min-height:38px}
+.zen-unmatched-table th:first-child,.zen-unmatched-table td:first-child{width:34px;max-width:34px;text-align:center!important;padding-left:4px;padding-right:4px}
+.zen-unmatched-table th:nth-child(2),.zen-unmatched-table td:nth-child(2){text-align:left!important;white-space:normal;overflow-wrap:anywhere;max-width:22rem}
+.zen-unmatched-domain{display:grid;gap:4px;min-width:0}
+.zen-unmatched-domain strong{font-size:13px;overflow-wrap:anywhere}.zen-unmatched-meta{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:11px;color:var(--zt-muted)}
+.zen-unmatched-badge{display:inline-flex;align-items:center;padding:1px 6px;border-radius:6px;background:var(--zt-nested,#f1f1f1);color:var(--zt-muted);font-size:11px}
+.zen-unmatched-scope{min-height:24px!important;padding:2px 8px;border:1px solid var(--zt-line,#e5e5e5);border-radius:6px!important;background:var(--zt-panel,#fff);color:var(--zt-text);font-size:11px!important;cursor:pointer;text-align:left}
+.zen-unmatched-scope[aria-pressed="true"]{border-color:var(--accent,#168b7f);color:var(--accent-strong,var(--accent,#168b7f))}
+.zen-custom-rules{border-top:1px solid var(--zt-line,#e5e5e5);padding-top:10px;font-size:13px}.zen-custom-rules summary{cursor:pointer;font-weight:500;padding:4px 0}
+.zen-custom-rules-list{display:grid;gap:8px;margin-top:10px}.zen-custom-rule-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;border-radius:10px;background:var(--zt-nested,#f1f1f1)}
+.zen-custom-rule-row button{min-height:30px!important;padding:4px 10px}
+.zen-app-toolbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
+.zen-app-toolbar .zen-app-filter{margin-bottom:0}
+.zen-app-compact-toggle{min-height:30px!important;padding:4px 10px;border:1px solid var(--zt-line,#e5e5e5);border-radius:8px!important;background:var(--zt-nested,#f1f1f1);color:var(--zt-muted);font-size:12px!important;cursor:pointer}
+.zen-app-compact-toggle:hover{color:var(--zt-text);border-color:var(--accent,#168b7f)}
+.zen-app-usage-table th,.zen-app-usage-table td{padding:7px 8px}
+.zen-app-row-head{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;min-width:0}
+.zen-app-pct{font-size:11px;color:var(--zt-muted);font-variant-numeric:tabular-nums}
+.zen-app-bar{height:3px;max-width:180px;margin-top:5px;border-radius:999px;background:var(--zt-nested,#eceff1);overflow:hidden}
+.zen-app-bar>i{display:block;height:100%;border-radius:999px;background:var(--accent,#168b7f);opacity:.72}
+.zen-app-tail-btn{width:100%;min-height:34px!important;padding:6px 10px;border:0;border-radius:8px!important;background:var(--zt-nested,#f4f6f5);color:var(--zt-muted);font-size:12px!important;text-align:center;cursor:pointer}
+.zen-app-tail-btn:hover{color:var(--accent-strong,var(--accent,#168b7f))}
 @media(max-width:900px){.zen-traffic-page .zen-tf-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.zen-tf-table th:first-child{width:26%}.zen-tf-table td{padding-left:8px;padding-right:8px}}
 @media(max-width:600px){
 .zen-traffic-page button,.zen-traffic-page select,.zen-traffic-page input{min-height:44px}.zen-traffic-page .zen-tf-expand{width:44px;min-width:44px}.zen-traffic-page>h2{font-size:24px}.zen-traffic-page>.cbi-map-descr{margin-bottom:18px}.zen-traffic-page>.cbi-section,.zen-traffic-page>[role="tabpanel"]>.cbi-section{padding:18px;border-radius:24px;margin-bottom:16px}

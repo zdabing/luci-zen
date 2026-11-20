@@ -2,7 +2,6 @@
 'require baseclass';
 'require rpc';
 'require fs';
-'require network';
 'require poll';
 'require view.zen.zen-format as fmt';
 'require view.zen.zen-devices as devices';
@@ -41,6 +40,12 @@ const callSystemBoard = rpc.declare({ object: 'system', method: 'board' });
 const callDevStatus = rpc.declare({
 	object: 'network.device',
 	method: 'status'
+});
+
+const callInterfaceDump = rpc.declare({
+	object: 'network.interface',
+	method: 'dump',
+	expect: { interface: [] }
 });
 
 const callDhcpLeases = rpc.declare({
@@ -105,11 +110,84 @@ function settled(value, fallback) {
 	}
 }
 
+function wrapInterface(raw) {
+	if (!raw || typeof raw !== 'object') return null;
+	const v4 = Array.isArray(raw['ipv4-address']) ? raw['ipv4-address'] : [];
+	const v6 = Array.isArray(raw['ipv6-address']) ? raw['ipv6-address'] : [];
+	const assigned = Array.isArray(raw['ipv6-prefix-assignment']) ? raw['ipv6-prefix-assignment'] : [];
+	const prefixes = Array.isArray(raw['ipv6-prefix']) ? raw['ipv6-prefix'] : [];
+	const routes = Array.isArray(raw.route) ? raw.route : [];
+	const dns = Array.isArray(raw['dns-server']) ? raw['dns-server'] : [];
+	return {
+		getName: () => raw.interface || '',
+		isUp: () => raw.up === true,
+		getProtocol: () => raw.proto || null,
+		getUptime: () => Number(raw.uptime) || 0,
+		getIPAddrs: () => v4.filter(a => a && a.address).map(a => a.mask != null ? a.address + '/' + a.mask : a.address),
+		getNetmask: () => (v4[0] && v4[0].mask != null ? String(v4[0].mask) : ''),
+		getIP6Addrs: () => {
+			const out = [], seen = new Set();
+			const add = (a) => {
+				if (!a || !a.address) return;
+				const s = a.mask != null ? a.address + '/' + a.mask : a.address;
+				if (!seen.has(s)) { seen.add(s); out.push(s); }
+			};
+			v6.forEach(add);
+			for (const p of assigned) add(p && p['local-address']);
+			return out;
+		},
+		getIP6Prefixes: () => prefixes.filter(p => p && p.address && p.mask != null).map(p => p.address + '/' + p.mask),
+		getIP6Prefix: () => {
+			const hit = prefixes.find(p => p && p.address && p.mask != null);
+			return hit ? hit.address + '/' + hit.mask : null;
+		},
+		getGatewayAddr: () => {
+			const def = routes.find(r => r && r.target === '0.0.0.0' && Number(r.mask) === 0 && r.nexthop && r.nexthop !== '0.0.0.0');
+			return (def && def.nexthop) || (v4[0] && v4[0].ptpaddress) || null;
+		},
+		getDNSAddrs: () => dns.filter(a => a && !String(a).includes(':')),
+		getDevice: () => (raw.device && !String(raw.device).startsWith('@') ? { getName: () => raw.device } : null),
+		getL3Device: () => (raw.l3_device ? { getName: () => raw.l3_device } : null)
+	};
+}
+
+function pickInterfaces(list) {
+	const rawList = Array.isArray(list) ? list : (list && Array.isArray(list.interface) ? list.interface : []);
+	const ifaces = rawList.filter(i => i && typeof i === 'object');
+	const hasDefaultRoute = (iface, target) => Array.isArray(iface.route) &&
+		iface.route.some(r => r && r.target === target && Number(r.mask) === 0);
+	const hasV6Data = (iface) => (Array.isArray(iface['ipv6-address']) && iface['ipv6-address'].length > 0)
+		|| (Array.isArray(iface['ipv6-prefix']) && iface['ipv6-prefix'].length > 0)
+		|| (Array.isArray(iface['ipv6-prefix-assignment']) && iface['ipv6-prefix-assignment'].some(p => p && p['local-address']));
+	const hasV6Prefix = (iface) => Array.isArray(iface['ipv6-prefix']) && iface['ipv6-prefix'].length > 0;
+	const rank = (a, b) => ((b.up === true) - (a.up === true)) || ((Number(a.metric) || 0) - (Number(b.metric) || 0));
+
+	const rawWan = ifaces.filter(i => hasDefaultRoute(i, '0.0.0.0')).sort(rank)[0]
+		|| ifaces.filter(i => i.interface === 'wan').sort(rank)[0]
+		|| null;
+	const rawWan6 = ifaces.filter(i => hasDefaultRoute(i, '::')).sort((a, b) =>
+		rank(a, b) || (hasV6Prefix(b) - hasV6Prefix(a)) || (hasV6Data(b) - hasV6Data(a)))[0]
+		|| ifaces.find(i => i.interface === 'wan6' && (i.up === true || hasV6Data(i)))
+		|| null;
+	const rawLan = ifaces.find(i => i.interface === 'lan')
+		|| ifaces.filter(i => i.interface !== 'loopback' && i !== rawWan && i !== rawWan6)
+			.sort((a, b) => rank(a, b) || ((b['ipv4-address']?.length || 0) - (a['ipv4-address']?.length || 0)))[0]
+		|| null;
+
+	const wan = wrapInterface(rawWan);
+	const wan6 = wrapInterface(rawWan6) || (addrsOf(wan, true).length ? wan : null);
+	const lan = wrapInterface(rawLan);
+	return { wan, wan6, lan };
+}
+
 return baseclass.extend({
 	start(dash) {
 		if (!dash) return;
 		if (this.dash === dash) return;
 		if (this._poll) poll.remove(this._poll);
+		if (this._cpuWarmup) { clearTimeout(this._cpuWarmup); this._cpuWarmup = null; }
+		this.dhcpConfigAt = 0;
+		this.dhcpConfigPromise = null;
 		this.prevCpu = null;
 		this.refreshAt = null;
 		this.prevNet = null;
@@ -388,6 +466,13 @@ return baseclass.extend({
 
 	},
 
+	applyRealtimeHistory(data) {
+		this.history = ((data && data.samples) || []).filter(sample => Number.isFinite(sample.time))
+			.map(sample => ({ t: sample.time * 1000, rx: Number(sample.download) || 0, tx: Number(sample.upload) || 0 })).slice(-HISTORY);
+		this.historyClockOffset = Number.isFinite(data && data.end) ? data.end * 1000 - Date.now() : 0;
+		this.trimRealtimeHistory(Number.isFinite(data && data.end) ? data.end * 1000 : (this.history.at(-1) || {}).t);
+	},
+
 	async loadRealtimeHistory() {
 		const iface = this.iface;
 		if (!this.wanDevice || iface !== this.wanDevice || this.historyLoadedFor === iface) return;
@@ -397,10 +482,7 @@ return baseclass.extend({
 			// Let the router choose its recent window; browser clock skew must not reject it.
 			const data = await callRealtimeHistory(iface, HISTORY);
 			if (request !== this.historyRequest || this.iface !== iface) return;
-			this.history = ((data && data.samples) || []).filter(sample => Number.isFinite(sample.time))
-				.map(sample => ({ t: sample.time * 1000, rx: Number(sample.download) || 0, tx: Number(sample.upload) || 0 })).slice(-HISTORY);
-			this.historyClockOffset = Number.isFinite(data && data.end) ? data.end * 1000 - Date.now() : 0;
-			this.trimRealtimeHistory(Number.isFinite(data && data.end) ? data.end * 1000 : (this.history.at(-1) || {}).t);
+			this.applyRealtimeHistory(data);
 		} catch (e) { /* Older/unavailable daemon: continue collecting the browser's live samples. */ }
 	},
 
@@ -501,23 +583,39 @@ return baseclass.extend({
 		this.setText(this.dash, '[data-connection="uptime-detail"]', restart === fmt.MISSING ? restart : _('Restarted %s').format(restart));
 	},
 
-	setHealth(data, dhcp) {
-		const temp = data.temperature;
+	setTemperature(temp) {
 		this.setText(this.dash, '[data-health="temperature"]', temp ? temp.celsius.toFixed(1).replace(/\.0$/, '') + ' °C' : fmt.MISSING);
 		const temperature = this.dash.querySelector('[data-health="temperature"]');
 		if (temperature) temperature.title = temp ? temp.sensor + ' · ' + temp.path : _('Temperature sensor unavailable');
-		this.setText(this.dash, '[data-health="connections"]', data.connections == null ? fmt.MISSING : Number(data.connections).toLocaleString());
-		const connections = this.dash.querySelector('[data-health="connections"]');
-		if (connections) connections.title = data.connections == null ? _('Connection count unavailable') : String(data.connections) + ' / ' + (data.connectionLimit || fmt.MISSING);
-		for (const [key, percent] of [['temperature', temp ? temp.celsius : 0], ['connections', data.connectionLimit ? data.connections / data.connectionLimit * 100 : 0]]) {
-			const bar = this.dash.querySelector('[data-health-bar="' + key + '"]');
-			if (bar) bar.style.width = Math.max(0, Math.min(100, Number(percent) || 0)) + '%';
-		}
-		const latency = data.latency || {};
+		const bar = this.dash.querySelector('[data-health-bar="temperature"]');
+		if (bar) bar.style.width = Math.max(0, Math.min(100, Number(temp ? temp.celsius : 0) || 0)) + '%';
+	},
+
+	setConnections(connections, connectionLimit) {
+		this.setText(this.dash, '[data-health="connections"]', connections == null ? fmt.MISSING : Number(connections).toLocaleString());
+		const node = this.dash.querySelector('[data-health="connections"]');
+		if (node) node.title = connections == null ? _('Connection count unavailable') : String(connections) + ' / ' + (connectionLimit || fmt.MISSING);
+		const percent = connectionLimit ? connections / connectionLimit * 100 : 0;
+		const bar = this.dash.querySelector('[data-health-bar="connections"]');
+		if (bar) bar.style.width = Math.max(0, Math.min(100, Number(percent) || 0)) + '%';
+	},
+
+	setLatency(latencyData) {
+		const latency = latencyData || {};
 		this.setText(this.dash, '[data-health="latency"]', latency.state === 'ok' ? (latency.lessThan ? '<' : '') + latency.ms + ' ms' : latency.state === 'timeout' ? _('Timeout') : fmt.MISSING);
 		const probe = this.dash.querySelector('[data-health="latency"]');
 		if (probe) { probe.title = 'ICMP · ' + (latency.target || '1.1.1.1'); probe.setAttribute('data-state', latency.state || 'unavailable'); }
+	},
+
+	setDhcp(dhcp) {
 		this.setText(this.dash, '[data-connection="lan-detail"]', dhcp.state === 'ok' ? _('DHCP leases %s / %s').format(dhcp.used, dhcp.total) : dhcp.state === 'disabled' ? _('DHCP disabled') : dhcp.state === 'static' ? _('Static DHCP leases only') : _('DHCP leases unavailable'));
+	},
+
+	setHealth(data, dhcp) {
+		this.setTemperature(data.temperature);
+		this.setConnections(data.connections, data.connectionLimit);
+		this.setLatency(data.latency);
+		this.setDhcp(dhcp);
 	},
 
 	setStrip(host, model) {
@@ -818,33 +916,6 @@ return baseclass.extend({
 		return { pct: fmt.clampPct(pct), cores };
 	},
 
-	async readWifi() {
-		try {
-			if (!network || typeof network.getWifiNetworks !== 'function')
-				return { ssid: null, count: null };
-			const nets = await L.resolveDefault(network.getWifiNetworks(), []);
-			const active = (nets || []).filter((n) => {
-				try {
-					return typeof n.isUp === 'function' ? n.isUp() : true;
-				} catch (e) {
-					return false;
-				}
-			});
-			if (!active.length)
-				return { ssid: null, count: null };
-
-			const lists = await Promise.all(active.map((n) => {
-				if (typeof n.getAssocList !== 'function')
-					return Promise.resolve([]);
-				return L.resolveDefault(n.getAssocList(), []);
-			}));
-			const count = lists.reduce((s, a) => s + (Array.isArray(a) ? a.length : 0), 0);
-			return { ssid: null, count: count };
-		} catch (e) {
-			return { ssid: null, count: null };
-		}
-	},
-
 	async readDisk(info) {
 		const root = info && info.root;
 		if (root && Number(root.total) > 0) {
@@ -904,29 +975,6 @@ return baseclass.extend({
 			|| {};
 	},
 
-	async readLan() {
-		try {
-			if (!network || typeof network.getNetwork !== 'function')
-				return null;
-			const lan = await L.resolveDefault(network.getNetwork('lan'), null);
-			if (lan)
-				return lan;
-			if (typeof network.getNetworks !== 'function')
-				return null;
-			const nets = await L.resolveDefault(network.getNetworks(), []);
-			for (let i = 0; i < (nets || []).length; i++) {
-				const n = nets[i];
-				try {
-					if (n && typeof n.isWAN === 'function' && !n.isWAN())
-						return n;
-				} catch (e) { /* ignore */ }
-			}
-			return (nets && nets[0]) || null;
-		} catch (e) {
-			return null;
-		}
-	},
-
 	tick() {
 		// LuCI starts polling immediately; share the manual first refresh with it.
 		if (this.refreshPromise) return this.refreshPromise;
@@ -943,98 +991,158 @@ return baseclass.extend({
 
 	async refresh() {
 		const now = Date.now();
-		// network 模块默认命中缓存；每帧先 flushCache，否则 WAN/LAN/WiFi 状态
-		// 首屏后冻结（对齐官方 status/index.js）。
-		if (network && typeof network.flushCache === 'function')
-			await L.resolveDefault(network.flushCache(), null);
-		const wanP = (network && typeof network.getWANNetworks === 'function')
-			? network.getWANNetworks()
-			: [];
-		const wan6P = (network && typeof network.getWAN6Networks === 'function')
-			? network.getWAN6Networks() : [];
+		const dashRef = this.dash;
+		const hadPrevCpu = !!this.prevCpu;
 		if (!this.boardPromise) this.boardPromise = settled(callSystemBoard(), {});
-		const [info, cpu, devs, wans, lan, wans6, board] = await Promise.all([
-			settled(callSystemInfo(), {}),
-			this.readCpu(),
-			this.readDevs(),
-			settled(wanP, []),
-			this.readLan(),
-			settled(wan6P, []),
-			this.boardPromise
-		]);
 
-		const sys = info || {};
-		const wan = (wans || [])[0];
-		const wan6 = (wans6 || [])[0] || (addrsOf(wan, true).length ? wan : null);
-		this.setSystemInfo(board || {}, sys);
-		this.setUptime(sys.uptime, sys.localtime);
-
-		const loadRaw = (sys.load || [0, 0, 0]).map((v) => (Number(v) || 0) / 65535);
-		const perCore = loadRaw[0] / (cpu.cores || 1);
-		const loadPct = fmt.clampPct(perCore * 100);
-		const loadTxt = loadRaw.map((v) => v.toFixed(2)).join(' / ');
-		const loadHint = perCore < 0.7 ? _('Running smoothly') : (
-			perCore < 1 ? _('Normal load') : _('High load')
-		);
-
-		const mem = sys.memory || {};
-		const memTotal = Number(mem.total) || 0;
-		const memAvail = Number(mem.available != null ? mem.available : ((Number(mem.free) || 0) + (Number(mem.buffered) || 0)));
-		const memUsed = memTotal ? Math.max(0, memTotal - memAvail) : 0;
-		const memPct = memTotal ? (memUsed / memTotal) * 100 : 0;
-
-		const [disk, healthData, leases, dhcpConfig] = await Promise.all([
-			this.readDisk(sys),
-			health.read(!!wan && (typeof wan.isUp === 'function' ? wan.isUp() : !!addrsOf(wan, false).length)),
-			settled(callDhcpLeases(), null), settled(callDHCPConfig('dhcp'), null)
-		]);
-		this.setHealth(healthData, health.dhcpUsage(dhcpConfig, leases, lan));
-		this.diskInfo = disk;
-		const diskUsed = (disk && disk.used) || 0;
-		const diskTotal = (disk && disk.total) || 0;
-		const diskPct = diskTotal ? (diskUsed / diskTotal) * 100 : 0;
-
-		this.setGauge('load', _('Load'), loadHint, loadTxt, loadPct);
-		this.setGauge('cpu', 'CPU', '%d %s'.format(cpu.cores, _('cores')), '', cpu.pct);
-		this.setGauge('ram', _('Memory'), fmt.fmtBytes(memUsed), _('Total %s').format(fmt.fmtBytes(memTotal)), memPct);
-		this.setGauge('disk', _('Storage'), fmt.fmtBytes(diskUsed), _('Total %s').format(fmt.fmtBytes(diskTotal)), diskPct);
-
-		this.setNetworkRow('wan', wan, false);
-		this.setNetworkRow('lan', lan, false);
-		this.setNetworkRow('wan6', wan6, true);
-		this.wanDevice = this.selectWanDevice(wan, devs || {});
-		this.wanProto = wan && wan.getProtocol ? String(wan.getProtocol()).toUpperCase().replace('PPPOE', 'PPPoE') : '';
-		if (!this.ifaceChosen && this.wanDevice && this.iface !== this.wanDevice) {
-			this.iface = this.wanDevice;
-			this.historyLoadedFor = null;
-			this.history = [];
-			this.historyClockOffset = 0;
-			this.historyEnd = null;
-			this.prevNet = null;
-			this.prevAt = 0;
+		const infoP = settled(callSystemInfo(), {});
+		const cpuP = this.readCpu();
+		const devsP = this.readDevs();
+		const conntrackP = health.readConnections().then((c) => {
+			if (this.dash === dashRef) this.setConnections(c.connections, c.connectionLimit);
+			return c;
+		}).catch(() => null);
+		health.readTemperature().then((temp) => {
+			if (this.dash === dashRef) this.setTemperature(temp);
+		}).catch(() => {});
+		const leasesP = settled(callDhcpLeases(), null);
+		if (!this.dhcpConfigPromise || now - (this.dhcpConfigAt || 0) >= 30000 || now < (this.dhcpConfigAt || 0)) {
+			this.dhcpConfigAt = now;
+			this.dhcpConfigPromise = settled(callDHCPConfig('dhcp'), null);
 		}
+		const dhcpConfigP = this.dhcpConfigPromise;
+		const prefetchedHistoryP = (!this.historyLoadedFor && !this.ifaceChosen)
+			? settled(callRealtimeHistory('', HISTORY), null) : null;
+		const ifacesP = settled(callInterfaceDump(), []);
 
-		await this.loadRealtimeHistory();
-		const stats = this.pickStats(devs || {}, this.iface);
-		const hadBaseline = !!(this.prevNet && this.prevAt);
-		let rxRate = 0, txRate = 0;
-		if (this.prevNet && this.prevAt) {
-			const dt = Math.max((now - this.prevAt) / 1000, 0.001);
-			rxRate = Math.max(0, (stats.rx - this.prevNet.rx) / dt);
-			txRate = Math.max(0, (stats.tx - this.prevNet.tx) / dt);
-		}
-		this.prevNet = { rx: stats.rx, tx: stats.tx };
-		this.prevAt = now;
-		const sampleAt = now + (this.historyClockOffset || 0);
-		if (hadBaseline || !this.history.length)
-			this.history.push({ t: sampleAt, rx: rxRate, tx: txRate });
-		this.trimRealtimeHistory(Math.max(sampleAt, this.historyEnd || 0));
+		const applyDisk = (disk) => {
+			if (this.dash !== dashRef) return;
+			this.diskInfo = disk;
+			const diskUsed = (disk && disk.used) || 0;
+			const diskTotal = (disk && disk.total) || 0;
+			const diskPct = diskTotal ? (diskUsed / diskTotal) * 100 : 0;
+			this.setGauge('disk', _('Storage'), fmt.fmtBytes(diskUsed), _('Total %s').format(fmt.fmtBytes(diskTotal)), diskPct);
+		};
 
-		this.renderTraffic({
-			rxRate, txRate,
-			rxTotal: stats.rx,
-			txTotal: stats.tx,
-			names: stats.listed
+		const systemStage = Promise.all([infoP, cpuP, this.boardPromise]).then(([info, cpu, board]) => {
+			if (this.dash !== dashRef) return;
+			const sys = info || {};
+			this.setSystemInfo(board || {}, sys);
+			this.setUptime(sys.uptime, sys.localtime);
+
+			const loadRaw = (sys.load || [0, 0, 0]).map((v) => (Number(v) || 0) / 65535);
+			const perCore = loadRaw[0] / (cpu.cores || 1);
+			const loadPct = fmt.clampPct(perCore * 100);
+			const loadTxt = loadRaw.map((v) => v.toFixed(2)).join(' / ');
+			const loadHint = perCore < 0.7 ? _('Running smoothly') : (
+				perCore < 1 ? _('Normal load') : _('High load')
+			);
+
+			const mem = sys.memory || {};
+			const memTotal = Number(mem.total) || 0;
+			const memAvail = Number(mem.available != null ? mem.available : ((Number(mem.free) || 0) + (Number(mem.buffered) || 0)));
+			const memUsed = memTotal ? Math.max(0, memTotal - memAvail) : 0;
+			const memPct = memTotal ? (memUsed / memTotal) * 100 : 0;
+
+			this.setGauge('load', _('Load'), loadHint, loadTxt, loadPct);
+			this.setGauge('cpu', 'CPU', '%d %s'.format(cpu.cores, _('cores')), '', cpu.pct);
+			this.setGauge('ram', _('Memory'), fmt.fmtBytes(memUsed), _('Total %s').format(fmt.fmtBytes(memTotal)), memPct);
+
+			if (!hadPrevCpu && this.prevCpu && !this._cpuWarmup) {
+				this._cpuWarmup = setTimeout(() => {
+					this._cpuWarmup = null;
+					if (this.dash !== dashRef || !dashRef.isConnected || document.hidden) return;
+					this.readCpu().then((sample) => {
+						if (this.dash !== dashRef || !dashRef.isConnected) return;
+						this.setGauge('cpu', 'CPU', '%d %s'.format(sample.cores, _('cores')), '', sample.pct);
+					}).catch(() => {});
+				}, 450);
+			}
+
+			if (sys.root && Number(sys.root.total) > 0) {
+				applyDisk({ total: Number(sys.root.total) * 1024, used: Number(sys.root.used) * 1024 });
+			} else {
+				this.readDisk(sys).then(applyDisk).catch(() => {});
+			}
 		});
+
+		const networkStage = Promise.all([devsP, ifacesP]).then(async ([devs, ifaces]) => {
+			if (this.dash !== dashRef) return;
+			const { wan, wan6, lan } = pickInterfaces(ifaces);
+			const wanUp = !!wan && (typeof wan.isUp === 'function' ? wan.isUp() : !!addrsOf(wan, false).length);
+
+			this.setNetworkRow('wan', wan, false);
+			this.setNetworkRow('lan', lan, false);
+			this.setNetworkRow('wan6', wan6, true);
+
+			health.readLatency(wanUp)
+				.then((latency) => { if (this.dash === dashRef) this.setLatency(latency); })
+				.catch(() => {});
+			Promise.all([leasesP, dhcpConfigP])
+				.then(([leases, dhcpConfig]) => {
+					if (this.dash === dashRef) this.setDhcp(health.dhcpUsage(dhcpConfig, leases, lan));
+				})
+				.catch(() => {});
+
+			this.wanDevice = this.selectWanDevice(wan, devs || {});
+			this.wanProto = wan && wan.getProtocol ? String(wan.getProtocol()).toUpperCase().replace('PPPOE', 'PPPoE') : '';
+			if (!this.ifaceChosen && this.wanDevice && this.iface !== this.wanDevice) {
+				this.iface = this.wanDevice;
+				this.historyLoadedFor = null;
+				this.history = [];
+				this.historyClockOffset = 0;
+				this.historyEnd = null;
+				this.prevNet = null;
+				this.prevAt = 0;
+			}
+
+			let usedPrefetch = false;
+			if (prefetchedHistoryP && this.wanDevice && this.iface === this.wanDevice) {
+				const prefetched = await prefetchedHistoryP;
+				if (this.dash !== dashRef) return;
+				const pIface = prefetched && (prefetched.interface || prefetched.iface);
+				if (prefetched && Array.isArray(prefetched.samples) && pIface === this.wanDevice) {
+					this.historyLoadedFor = this.iface;
+					this.historyRequest = (this.historyRequest || 0) + 1;
+					this.applyRealtimeHistory(prefetched);
+					usedPrefetch = true;
+				}
+			}
+			if (!usedPrefetch) {
+				await this.loadRealtimeHistory();
+				if (this.dash !== dashRef) return;
+			}
+
+			const stats = this.pickStats(devs || {}, this.iface);
+			const hadBaseline = !!(this.prevNet && this.prevAt);
+			let rxRate = 0, txRate = 0;
+			if (this.prevNet && this.prevAt) {
+				const dt = Math.max((now - this.prevAt) / 1000, 0.001);
+				rxRate = Math.max(0, (stats.rx - this.prevNet.rx) / dt);
+				txRate = Math.max(0, (stats.tx - this.prevNet.tx) / dt);
+			}
+			this.prevNet = { rx: stats.rx, tx: stats.tx };
+			this.prevAt = now;
+			const sampleAt = now + (this.historyClockOffset || 0);
+			if (!hadBaseline && this.history.length) {
+				const latest = this.history.at(-1);
+				if (latest && Math.abs(sampleAt - latest.t) <= 30000) {
+					rxRate = latest.rx;
+					txRate = latest.tx;
+				}
+			}
+			if (hadBaseline || !this.history.length)
+				this.history.push({ t: sampleAt, rx: rxRate, tx: txRate });
+			this.trimRealtimeHistory(Math.max(sampleAt, this.historyEnd || 0));
+
+			this.renderTraffic({
+				rxRate, txRate,
+				rxTotal: stats.rx,
+				txTotal: stats.tx,
+				names: stats.listed
+			});
+		});
+
+		await Promise.all([systemStage, networkStage, conntrackP]);
 	}
 });

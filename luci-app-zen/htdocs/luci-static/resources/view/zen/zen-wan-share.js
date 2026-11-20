@@ -53,6 +53,24 @@ function breakdown(data, direction, all) {
 	return { slices, total, observed, excess: Math.max(0, attributed - observed), devices: rows.length };
 }
 
+function embeddedPeriods(data) {
+	const src = data && data.periods;
+	if (!src || typeof src !== 'object') return null;
+	const names = new Map((data.dev || []).map(d => [d.mac, d.host]));
+	const out = {};
+	for (const key of ['day', 'week', 'month']) {
+		const p = src[key];
+		if (!p || !Array.isArray(p.dev) || !number(p.since || data.since)) return null;
+		out[key] = {
+			since: number(p.since || data.since),
+			interface_download: number(p.interface_download),
+			interface_upload: number(p.interface_upload),
+			dev: p.dev.map(d => ({ ...d, host: d.host || names.get(d.mac) }))
+		};
+	}
+	return out;
+}
+
 // Share the ring denominators with overview totals, including accounting differences.
 function usageTotals(data) {
 	const upload = breakdown(data, 'upload', true).total;
@@ -178,7 +196,8 @@ return baseclass.extend({
 			if (snapshot && typeof options.onUpdate === 'function')
 				options.onUpdate({ period: selectedPeriod, ...usageTotals(snapshot[selectedPeriod]),
 					uploadBreakdown: breakdown(snapshot[selectedPeriod], 'upload', true),
-					downloadBreakdown: breakdown(snapshot[selectedPeriod], 'download', true) });
+					downloadBreakdown: breakdown(snapshot[selectedPeriod], 'download', true),
+					dayDevices: snapshot.day?.dev || [] });
 		}
 		const buttons=PERIODS.map(([key,label])=>E('button',{type:'button','aria-pressed':String(key==='day'),click:()=>{selectedPeriod=key;upload.setPeriod(key);download.setPeriod(key);buttons.forEach((button,index)=>button.setAttribute('aria-pressed',String(PERIODS[index][0]===key)));publishTotals();}},label));
 		const range=E('div',{class:'zen-share-periods zen-segmented',role:'group','aria-label':_('Time range')},buttons);
@@ -193,7 +212,7 @@ return baseclass.extend({
 			try {
 				const data = await callUsage();
 				if (!data || !Array.isArray(data.dev) || !number(data.since)) throw new Error('usage unavailable');
-				snapshot={all:data,...await periods.load(data)};
+				snapshot={all:data,...(embeddedPeriods(data)||await periods.load(data))};
 				upload.update(snapshot); download.update(snapshot); cards.hidden = false; loaded = true;
 				publishTotals();
 				subtitle.hidden = true;

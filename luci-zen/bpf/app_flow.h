@@ -6,6 +6,7 @@
 #define ZEN_APP_SAMPLE_SIZE 4096
 #define ZEN_APP_SAMPLE_PACKETS 128
 #define ZEN_APP_CONTROL_PACKETS 8
+#define ZEN_FLOW_TCP_CLOSED 1ULL
 
 /* Device-normalized five tuple: both directions use the same key. */
 struct app_flow_key {
@@ -14,7 +15,7 @@ struct app_flow_key {
 	__be16 client_port, server_port;
 };
 struct app_flow_stats {
-	__u64 first_seen, last_seen, download, upload, samples, control_samples;
+	__u64 first_seen, last_seen, download, upload, samples, control_samples, flags;
 };
 struct app_flow_sample {
 	struct app_flow_key key;
@@ -108,14 +109,17 @@ static __always_inline void app_account(struct __sk_buff *skb, const __u8 *mac,
 	stats->last_seen = now;
 	if (egress) __sync_fetch_and_add(&stats->download, skb->len);
 	else __sync_fetch_and_add(&stats->upload, skb->len);
+	__u8 tcp[2] = {};
+	if (key.protocol == 6) {
+		if (bpf_skb_load_bytes(skb, l4 + 12, tcp, sizeof(tcp))) return;
+		if (tcp[1] & 0x05) stats->flags = ZEN_FLOW_TCP_CLOSED;
+	}
 	__u64 *verdict = bpf_map_lookup_elem(&app_verdicts, &key);
 	if (verdict && *verdict == stats->first_seen) return;
 	/* Empty TCP ACKs must not consume the useful-payload inspection budget. */
 	__u64 *counter = &stats->samples;
 	__u64 budget = ZEN_APP_SAMPLE_PACKETS;
 	if (key.protocol == 6) {
-		__u8 tcp[2];
-		if (bpf_skb_load_bytes(skb, l4 + 12, tcp, sizeof(tcp))) return;
 		__u32 tcp_length = (tcp[0] >> 4) * 4;
 		if (tcp_length < 20 || ip_length < (__u32)(l4 - off) + tcp_length) return;
 		if (ip_length == (__u32)(l4 - off) + tcp_length) {

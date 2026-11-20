@@ -1,11 +1,16 @@
 {
-  "version": "zen-cn-20261115.1",
+  "version": "zen-cn-20261120.1",
   "services": {
     "tencent": {
       "app": "ndpi:324",
       "dedicated": [
         "video.qq.com",
-        "v.qq.com"
+        "v.qq.com",
+        "film.qq.com",
+        "vm.gtimg.cn",
+        "puui.qpic.cn",
+        "wetv.vip",
+        "wetvinfo.com"
       ]
     },
     "iqiyi": {
@@ -131,7 +136,13 @@
         "byteimg.com",
         "bdurl.net",
         "zjcdn.com",
-        "zijieapi.com"
+        "zijieapi.com",
+        "douyinvod.cn",
+        "douyin.cn",
+        "iesdouyin.cn",
+        "ixigua.com",
+        "ixiguavideo.com",
+        "toutiaovod.com"
       ]
     },
     "kuaishou": {
@@ -222,7 +233,10 @@
         "xycdn.com",
         "onethingpcs.com",
         "peiluyou.com",
-        "00cdn.com"
+        "00cdn.com",
+        "88cdn.com",
+        "xunleicdn.com",
+        "kanimg.com"
       ]
     },
     "baidupan": {
@@ -231,7 +245,10 @@
         "pan.baidu.com",
         "pcs.baidu.com",
         "baidupcs.com",
-        "yun.baidu.com"
+        "yun.baidu.com",
+        "baidupcs.cn",
+        "pan.baidu.cn",
+        "baidupan.com"
       ]
     },
     "alipan": {
@@ -239,7 +256,10 @@
       "dedicated": [
         "aliyundrive.com",
         "alipan.com",
-        "aliyundrive.net"
+        "aliyundrive.net",
+        "aliyundrive.asia",
+        "alipan.net",
+        "aliyundrive.cn"
       ]
     },
     "115": {
@@ -257,7 +277,9 @@
         "xiaohongshu.com",
         "xhscdn.com",
         "xhscdn.net",
-        "xhslink.com"
+        "xhslink.com",
+        "xhscdn.cn",
+        "xiaohongshu.net"
       ]
     },
     "taobao": {
@@ -330,7 +352,11 @@
         "ug.link",
         "ugnas.com",
         "ugreengroup.com",
-        "ugreen.com"
+        "ugreen.com",
+        "ugapp.link",
+        "ugdocker.link",
+        "ugnas.cn",
+        "ugreen.cn"
       ]
     },
     "heytap": {
@@ -343,7 +369,17 @@
         "oppomobile.com",
         "coloros.com",
         "allawnofs.com",
-        "allawntech.com"
+        "allawntech.com",
+        "heytap.com",
+        "heytapcs.com",
+        "heytapdownload.com",
+        "oppo.com",
+        "oppo.cn",
+        "opposhop.cn",
+        "nearme.com.cn",
+        "oneplus.com",
+        "oneplus.cn",
+        "realme.com"
       ]
     },
     "xiaomi": {
@@ -353,7 +389,13 @@
         "xiaomi.com",
         "xiaomi.net",
         "miui.com",
-        "mifile.cn"
+        "mifile.cn",
+        "mi-img.com",
+        "mi-idc.com",
+        "xiaomiyoupin.com",
+        "mijia.tech",
+        "miot-spec.org",
+        "xiaomi.cn"
       ]
     },
     "baidu": {
@@ -367,6 +409,318 @@
         "baidustatic.com",
         "bcebos.com",
         "shifen.com"
+      ]
+    },
+    "wechat": {
+      "app": "ndpi:197",
+      "lists": [],
+      "dedicated": [
+        "weixin.qq.com",
+        "wx.qq.com",
+        "wechat.com",
+        "servicewechat.com",
+        "weixinbridge.com",
+        "wx.gtimg.com",
+        "mmsns.qpic.cn",
+        "mmbiz.qpic.cn",
+        "wx.qlogo.cn",
+        "wxs.qq.com",
+        "wechatos.net",
+        "weixin.com",
+        "wechatpay.cn"
+      ]
+    },
+    "qq": {
+      "app": "ndpi:48",
+      "lists": [],
+      "dedicated": [
+        "im.qq.com",
+        "tim.qq.com",
+        "qzone.qq.com",
+        "qun.qq.com",
+        "ti.qq.com",
+        "mail.qq.com",
+        "qqmail.com",
+        "qzonestyle.gtimg.cn",
+        "q.qlogo.cn"
+      ]
+    },
+    "weibo": {
+      "app": "community:weibo",
+      "lists": [],
+      "dedicated": [
+        "weibo.com",
+        "weibo.cn",
+        "weibocdn.com",
+        "sinaimg.cn",
+        "sinajs.cn",
+        "weibopay.com",
+        "t.cn"
+      ]
+    },
+    "zhihu": {
+      "app": "community:zhihu",
+      "lists": [],
+      "dedicated": [
+        "zhihu.com",
+        "zhimg.com",
+        "zhihu.cn"
+      ]
+    },
+    "alipay": {
+      "app": "community:alipay",
+      "lists": [],
+      "dedicated": [
+        "alipay.com",
+        "alipayobjects.com",
+        "alipaydns.com",
+        "alipayplus.com",
+        "antgroup.com",
+        "antfin.com",
+        "antfin-inc.com"
+      ]
+    },
+    "dingtalk": {
+      "app": "community:dingtalk",
+      "lists": [],
+      "dedicated": [
+        "dingtalk.com",
+        "dingtalkapps.com",
+        "dingtalk.cn",
+        "dingtalk.net",
+        "laiwang.com"
+      ]
+    },
+    "feishu": {
+      "app": "community:feishu",
+      "lists": [],
+      "dedicated": [
+        "feishu.cn",
+        "feishucdn.com",
+        "feishupkg.com",
+        "feishu.net",
+        "larkoffice.com",
+        "larksuite.com",
+        "larksuitecdn.com"
+      ]
+    },
+    "wemeet": {
+      "app": "community:wemeet",
+      "lists": [],
+      "dedicated": [
+        "meeting.tencent.com",
+        "voovmeeting.com",
+        "wemeet.qq.com",
+        "meeting.qq.com"
+      ]
+    },
+    "qqmusic": {
+      "app": "community:qqmusic",
+      "lists": [],
+      "dedicated": [
+        "y.qq.com",
+        "qqmusic.qq.com",
+        "music.qq.com",
+        "y.gtimg.cn",
+        "aqqmusic.tc.qq.com"
+      ]
+    },
+    "kugou": {
+      "app": "community:kugou",
+      "lists": [],
+      "dedicated": [
+        "kugou.com",
+        "kgimg.com",
+        "kugou.net",
+        "fanxing.com"
+      ]
+    },
+    "ximalaya": {
+      "app": "community:ximalaya",
+      "lists": [],
+      "dedicated": [
+        "ximalaya.com",
+        "xmcdn.com",
+        "ximalaya.cn"
+      ]
+    },
+    "amap": {
+      "app": "community:amap",
+      "lists": [],
+      "dedicated": [
+        "amap.com",
+        "autonavi.com",
+        "gaode.com",
+        "amapauto.com"
+      ]
+    },
+    "mihoyo": {
+      "app": "community:mihoyo",
+      "lists": [],
+      "dedicated": [
+        "mihoyo.com",
+        "hoyoverse.com",
+        "hoyolab.com",
+        "yuanshen.com",
+        "bh3.com",
+        "bhsr.com",
+        "mhystatic.com",
+        "miyoushe.com",
+        "starrails.com",
+        "hoyoverse.cn"
+      ]
+    },
+    "netease-games": {
+      "app": "community:netease-games",
+      "lists": [],
+      "dedicated": [
+        "nie.163.com",
+        "g.163.com",
+        "game.163.com",
+        "neteasegames.com",
+        "easebar.com",
+        "163games.com",
+        "cc.163.com",
+        "nie.netease.com",
+        "update.netease.com",
+        "mkey.163.com"
+      ]
+    },
+    "huawei": {
+      "app": "community:huawei",
+      "lists": [],
+      "dedicated": [
+        "huawei.com",
+        "hicloud.com",
+        "dbankcdn.com",
+        "dbankcdn.cn",
+        "dbankcloud.com",
+        "dbankcloud.cn",
+        "dbankedge.cn",
+        "dbankedge.net",
+        "vmall.com",
+        "vmallres.com",
+        "harmonyos.com"
+      ]
+    },
+    "honor": {
+      "app": "community:honor",
+      "lists": [],
+      "dedicated": [
+        "honor.com",
+        "honor.cn",
+        "hihonor.com",
+        "hihonorcloud.com",
+        "hihonorcdn.com"
+      ]
+    },
+    "vivo": {
+      "app": "community:vivo",
+      "lists": [],
+      "dedicated": [
+        "vivo.com",
+        "vivo.com.cn",
+        "vivoglobal.com",
+        "iqoo.com"
+      ]
+    },
+    "synology": {
+      "app": "community:synology",
+      "lists": [],
+      "dedicated": [
+        "synology.com",
+        "synology.cn",
+        "synology.me",
+        "quickconnect.to",
+        "quickconnect.cn",
+        "synocommunity.com"
+      ]
+    },
+    "fnos": {
+      "app": "community:fnos",
+      "lists": [],
+      "dedicated": [
+        "fnnas.com",
+        "5ddd.com",
+        "fnos.net"
+      ]
+    },
+    "cloud189": {
+      "app": "community:cloud189",
+      "lists": [],
+      "dedicated": [
+        "cloud.189.cn",
+        "ctyunxs.cn",
+        "189cube.com",
+        "cloud189.cn"
+      ]
+    },
+    "cloud139": {
+      "app": "community:cloud139",
+      "lists": [],
+      "dedicated": [
+        "yun.139.com",
+        "caiyun.feixin.10086.cn",
+        "mcloud.139.com"
+      ]
+    },
+    "pan123": {
+      "app": "community:pan123",
+      "lists": [],
+      "dedicated": [
+        "123pan.com",
+        "123pan.cn",
+        "123684.com",
+        "123865.com",
+        "123912.com"
+      ]
+    },
+    "deepseek": {
+      "app": "community:deepseek",
+      "lists": [],
+      "dedicated": [
+        "deepseek.com",
+        "deepseek.cn"
+      ]
+    },
+    "doubao": {
+      "app": "community:doubao",
+      "lists": [],
+      "dedicated": [
+        "doubao.com",
+        "coze.cn",
+        "marscode.cn"
+      ]
+    },
+    "kimi": {
+      "app": "community:kimi",
+      "lists": [],
+      "dedicated": [
+        "moonshot.cn",
+        "kimi.com",
+        "kimi.ai",
+        "moonshot.ai"
+      ]
+    },
+    "qwen": {
+      "app": "community:qwen",
+      "lists": [],
+      "dedicated": [
+        "tongyi.com",
+        "qianwen.com",
+        "qwen.ai",
+        "qwenlm.ai",
+        "tongyi.aliyun.com"
+      ]
+    },
+    "qnap": {
+      "app": "community:qnap",
+      "lists": [],
+      "dedicated": [
+        "qnap.com",
+        "myqnapcloud.com",
+        "myqnapcloud.cn",
+        "qnapcloud.com"
       ]
     }
   },

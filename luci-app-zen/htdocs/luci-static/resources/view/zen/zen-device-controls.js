@@ -17,7 +17,25 @@ const decode=response=>response&&typeof response.json==='string'?JSON.parse(resp
 const checked=response=>{const value=decode(response);if(!value||value.ok!==true)throw Error(value?.error||'operation_failed');return value;};
 const errors={ip_conflict:_('This IP address is already in use by another device.'),outside_lan:_('The IP address must belong to a LAN with DHCP enabled.'),router_ip:_('The router address cannot be reserved.'),invalid_ip:_('Enter a valid IPv4 address.'),shared_binding:_('This reservation is shared by multiple devices. Edit it on the DHCP page.'),ambiguous_binding:_('Multiple reservations match this device. Resolve them on the DHCP page.'),busy:_('Another operation is in progress. Try again shortly.'),dhcp_reload_failed:_('DHCP reload failed. The previous configuration was restored.'),rollback_failed:_('Rollback failed. Check the DHCP configuration and service.'),rollback_conflict:_('The configuration changed concurrently. Check DHCP settings.'),policy_storage_failed:_('Saving failed. The previous device policy was restored.'),policy_rollback_failed:_('Rollback failed. Check the device policy.'),hardware_offload_or_interface_unavailable:_('Hardware offload or unavailable interfaces prevent this policy. Check the traffic service.'),invalid_rate:_('Enter valid rate limits.'),policy_apply_failed:_('The kernel device policy could not be updated.'),operation_failed:_('Operation failed. Please retry.')};
 const errorText=error=>errors[error?.message]||_('Operation failed. Check permissions and services, then retry.');
-async function todayUsage(mac){const [raw,clock]=await Promise.all([calls.history('day',mac),calls.clock()]);const data=decode(raw),today=decode(clock)?.today;if(!Array.isArray(data?.days)||!today)throw Error('usage_unavailable');return data.days.filter(row=>row.date===today).reduce((sum,row)=>({upload:sum.upload+Math.max(0,Number(row.upload)||0),download:sum.download+Math.max(0,Number(row.download)||0)}),{upload:0,download:0});}
+const accessCache=new Map();
+const checkAccess=(object,method)=>{
+ const key=object+':'+method;
+ let pending=accessCache.get(key);
+ if(!pending){
+  pending=calls.access('ubus',object,method)
+   .then(result=>result===true||result?.access===true)
+   .catch(error=>{accessCache.delete(key);throw error;});
+  accessCache.set(key,pending);
+ }
+ return pending;
+};
+async function todayUsage(mac){
+ const raw=await calls.history('day',mac);
+ const data=decode(raw);
+ const today=typeof data?.today==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(data.today)?data.today:decode(await calls.clock())?.today;
+ if(!Array.isArray(data?.days)||!today)throw Error('usage_unavailable');
+ return data.days.filter(row=>row.date===today).reduce((sum,row)=>({upload:sum.upload+Math.max(0,Number(row.upload)||0),download:sum.download+Math.max(0,Number(row.download)||0)}),{upload:0,download:0});
+}
 
  const el=(tag,cls,text)=>{const node=document.createElement(tag);if(cls)node.className=cls;if(text!=null)node.textContent=text;return node;};
  function install(owner,options={}){
@@ -80,14 +98,14 @@ async function todayUsage(mac){const [raw,clock]=await Promise.all([calls.histor
    }
    async function load(){
     message.hidden=true;
-    const permissions=await Promise.allSettled([['rename','zen.traffic','setHostname'],['limit','zen.traffic','setDevicePolicy'],['block','zen.traffic','setDevicePolicy'],['ip','zen.device','setBinding']].map(async([key,object,method])=>{const result=await calls.access('ubus',object,method);allowed.set(key,result===true||result?.access===true);}));
     ready.set('rename',true);
     const results=await Promise.allSettled([
+     ...[['rename','zen.traffic','setHostname'],['limit','zen.traffic','setDevicePolicy'],['block','zen.traffic','setDevicePolicy'],['ip','zen.device','setBinding']].map(async([key,object,method])=>{allowed.set(key,await checkAccess(object,method));}),
      calls.policy(device.mac).then(checked).then(value=>{applyPolicy(value.policy);ready.set('limit',true);ready.set('block',true);if(value.enforceable===false&&(state.limit||state.blocked))notify(_('Hardware offload or the current interface state may bypass device policies.'));}),
      calls.binding(device.mac).then(checked).then(value=>{state.fixedIP=value.bound?value.ip:'';ready.set('ip',true);})
     ]);
     sync();availability();
-    if(permissions.some(result=>result.status==='rejected')||results.some(result=>result.status==='rejected')){
+    if(results.some(result=>result.status==='rejected')){
      notify(_('Some device settings could not be loaded.'));const retry=el('button','rf-detail-retry',_('Retry'));retry.type='button';retry.addEventListener('click',()=>{retry.disabled=true;load();});message.append(' ',retry);
     }
    }

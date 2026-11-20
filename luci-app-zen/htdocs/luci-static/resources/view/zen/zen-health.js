@@ -88,6 +88,15 @@ function pingResult(result) {
 return baseclass.extend({
 	prefixes, dhcpUsage, pingResult,
 	async temperature() {
+		if (this.tempSensor) {
+			const raw = await safe(() => fs.read(this.tempSensor.path));
+			if (raw != null && /^-?\d+$/.test(String(raw).trim())) {
+				const celsius = Number(raw) / 1000;
+				if (celsius >= -40 && celsius <= 150)
+					return { celsius, sensor: this.tempSensor.sensor, path: this.tempSensor.path };
+			}
+			this.tempSensor = null;
+		}
 		const zones = await safe(() => fs.list('/sys/class/thermal'), []);
 		const values = await Promise.all(zones.filter(zone => /^thermal_zone\d+$/.test(zone.name)).map(async zone => {
 			const root = '/sys/class/thermal/' + zone.name;
@@ -99,35 +108,77 @@ return baseclass.extend({
 		const available = values.filter(Boolean);
 		if (!available.length) {
 			const devices = await safe(() => fs.list('/sys/class/hwmon'), []);
-			for (const device of devices.filter(d => /^hwmon\d+$/.test(d.name)).slice(0, 32)) {
+			const batches = await Promise.all(devices.filter(d => /^hwmon\d+$/.test(d.name)).slice(0, 32).map(async device => {
 				const root = '/sys/class/hwmon/' + device.name;
 				const [entries, chip] = await Promise.all([safe(() => fs.list(root), []), safe(() => fs.read(root + '/name'), '')]);
-				for (const entry of entries.filter(e => /^temp\d+_input$/.test(e.name)).slice(0, 32)) {
-					const [raw, label] = await Promise.all([safe(() => fs.read(root + '/' + entry.name)), safe(() => fs.read(root + '/' + entry.name.replace('_input', '_label')), '')]);
-					if (raw == null || !/^-?\d+$/.test(String(raw).trim())) continue;
+				return Promise.all(entries.filter(e => /^temp\d+_input$/.test(e.name)).slice(0, 32).map(async entry => {
+					const [raw, label] = await Promise.all([
+						safe(() => fs.read(root + '/' + entry.name)),
+						safe(() => fs.read(root + '/' + entry.name.replace('_input', '_label')), '')
+					]);
+					if (raw == null || !/^-?\d+$/.test(String(raw).trim())) return null;
 					const celsius = Number(raw) / 1000;
-					if (celsius >= -40 && celsius <= 150) available.push({ celsius, sensor: [chip, label].map(v => String(v).trim()).filter(Boolean).join(' · '), path: root + '/' + entry.name });
-				}
-			}
+					return celsius >= -40 && celsius <= 150
+						? { celsius, sensor: [chip, label].map(v => String(v).trim()).filter(Boolean).join(' · '), path: root + '/' + entry.name }
+						: null;
+				}));
+			}));
+			for (const rows of batches)
+				for (const row of rows)
+					if (row) available.push(row);
 		}
 		const cpu = available.filter(v => /cpu|soc|package|x86_pkg|coretemp|k10temp/i.test(v.sensor));
-		return (cpu.length ? cpu : available).sort((a, b) => b.celsius - a.celsius)[0] || null;
+		const best = (cpu.length ? cpu : available).sort((a, b) => b.celsius - a.celsius)[0] || null;
+		if (best) this.tempSensor = { path: best.path, sensor: best.sensor };
+		return best;
+	},
+	async readConnections() {
+		const [count, maximum] = await Promise.all([
+			safe(() => fs.read('/proc/sys/net/netfilter/nf_conntrack_count')),
+			safe(() => fs.read('/proc/sys/net/netfilter/nf_conntrack_max'))
+		]);
+		return { connections: integer(count), connectionLimit: integer(maximum) };
+	},
+	async readTemperature() {
+		const now = Date.now();
+		const due = this.lastTemp == null || now - this.lastTemp >= INTERVAL || now < this.lastTemp;
+		if (!due) return this.temperatureValue || null;
+		if (this.tempPending) return this.tempPending;
+		this.lastTemp = now;
+		this.tempPending = this.temperature()
+			.then(value => { this.temperatureValue = value || null; return this.temperatureValue; })
+			.catch(() => this.temperatureValue || null)
+			.finally(() => { this.tempPending = null; });
+		return this.tempPending;
+	},
+	async readLatency(wanUp) {
+		if (!wanUp) {
+			this.latencyValue = { state: 'offline', target: PROBE };
+			this.probedUp = false;
+			return this.latencyValue;
+		}
+		if (this.latencyPending) return this.latencyPending;
+		const now = Date.now();
+		const due = this.lastLatency == null || now - this.lastLatency >= INTERVAL || now < this.lastLatency || !this.probedUp;
+		if (!due) return this.latencyValue || { state: 'unavailable', target: PROBE };
+		this.lastLatency = now;
+		this.probedUp = true;
+		this.latencyPending = safe(() => fs.exec('/bin/ping', PROBE_ARGS))
+			.then(pingResult)
+			.then(value => {
+				if (this.probedUp)
+					this.latencyValue = value || { state: 'unavailable', target: PROBE };
+				return this.latencyValue;
+			})
+			.finally(() => { this.latencyPending = null; });
+		return this.latencyPending;
 	},
 	async read(wanUp) {
-		const now = Date.now();
-		const slow = this.lastSlow == null || now - this.lastSlow >= INTERVAL || now < this.lastSlow;
-		if (slow) this.lastSlow = now;
-		if (!wanUp) { this.latencyValue = { state: 'offline', target: PROBE }; this.probedUp = false; }
-		const probe = wanUp && (slow || !this.probedUp);
-		if (probe) this.probedUp = true;
-		const [count, maximum, temperature, latency] = await Promise.all([
-			safe(() => fs.read('/proc/sys/net/netfilter/nf_conntrack_count')),
-			safe(() => fs.read('/proc/sys/net/netfilter/nf_conntrack_max')),
-			slow ? this.temperature() : this.temperatureValue,
-			probe ? safe(() => fs.exec('/bin/ping', PROBE_ARGS)).then(pingResult) : this.latencyValue
+		const [conns, temperature, latency] = await Promise.all([
+			this.readConnections(),
+			this.readTemperature(),
+			this.readLatency(wanUp)
 		]);
-		this.temperatureValue = temperature || null;
-		this.latencyValue = latency || { state: 'unavailable', target: PROBE };
-		return { connections: integer(count), connectionLimit: integer(maximum), temperature: this.temperatureValue, latency: this.latencyValue };
+		return { connections: conns.connections, connectionLimit: conns.connectionLimit, temperature, latency };
 	}
 });

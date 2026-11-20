@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "version": "zen-cn-20261115.1",
+  "version": "zen-cn-20261120.1",
   "source_revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
   "rules": [
     {
@@ -40,6 +40,60 @@
       "license": "MIT"
     },
     {
+      "domain": "123684.com",
+      "match": "suffix",
+      "app": "community:pan123",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "123865.com",
+      "match": "suffix",
+      "app": "community:pan123",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "123912.com",
+      "match": "suffix",
+      "app": "community:pan123",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "123pan.cn",
+      "match": "suffix",
+      "app": "community:pan123",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "123pan.com",
+      "match": "suffix",
+      "app": "community:pan123",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "163games.com",
+      "match": "suffix",
+      "app": "community:netease-games",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
       "domain": "163yun.com",
       "match": "suffix",
       "app": "community:netease",
@@ -55,6 +109,15 @@
       "level": "candidate",
       "source": "dlc",
       "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "189cube.com",
+      "match": "suffix",
+      "app": "community:cloud189",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
       "license": "MIT"
     },
     {
@@ -76,6 +139,15 @@
       "license": "MIT"
     },
     {
+      "domain": "5ddd.com",
+      "match": "suffix",
+      "app": "community:fnos",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
       "domain": "71.am",
       "match": "suffix",
       "app": "ndpi:54",
@@ -91,6 +163,15 @@
       "level": "dedicated",
       "source": "dlc",
       "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "88cdn.com",
+      "match": "suffix",
+      "app": "community:xunlei",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
       "license": "MIT"
     },
     {
@@ -166,12 +247,75 @@
       "license": "MIT"
     },
     {
+      "domain": "alipan.net",
+      "match": "suffix",
+      "app": "community:alipan",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "alipay.com",
+      "match": "suffix",
+      "app": "community:alipay",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "alipaydns.com",
+      "match": "suffix",
+      "app": "community:alipay",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "alipayobjects.com",
+      "match": "suffix",
+      "app": "community:alipay",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "alipayplus.com",
+      "match": "suffix",
+      "app": "community:alipay",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
       "domain": "aliyuncs.com",
       "match": "suffix",
       "app": "infra:alibaba-cloud",
       "level": "infrastructure",
       "source": "zen-reviewed",
       "revision": "zen-cn-20261108.2",
+      "license": "MIT"
+    },
+    {
+      "domain": "aliyundrive.asia",
+      "match": "suffix",
+      "app": "community:alipan",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "aliyundrive.cn",
+      "match": "suffix",
+      "app": "community:alipan",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
       "license": "MIT"
     },
     {
@@ -208,6 +352,24 @@
       "level": "dedicated",
       "source": "zen-reviewed",
       "revision": "zen-cn-20261115.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "amap.com",
+      "match": "suffix",
+      "app": "community:amap",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "amapauto.com",
+      "match": "suffix",
+      "app": "community:amap",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
       "license": "MIT"
     },
     {
@@ -274,6 +436,33 @@
       "license": "MIT"
     },
     {
+      "domain": "antfin-inc.com",
+      "match": "suffix",
+      "app": "community:alipay",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "antfin.com",
+      "match": "suffix",
+      "app": "community:alipay",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "antgroup.com",
+      "match": "suffix",
+      "app": "community:alipay",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
       "domain": "anticheatexpert.com",
       "match": "suffix",
       "app": "ndpi:395",
@@ -289,6 +478,24 @@
       "level": "dedicated",
       "source": "zen-reviewed",
       "revision": "zen-cn-20261115.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "aqqmusic.tc.qq.com",
+      "match": "suffix",
+      "app": "community:qqmusic",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "autonavi.com",
+      "match": "suffix",
+      "app": "community:amap",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
       "license": "MIT"
     },
     {
@@ -343,6 +550,24 @@
       "level": "dedicated",
       "source": "zen-reviewed",
       "revision": "zen-cn-20261115.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "baidupan.com",
+      "match": "suffix",
+      "app": "community:baidupan",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "baidupcs.cn",
+      "match": "suffix",
+      "app": "community:baidupan",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
       "license": "MIT"
     },
     {
@@ -424,6 +649,24 @@
       "level": "candidate",
       "source": "dlc",
       "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "bh3.com",
+      "match": "suffix",
+      "app": "community:mihoyo",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "bhsr.com",
+      "match": "suffix",
+      "app": "community:mihoyo",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
       "license": "MIT"
     },
     {
@@ -760,6 +1003,42 @@
       "license": "MIT"
     },
     {
+      "domain": "caiyun.feixin.10086.cn",
+      "match": "suffix",
+      "app": "community:cloud139",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "cc.163.com",
+      "match": "suffix",
+      "app": "community:netease-games",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "cloud.189.cn",
+      "match": "suffix",
+      "app": "community:cloud189",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "cloud189.cn",
+      "match": "suffix",
+      "app": "community:cloud189",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
       "domain": "codm.com",
       "match": "suffix",
       "app": "ndpi:395",
@@ -787,12 +1066,156 @@
       "license": "MIT"
     },
     {
+      "domain": "coze.cn",
+      "match": "suffix",
+      "app": "community:doubao",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "ctyunxs.cn",
+      "match": "suffix",
+      "app": "community:cloud189",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "dbankcdn.cn",
+      "match": "suffix",
+      "app": "community:huawei",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "dbankcdn.com",
+      "match": "suffix",
+      "app": "community:huawei",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "dbankcloud.cn",
+      "match": "suffix",
+      "app": "community:huawei",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "dbankcloud.com",
+      "match": "suffix",
+      "app": "community:huawei",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "dbankedge.cn",
+      "match": "suffix",
+      "app": "community:huawei",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "dbankedge.net",
+      "match": "suffix",
+      "app": "community:huawei",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "deepseek.cn",
+      "match": "suffix",
+      "app": "community:deepseek",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "deepseek.com",
+      "match": "suffix",
+      "app": "community:deepseek",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
       "domain": "dianping.com",
       "match": "suffix",
       "app": "community:meituan",
       "level": "dedicated",
       "source": "zen-reviewed",
       "revision": "zen-cn-20261115.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "dingtalk.cn",
+      "match": "suffix",
+      "app": "community:dingtalk",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "dingtalk.com",
+      "match": "suffix",
+      "app": "community:dingtalk",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "dingtalk.net",
+      "match": "suffix",
+      "app": "community:dingtalk",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "dingtalkapps.com",
+      "match": "suffix",
+      "app": "community:dingtalk",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "doubao.com",
+      "match": "suffix",
+      "app": "community:doubao",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "douyin.cn",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
       "license": "MIT"
     },
     {
@@ -895,6 +1318,15 @@
       "license": "MIT"
     },
     {
+      "domain": "douyinvod.cn",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
       "domain": "douyinvod.com",
       "match": "suffix",
       "app": "community:douyin",
@@ -985,6 +1417,15 @@
       "license": "MIT"
     },
     {
+      "domain": "easebar.com",
+      "match": "suffix",
+      "app": "community:netease-games",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
       "domain": "eckwai.com",
       "match": "suffix",
       "app": "community:kuaishou",
@@ -1012,12 +1453,102 @@
       "license": "MIT"
     },
     {
+      "domain": "fanxing.com",
+      "match": "suffix",
+      "app": "community:kugou",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "feishu.cn",
+      "match": "suffix",
+      "app": "community:feishu",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "feishu.net",
+      "match": "suffix",
+      "app": "community:feishu",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "feishucdn.com",
+      "match": "suffix",
+      "app": "community:feishu",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "feishupkg.com",
+      "match": "suffix",
+      "app": "community:feishu",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
       "domain": "ffbuddy.com",
       "match": "suffix",
       "app": "ndpi:395",
       "level": "candidate",
       "source": "dlc",
       "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "film.qq.com",
+      "match": "suffix",
+      "app": "ndpi:324",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "fnnas.com",
+      "match": "suffix",
+      "app": "community:fnos",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "fnos.net",
+      "match": "suffix",
+      "app": "community:fnos",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "g.163.com",
+      "match": "suffix",
+      "app": "community:netease-games",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "game.163.com",
+      "match": "suffix",
+      "app": "community:netease-games",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
       "license": "MIT"
     },
     {
@@ -1054,6 +1585,15 @@
       "level": "dedicated",
       "source": "dlc",
       "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "gaode.com",
+      "match": "suffix",
+      "app": "community:amap",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
       "license": "MIT"
     },
     {
@@ -1201,6 +1741,15 @@
       "license": "MIT"
     },
     {
+      "domain": "harmonyos.com",
+      "match": "suffix",
+      "app": "community:huawei",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
       "domain": "haydaypop.cn",
       "match": "suffix",
       "app": "ndpi:395",
@@ -1237,12 +1786,39 @@
       "license": "MIT"
     },
     {
+      "domain": "heytap.com",
+      "match": "suffix",
+      "app": "community:heytap",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "heytapcs.com",
+      "match": "suffix",
+      "app": "community:heytap",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
       "domain": "heytapdl.com",
       "match": "suffix",
       "app": "community:heytap",
       "level": "dedicated",
       "source": "zen-reviewed",
       "revision": "zen-cn-20261115.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "heytapdownload.com",
+      "match": "suffix",
+      "app": "community:heytap",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
       "license": "MIT"
     },
     {
@@ -1273,12 +1849,48 @@
       "license": "MIT"
     },
     {
+      "domain": "hicloud.com",
+      "match": "suffix",
+      "app": "community:huawei",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
       "domain": "hifuntv.com",
       "match": "suffix",
       "app": "community:mgtv",
       "level": "dedicated",
       "source": "dlc",
       "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "hihonor.com",
+      "match": "suffix",
+      "app": "community:honor",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "hihonorcdn.com",
+      "match": "suffix",
+      "app": "community:honor",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "hihonorcloud.com",
+      "match": "suffix",
+      "app": "community:honor",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
       "license": "MIT"
     },
     {
@@ -1309,12 +1921,66 @@
       "license": "MIT"
     },
     {
+      "domain": "honor.cn",
+      "match": "suffix",
+      "app": "community:honor",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "honor.com",
+      "match": "suffix",
+      "app": "community:honor",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "hoyolab.com",
+      "match": "suffix",
+      "app": "community:mihoyo",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "hoyoverse.cn",
+      "match": "suffix",
+      "app": "community:mihoyo",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "hoyoverse.com",
+      "match": "suffix",
+      "app": "community:mihoyo",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
       "domain": "huasheng.cn",
       "match": "suffix",
       "app": "community:bilibili",
       "level": "candidate",
       "source": "dlc",
       "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "huawei.com",
+      "match": "suffix",
+      "app": "community:huawei",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
       "license": "MIT"
     },
     {
@@ -1543,6 +2209,15 @@
       "license": "MIT"
     },
     {
+      "domain": "iesdouyin.cn",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
       "domain": "iesdouyin.com",
       "match": "suffix",
       "app": "community:douyin",
@@ -1642,6 +2317,15 @@
       "license": "MIT"
     },
     {
+      "domain": "im.qq.com",
+      "match": "suffix",
+      "app": "ndpi:48",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
       "domain": "im9.com",
       "match": "suffix",
       "app": "community:bilibili",
@@ -1714,6 +2398,33 @@
       "license": "MIT"
     },
     {
+      "domain": "iqoo.com",
+      "match": "suffix",
+      "app": "community:vivo",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "ixigua.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "ixiguavideo.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
       "domain": "jcloudcs.com",
       "match": "suffix",
       "app": "community:jd",
@@ -1759,12 +2470,48 @@
       "license": "MIT"
     },
     {
+      "domain": "kanimg.com",
+      "match": "suffix",
+      "app": "community:xunlei",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
       "domain": "kdocs.cn",
       "match": "suffix",
       "app": "community:wps",
       "level": "dedicated",
       "source": "zen-reviewed",
       "revision": "zen-cn-20261115.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "kgimg.com",
+      "match": "suffix",
+      "app": "community:kugou",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "kimi.ai",
+      "match": "suffix",
+      "app": "community:kimi",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "kimi.com",
+      "match": "suffix",
+      "app": "community:kimi",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
       "license": "MIT"
     },
     {
@@ -1849,6 +2596,24 @@
       "license": "MIT"
     },
     {
+      "domain": "kugou.com",
+      "match": "suffix",
+      "app": "community:kugou",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "kugou.net",
+      "match": "suffix",
+      "app": "community:kugou",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
       "domain": "kumiao.com",
       "match": "suffix",
       "app": "community:youku",
@@ -1930,6 +2695,42 @@
       "license": "MIT"
     },
     {
+      "domain": "laiwang.com",
+      "match": "suffix",
+      "app": "community:dingtalk",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "larkoffice.com",
+      "match": "suffix",
+      "app": "community:feishu",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "larksuite.com",
+      "match": "suffix",
+      "app": "community:feishu",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "larksuitecdn.com",
+      "match": "suffix",
+      "app": "community:feishu",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
       "domain": "lifexue.com",
       "match": "suffix",
       "app": "community:douyin",
@@ -2002,6 +2803,15 @@
       "license": "MIT"
     },
     {
+      "domain": "mail.qq.com",
+      "match": "suffix",
+      "app": "ndpi:48",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
       "domain": "maoer.com",
       "match": "suffix",
       "app": "community:bilibili",
@@ -2017,6 +2827,42 @@
       "level": "dedicated",
       "source": "dlc",
       "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "marscode.cn",
+      "match": "suffix",
+      "app": "community:doubao",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "mcloud.139.com",
+      "match": "suffix",
+      "app": "community:cloud139",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "meeting.qq.com",
+      "match": "suffix",
+      "app": "community:wemeet",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "meeting.tencent.com",
+      "match": "suffix",
+      "app": "community:wemeet",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
       "license": "MIT"
     },
     {
@@ -2065,6 +2911,33 @@
       "license": "MIT"
     },
     {
+      "domain": "mhystatic.com",
+      "match": "suffix",
+      "app": "community:mihoyo",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "mi-idc.com",
+      "match": "suffix",
+      "app": "community:xiaomi",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "mi-img.com",
+      "match": "suffix",
+      "app": "community:xiaomi",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
       "domain": "mi.com",
       "match": "suffix",
       "app": "community:xiaomi",
@@ -2092,12 +2965,39 @@
       "license": "MIT"
     },
     {
+      "domain": "mihoyo.com",
+      "match": "suffix",
+      "app": "community:mihoyo",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "mijia.tech",
+      "match": "suffix",
+      "app": "community:xiaomi",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
       "domain": "mincdn.com",
       "match": "suffix",
       "app": "community:bilibili",
       "level": "candidate",
       "source": "dlc",
       "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "miot-spec.org",
+      "match": "suffix",
+      "app": "community:xiaomi",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
       "license": "MIT"
     },
     {
@@ -2119,6 +3019,42 @@
       "license": "MIT"
     },
     {
+      "domain": "miyoushe.com",
+      "match": "suffix",
+      "app": "community:mihoyo",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "mkey.163.com",
+      "match": "suffix",
+      "app": "community:netease-games",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "mmbiz.qpic.cn",
+      "match": "suffix",
+      "app": "ndpi:197",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "mmsns.qpic.cn",
+      "match": "suffix",
+      "app": "ndpi:197",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
       "domain": "mmstat.com",
       "match": "suffix",
       "app": "community:taobao",
@@ -2134,6 +3070,24 @@
       "level": "candidate",
       "source": "dlc",
       "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "moonshot.ai",
+      "match": "suffix",
+      "app": "community:kimi",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "moonshot.cn",
+      "match": "suffix",
+      "app": "community:kimi",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
       "license": "MIT"
     },
     {
@@ -2191,12 +3145,39 @@
       "license": "MIT"
     },
     {
+      "domain": "music.qq.com",
+      "match": "suffix",
+      "app": "community:qqmusic",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
       "domain": "myqcloud.com",
       "match": "suffix",
       "app": "infra:tencent-cloud",
       "level": "infrastructure",
       "source": "zen-reviewed",
       "revision": "zen-cn-20261108.2",
+      "license": "MIT"
+    },
+    {
+      "domain": "myqnapcloud.cn",
+      "match": "suffix",
+      "app": "community:qnap",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "myqnapcloud.com",
+      "match": "suffix",
+      "app": "community:qnap",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
       "license": "MIT"
     },
     {
@@ -2215,6 +3196,24 @@
       "level": "candidate",
       "source": "dlc",
       "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "nearme.com.cn",
+      "match": "suffix",
+      "app": "community:heytap",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "neteasegames.com",
+      "match": "suffix",
+      "app": "community:netease-games",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
       "license": "MIT"
     },
     {
@@ -2245,6 +3244,42 @@
       "license": "MIT"
     },
     {
+      "domain": "nie.163.com",
+      "match": "suffix",
+      "app": "community:netease-games",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "nie.netease.com",
+      "match": "suffix",
+      "app": "community:netease-games",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "oneplus.cn",
+      "match": "suffix",
+      "app": "community:heytap",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "oneplus.com",
+      "match": "suffix",
+      "app": "community:heytap",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
       "domain": "onethingpcs.com",
       "match": "suffix",
       "app": "community:xunlei",
@@ -2263,12 +3298,48 @@
       "license": "MIT"
     },
     {
+      "domain": "oppo.cn",
+      "match": "suffix",
+      "app": "community:heytap",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "oppo.com",
+      "match": "suffix",
+      "app": "community:heytap",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
       "domain": "oppomobile.com",
       "match": "suffix",
       "app": "community:heytap",
       "level": "dedicated",
       "source": "zen-reviewed",
       "revision": "zen-cn-20261115.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "opposhop.cn",
+      "match": "suffix",
+      "app": "community:heytap",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "pan.baidu.cn",
+      "match": "suffix",
+      "app": "community:baidupan",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
       "license": "MIT"
     },
     {
@@ -2416,12 +3487,39 @@
       "license": "MIT"
     },
     {
+      "domain": "puui.qpic.cn",
+      "match": "suffix",
+      "app": "ndpi:324",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "q.qlogo.cn",
+      "match": "suffix",
+      "app": "ndpi:48",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
       "domain": "qcloud.com",
       "match": "suffix",
       "app": "infra:tencent-cloud",
       "level": "infrastructure",
       "source": "zen-reviewed",
       "revision": "zen-cn-20261108.2",
+      "license": "MIT"
+    },
+    {
+      "domain": "qianwen.com",
+      "match": "suffix",
+      "app": "community:qwen",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
       "license": "MIT"
     },
     {
@@ -2497,6 +3595,24 @@
       "license": "MIT"
     },
     {
+      "domain": "qnap.com",
+      "match": "suffix",
+      "app": "community:qnap",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "qnapcloud.com",
+      "match": "suffix",
+      "app": "community:qnap",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
       "domain": "qqgameapp.com",
       "match": "suffix",
       "app": "ndpi:395",
@@ -2506,12 +3622,75 @@
       "license": "MIT"
     },
     {
+      "domain": "qqmail.com",
+      "match": "suffix",
+      "app": "ndpi:48",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "qqmusic.qq.com",
+      "match": "suffix",
+      "app": "community:qqmusic",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
       "domain": "quark.cn",
       "match": "suffix",
       "app": "community:quark",
       "level": "dedicated",
       "source": "zen-reviewed",
       "revision": "zen-cn-20261115.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "quickconnect.cn",
+      "match": "suffix",
+      "app": "community:synology",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "quickconnect.to",
+      "match": "suffix",
+      "app": "community:synology",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "qun.qq.com",
+      "match": "suffix",
+      "app": "ndpi:48",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "qwen.ai",
+      "match": "suffix",
+      "app": "community:qwen",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "qwenlm.ai",
+      "match": "suffix",
+      "app": "community:qwen",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
       "license": "MIT"
     },
     {
@@ -2533,12 +3712,39 @@
       "license": "MIT"
     },
     {
+      "domain": "qzone.qq.com",
+      "match": "suffix",
+      "app": "ndpi:48",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "qzonestyle.gtimg.cn",
+      "match": "suffix",
+      "app": "ndpi:48",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
       "domain": "realcybertron.com",
       "match": "suffix",
       "app": "ndpi:395",
       "level": "candidate",
       "source": "dlc",
       "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "realme.com",
+      "match": "suffix",
+      "app": "community:heytap",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
       "license": "MIT"
     },
     {
@@ -2650,12 +3856,39 @@
       "license": "MIT"
     },
     {
+      "domain": "servicewechat.com",
+      "match": "suffix",
+      "app": "ndpi:197",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
       "domain": "shifen.com",
       "match": "suffix",
       "app": "community:baidu",
       "level": "dedicated",
       "source": "zen-reviewed",
       "revision": "zen-cn-20261115.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "sinaimg.cn",
+      "match": "suffix",
+      "app": "community:weibo",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "sinajs.cn",
+      "match": "suffix",
+      "app": "community:weibo",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
       "license": "MIT"
     },
     {
@@ -2683,6 +3916,15 @@
       "level": "dedicated",
       "source": "dlc",
       "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "starrails.com",
+      "match": "suffix",
+      "app": "community:mihoyo",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
       "license": "MIT"
     },
     {
@@ -2722,12 +3964,57 @@
       "license": "MIT"
     },
     {
+      "domain": "synocommunity.com",
+      "match": "suffix",
+      "app": "community:synology",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "synology.cn",
+      "match": "suffix",
+      "app": "community:synology",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "synology.com",
+      "match": "suffix",
+      "app": "community:synology",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "synology.me",
+      "match": "suffix",
+      "app": "community:synology",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
       "domain": "syxlgame.com",
       "match": "suffix",
       "app": "ndpi:395",
       "level": "candidate",
       "source": "dlc",
       "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "t.cn",
+      "match": "suffix",
+      "app": "community:weibo",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
       "license": "MIT"
     },
     {
@@ -2839,6 +4126,24 @@
       "license": "MIT"
     },
     {
+      "domain": "ti.qq.com",
+      "match": "suffix",
+      "app": "ndpi:48",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "tim.qq.com",
+      "match": "suffix",
+      "app": "ndpi:48",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
       "domain": "timibase.com",
       "match": "suffix",
       "app": "ndpi:395",
@@ -2863,6 +4168,33 @@
       "level": "dedicated",
       "source": "zen-reviewed",
       "revision": "zen-cn-20261115.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "tongyi.aliyun.com",
+      "match": "suffix",
+      "app": "community:qwen",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "tongyi.com",
+      "match": "suffix",
+      "app": "community:qwen",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "toutiaovod.com",
+      "match": "suffix",
+      "app": "community:douyin",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
       "license": "MIT"
     },
     {
@@ -2902,12 +4234,48 @@
       "license": "MIT"
     },
     {
+      "domain": "ugapp.link",
+      "match": "suffix",
+      "app": "community:ugreen",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "ugdocker.link",
+      "match": "suffix",
+      "app": "community:ugreen",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "ugnas.cn",
+      "match": "suffix",
+      "app": "community:ugreen",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
       "domain": "ugnas.com",
       "match": "suffix",
       "app": "community:ugreen",
       "level": "dedicated",
       "source": "zen-reviewed",
       "revision": "zen-cn-20261115.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "ugreen.cn",
+      "match": "suffix",
+      "app": "community:ugreen",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
       "license": "MIT"
     },
     {
@@ -2944,6 +4312,15 @@
       "level": "candidate",
       "source": "dlc",
       "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "update.netease.com",
+      "match": "suffix",
+      "app": "community:netease-games",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
       "license": "MIT"
     },
     {
@@ -3001,12 +4378,102 @@
       "license": "MIT"
     },
     {
+      "domain": "vivo.com",
+      "match": "suffix",
+      "app": "community:vivo",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "vivo.com.cn",
+      "match": "suffix",
+      "app": "community:vivo",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "vivoglobal.com",
+      "match": "suffix",
+      "app": "community:vivo",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "vm.gtimg.cn",
+      "match": "suffix",
+      "app": "ndpi:324",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "vmall.com",
+      "match": "suffix",
+      "app": "community:huawei",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "vmallres.com",
+      "match": "suffix",
+      "app": "community:huawei",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "voovmeeting.com",
+      "match": "suffix",
+      "app": "community:wemeet",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
       "domain": "wcbygame.com",
       "match": "suffix",
       "app": "ndpi:395",
       "level": "candidate",
       "source": "dlc",
       "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "wechat.com",
+      "match": "suffix",
+      "app": "ndpi:197",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "wechatos.net",
+      "match": "suffix",
+      "app": "ndpi:197",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "wechatpay.cn",
+      "match": "suffix",
+      "app": "ndpi:197",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
       "license": "MIT"
     },
     {
@@ -3037,12 +4504,102 @@
       "license": "MIT"
     },
     {
+      "domain": "weibo.cn",
+      "match": "suffix",
+      "app": "community:weibo",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "weibo.com",
+      "match": "suffix",
+      "app": "community:weibo",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "weibocdn.com",
+      "match": "suffix",
+      "app": "community:weibo",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "weibopay.com",
+      "match": "suffix",
+      "app": "community:weibo",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "weixin.com",
+      "match": "suffix",
+      "app": "ndpi:197",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "weixin.qq.com",
+      "match": "suffix",
+      "app": "ndpi:197",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "weixinbridge.com",
+      "match": "suffix",
+      "app": "ndpi:197",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "wemeet.qq.com",
+      "match": "suffix",
+      "app": "community:wemeet",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
       "domain": "werepository.com.cn",
       "match": "suffix",
       "app": "ndpi:395",
       "level": "candidate",
       "source": "dlc",
       "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "wetv.vip",
+      "match": "suffix",
+      "app": "ndpi:324",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "wetvinfo.com",
+      "match": "suffix",
+      "app": "ndpi:324",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
       "license": "MIT"
     },
     {
@@ -3127,6 +4684,51 @@
       "license": "MIT"
     },
     {
+      "domain": "wx.gtimg.com",
+      "match": "suffix",
+      "app": "ndpi:197",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "wx.qlogo.cn",
+      "match": "suffix",
+      "app": "ndpi:197",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "wx.qq.com",
+      "match": "suffix",
+      "app": "ndpi:197",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "wxs.qq.com",
+      "match": "suffix",
+      "app": "ndpi:197",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "xhscdn.cn",
+      "match": "suffix",
+      "app": "community:xiaohongshu",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
       "domain": "xhscdn.com",
       "match": "suffix",
       "app": "community:xiaohongshu",
@@ -3163,6 +4765,24 @@
       "license": "MIT"
     },
     {
+      "domain": "xiaohongshu.net",
+      "match": "suffix",
+      "app": "community:xiaohongshu",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "xiaomi.cn",
+      "match": "suffix",
+      "app": "community:xiaomi",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
       "domain": "xiaomi.com",
       "match": "suffix",
       "app": "community:xiaomi",
@@ -3178,6 +4798,42 @@
       "level": "dedicated",
       "source": "zen-reviewed",
       "revision": "zen-cn-20261115.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "xiaomiyoupin.com",
+      "match": "suffix",
+      "app": "community:xiaomi",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "ximalaya.cn",
+      "match": "suffix",
+      "app": "community:ximalaya",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "ximalaya.com",
+      "match": "suffix",
+      "app": "community:ximalaya",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "xmcdn.com",
+      "match": "suffix",
+      "app": "community:ximalaya",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
       "license": "MIT"
     },
     {
@@ -3199,12 +4855,39 @@
       "license": "MIT"
     },
     {
+      "domain": "xunleicdn.com",
+      "match": "suffix",
+      "app": "community:xunlei",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
       "domain": "xycdn.com",
       "match": "suffix",
       "app": "community:xunlei",
       "level": "dedicated",
       "source": "zen-reviewed",
       "revision": "zen-cn-20261115.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "y.gtimg.cn",
+      "match": "suffix",
+      "app": "community:qqmusic",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "y.qq.com",
+      "match": "suffix",
+      "app": "community:qqmusic",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
       "license": "MIT"
     },
     {
@@ -3280,6 +4963,24 @@
       "license": "MIT"
     },
     {
+      "domain": "yuanshen.com",
+      "match": "suffix",
+      "app": "community:mihoyo",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "yun.139.com",
+      "match": "suffix",
+      "app": "community:cloud139",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
       "domain": "yun.baidu.com",
       "match": "suffix",
       "app": "community:baidupan",
@@ -3340,6 +5041,33 @@
       "level": "candidate",
       "source": "dlc",
       "revision": "5b6a77d14fb904a1255f02e2e1b2bcc36ed31f83",
+      "license": "MIT"
+    },
+    {
+      "domain": "zhihu.cn",
+      "match": "suffix",
+      "app": "community:zhihu",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "zhihu.com",
+      "match": "suffix",
+      "app": "community:zhihu",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
+      "license": "MIT"
+    },
+    {
+      "domain": "zhimg.com",
+      "match": "suffix",
+      "app": "community:zhihu",
+      "level": "dedicated",
+      "source": "zen-reviewed",
+      "revision": "zen-cn-20261120.1",
       "license": "MIT"
     },
     {

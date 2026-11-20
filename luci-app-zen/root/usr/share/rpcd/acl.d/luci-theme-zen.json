@@ -37,6 +37,9 @@
 				"network.device": [
 					"status"
 				],
+				"network.interface": [
+					"dump"
+				],
 				"zen.traffic": [
 					"getStatus",
 					"getDevices",

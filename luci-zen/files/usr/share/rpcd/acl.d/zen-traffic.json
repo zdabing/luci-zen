@@ -17,6 +17,7 @@
 					"getAppUsage",
 					"getDpiDiagnostics",
 					"getDpiRules",
+					"getUnmatchedDomains",
 					"getAppRealtime"
 				]
 			}
@@ -33,7 +34,9 @@
 					"setDpiRules",
 					"rollbackDpiRules",
 					"setDpiDns",
-					"setDpiFeedback"
+					"setDpiFeedback",
+					"setCustomDpiRules",
+					"clearUnmatchedDomains"
 				]
 			}
 		}

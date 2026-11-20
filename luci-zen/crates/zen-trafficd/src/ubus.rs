@@ -40,7 +40,7 @@ const fn cs(s: &'static [u8]) -> *const c_char {
 // ubus 方法表
 // ---------------------------------------------------------------------------
 
-static METHODS: [ubus::ubus_method; 30] = [
+static METHODS: [ubus::ubus_method; 33] = [
     m(b"getStatus\0", handle_get_status),
     m(b"getDevices\0", handle_get_devices),
     m(b"getTotal\0", handle_get_total),
@@ -56,6 +56,9 @@ static METHODS: [ubus::ubus_method; 30] = [
     m(b"rollbackDpiRules\0", handle_rollback_dpi_rules),
     m(b"setDpiDns\0", handle_set_dpi_dns),
     m(b"setDpiFeedback\0", handle_set_dpi_feedback),
+    m(b"getUnmatchedDomains\0", handle_get_unmatched_domains),
+    m(b"setCustomDpiRules\0", handle_set_custom_dpi_rules),
+    m(b"clearUnmatchedDomains\0", handle_clear_unmatched_domains),
     m(b"getAppRealtime\0", handle_get_app_realtime),
     m(b"getNotifications\0", handle_get_notifications),
     m(b"setNotifications\0", handle_set_notifications),
@@ -233,15 +236,20 @@ unsafe extern "C" fn handle_set_device_policy(ctx: *mut ubus::ubus_context, _obj
 
 unsafe extern "C" fn handle_get_internet_history(ctx: *mut ubus::ubus_context, _obj: *mut ubus::ubus_object,
     req: *mut ubus::ubus_request_data, _method: *const c_char, msg: *mut ubus::blob_attr) -> c_int {
-    let (mut agg, mut mac) = ("day".to_owned(), String::new());
+    let (mut agg, mut mac, mut include_devices) = ("day".to_owned(), String::new(), false);
     for a in ubus::parse_msg(msg) {
         match a.name {
             Some("agg") => match a.as_str() { Some("day" | "month") => agg = a.as_str().unwrap().into(), _ => return ubus::UBUS_STATUS_INVALID_ARGUMENT },
             Some("mac") => match a.as_str() { Some(s) if s.is_empty() || parse_mac(s).is_some() => mac = s.to_ascii_lowercase(), _ => return ubus::UBUS_STATUS_INVALID_ARGUMENT },
+            Some("devices") => include_devices = match a.ty as c_int {
+                ubus::BLOBMSG_TYPE_INT8 => a.as_bool() == Some(true),
+                ubus::BLOBMSG_TYPE_INT32 => a.as_u32().is_some_and(|n| n != 0),
+                _ => false,
+            },
             _ => {}
         }
     }
-    match with_daemon(|d| d.wan.history(&agg, &mac)) {
+    match with_daemon(|d| d.wan.history_with_devices(&agg, &mac, include_devices)) {
         Some(v) => send_json(ctx, req, v), None => ubus::UBUS_STATUS_NOT_SUPPORTED,
     }
 }
@@ -431,6 +439,89 @@ unsafe extern "C" fn handle_set_dpi_feedback(ctx:*mut ubus::ubus_context,_obj:*m
         d.db.save_setting("dpi_feedback",&serde_json::to_string(&rows).map_err(|_|"feedback_encoding_failed")?)
     }))
 }
+unsafe extern "C" fn handle_get_unmatched_domains(
+    ctx: *mut ubus::ubus_context,
+    _obj: *mut ubus::ubus_object,
+    req: *mut ubus::ubus_request_data,
+    _method: *const c_char,
+    msg: *mut ubus::blob_attr,
+) -> c_int {
+    let (mut mac, mut limit) = (None, 50usize);
+    for field in dpi_fields(msg) {
+        match field.name {
+            Some("mac") => match field.as_str() {
+                Some(value) if value.is_empty() || parse_mac(value).is_some() => {
+                    mac = Some(value.to_ascii_lowercase());
+                }
+                _ => return ubus::UBUS_STATUS_INVALID_ARGUMENT,
+            },
+            Some("limit") => match field.as_u32() {
+                Some(n) if (1..=200).contains(&n) => limit = n as usize,
+                _ => return ubus::UBUS_STATUS_INVALID_ARGUMENT,
+            },
+            _ => return ubus::UBUS_STATUS_INVALID_ARGUMENT,
+        }
+    }
+    match with_daemon(|d| d.app_engine.unmatched_domains(mac.as_deref(), limit)) {
+        Some(value) => send_json(ctx, req, value),
+        None => ubus::UBUS_STATUS_NOT_SUPPORTED,
+    }
+}
+
+unsafe extern "C" fn handle_set_custom_dpi_rules(
+    ctx: *mut ubus::ubus_context,
+    _obj: *mut ubus::ubus_object,
+    req: *mut ubus::ubus_request_data,
+    _method: *const c_char,
+    msg: *mut ubus::blob_attr,
+) -> c_int {
+    let fields = dpi_fields(msg);
+    if fields.len() != 1 || fields[0].name != Some("json") {
+        return ubus::UBUS_STATUS_INVALID_ARGUMENT;
+    }
+    let Some(data) = fields[0].as_str() else {
+        return ubus::UBUS_STATUS_INVALID_ARGUMENT;
+    };
+    match with_daemon(|d| d.app_engine.apply_custom_rules(data, now_epoch())) {
+        Some(Ok((saved, reclassified))) => send_json(
+            ctx,
+            req,
+            serde_json::json!({
+                "ok": true,
+                "custom_rules": saved,
+                "reclassified_flows": reclassified,
+            }),
+        ),
+        Some(Err(error)) => send_json(ctx, req, serde_json::json!({"ok": false, "error": error})),
+        None => ubus::UBUS_STATUS_NOT_SUPPORTED,
+    }
+}
+
+unsafe extern "C" fn handle_clear_unmatched_domains(
+    ctx: *mut ubus::ubus_context,
+    _obj: *mut ubus::ubus_object,
+    req: *mut ubus::ubus_request_data,
+    _method: *const c_char,
+    msg: *mut ubus::blob_attr,
+) -> c_int {
+    let mut mac = None;
+    for field in dpi_fields(msg) {
+        match field.name {
+            Some("mac") => match field.as_str() {
+                Some(value) if value.is_empty() || parse_mac(value).is_some() => {
+                    mac = Some(value.to_ascii_lowercase());
+                }
+                _ => return ubus::UBUS_STATUS_INVALID_ARGUMENT,
+            },
+            _ => return ubus::UBUS_STATUS_INVALID_ARGUMENT,
+        }
+    }
+    match with_daemon(|d| d.app_engine.clear_unmatched(mac.as_deref())) {
+        Some(()) => send_json(ctx, req, serde_json::json!({"ok": true})),
+        None => ubus::UBUS_STATUS_NOT_SUPPORTED,
+    }
+}
+
 unsafe extern "C" fn handle_get_app_realtime(ctx:*mut ubus::ubus_context,_obj:*mut ubus::ubus_object,req:*mut ubus::ubus_request_data,_method:*const c_char,msg:*mut ubus::blob_attr)->c_int {
     let fields=ubus::parse_msg(msg);if fields.len()!=1||fields[0].name!=Some("mac"){return ubus::UBUS_STATUS_INVALID_ARGUMENT;}
     let Some(mac)=fields[0].as_str().filter(|s|s.is_empty()||parse_mac(s).is_some()).map(str::to_ascii_lowercase) else{return ubus::UBUS_STATUS_INVALID_ARGUMENT;};
@@ -484,6 +575,7 @@ unsafe extern "C" fn handle_get_status(
     blobmsg_add_bool(&mut b, cs(b"app_usage\0"), true);
     blobmsg_add_bool(&mut b, cs(b"dpi_diagnostics\0"), true);
     blobmsg_add_bool(&mut b, cs(b"dpi_rules\0"), true);
+    blobmsg_add_bool(&mut b, cs(b"dpi_custom_rules\0"), true);
     blobmsg_add_bool(&mut b, cs(b"app_realtime\0"), true);
     blobmsg_add_bool(&mut b, cs(b"p2p_control\0"), true);
     blobmsg_add_bool(&mut b, cs(b"p2p_usage\0"), true);
@@ -596,6 +688,36 @@ unsafe extern "C" fn handle_get_wan_usage(
             ubus::blobmsg_close_table(&mut b, row);
         }
         ubus::blobmsg_close_array(&mut b, arr);
+        if let Some(periods) = d.wan.periods() {
+            add_str(&mut b, b"today\0", &periods.today);
+            let periods_tbl = ubus::blobmsg_open_table(&mut b, cs(b"periods\0"));
+            for (name, summary) in [
+                (b"day\0".as_slice(), &periods.day),
+                (b"week\0".as_slice(), &periods.week),
+                (b"month\0".as_slice(), &periods.month),
+            ] {
+                let tbl = ubus::blobmsg_open_table(&mut b, cs(name));
+                ubus::blobmsg_add_u64(&mut b, cs(b"since\0"), periods.since);
+                ubus::blobmsg_add_u64(&mut b, cs(b"interface_download\0"), summary.interface.download);
+                ubus::blobmsg_add_u64(&mut b, cs(b"interface_upload\0"), summary.interface.upload);
+                let p_arr = ubus::blobmsg_open_array(&mut b, cs(b"dev\0"));
+                for (mac, bytes) in &summary.devices {
+                    let row = ubus::blobmsg_open_table(&mut b, std::ptr::null());
+                    add_str(&mut b, b"mac\0", mac);
+                    if let Some(key) = parse_mac(mac) {
+                        if let Some(device) = d.devs.get(&key) {
+                            add_opt_str(&mut b, b"host\0", &device.host);
+                        }
+                    }
+                    ubus::blobmsg_add_u64(&mut b, cs(b"download\0"), bytes.download);
+                    ubus::blobmsg_add_u64(&mut b, cs(b"upload\0"), bytes.upload);
+                    ubus::blobmsg_close_table(&mut b, row);
+                }
+                ubus::blobmsg_close_array(&mut b, p_arr);
+                ubus::blobmsg_close_table(&mut b, tbl);
+            }
+            ubus::blobmsg_close_table(&mut b, periods_tbl);
+        }
     });
     send(ctx, req, &mut b);
     ubus::UBUS_STATUS_OK

@@ -68,6 +68,9 @@ return baseclass.extend({build(dash,model){
  });
  const source=el('div'),notice=el('p','zu-empty','正在读取互联网用量…');let received=false;section.append(notice);source.style.display='none';source.setAttribute('aria-hidden','true');section.append(source);
  return async () => {
+  let hasDayUsage=false;
+  const dayUsageByMac=new Map();
+  devicesModule.zenControlOptions={...devicesModule.zenControlOptions,getUsage:mac=>hasDayUsage?(dayUsageByMac.get(String(mac||'').toLowerCase())||{upload:0,download:0}):null};
   const refreshP2p=async()=>{
    if(document.hidden||!p2pSection.isConnected)return;
    try{
@@ -88,7 +91,7 @@ return baseclass.extend({build(dash,model){
   }).catch(error => console.warn('zen-console-devices',error));
   const redraw=()=>{model.lastW=0;model.renderTraffic(model.lastTraffic||{rxRate:0,txRate:0,rxTotal:0,txTotal:0,names:model.lastNames||[]});};
   new ResizeObserver(redraw).observe(live);redraw();
-  const usageReady=shares.mount(source,{onUpdate:data=>{received=true;notice.hidden=true;const entries=new Map();for(const direction of ['upload','download'])for(const slice of data[direction+'Breakdown'].slices){const entry=entries.get(slice.key)||{key:slice.key,label:slice.label,upload:0,download:0};entry[direction]=slice.bytes;entries.set(slice.key,entry);}usage.update({period:data.period,upload:data.upload,download:data.download,devices:[...entries.values()]});}});
+  const usageReady=shares.mount(source,{onUpdate:data=>{if(Array.isArray(data.dayDevices)){dayUsageByMac.clear();for(const entry of data.dayDevices){const mac=String(entry?.mac||entry?.key||'').toLowerCase();if(mac)dayUsageByMac.set(mac,{upload:Math.max(0,Number(entry.upload)||0),download:Math.max(0,Number(entry.download)||0)});}hasDayUsage=true;}received=true;notice.hidden=true;const entries=new Map();for(const direction of ['upload','download'])for(const slice of data[direction+'Breakdown'].slices){const entry=entries.get(slice.key)||{key:slice.key,label:slice.label,upload:0,download:0};entry[direction]=slice.bytes;entries.set(slice.key,entry);}usage.update({period:data.period,upload:data.upload,download:data.download,devices:[...entries.values()]});}});
   const syncNotice=()=>{notice.textContent=source.querySelector('.zen-share-status')?.textContent||(!received?source.querySelector('.zen-share-description')?.textContent:'')||'';notice.hidden=!notice.textContent;};new MutationObserver(syncNotice).observe(source,{subtree:true,childList:true,characterData:true});syncNotice();
   periodButtons=[...source.querySelectorAll('.zen-share-periods button')];periodButtons.forEach((button,i)=>button.dataset.period=['day','week','month','all'][i]);
   await usageReady;

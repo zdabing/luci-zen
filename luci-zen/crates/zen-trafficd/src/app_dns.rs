@@ -223,9 +223,15 @@ impl Cache {
             }
             let apps = self.addresses.entry(key).or_default();
             // Preserve ambiguity when multiple distinct applications share one IP,
-            // and retain unambiguous CDN endpoints across multi-minute video streams.
+            // and retain unambiguous CDN endpoints across multi-minute video streams
+            // or long-lived application sessions.
             let app = candidate.app_id();
-            let ttl_secs = answer_ttl.min(*chain_ttl).max(600);
+            let min_ttl = if candidate.level == Level::Dedicated {
+                3600
+            } else {
+                600
+            };
+            let ttl_secs = answer_ttl.min(*chain_ttl).max(min_ttl);
             let until = now + u64::from(ttl_secs) * 1000;
             if apps.len() < 16 || apps.contains_key(&app) {
                 let until = apps
@@ -254,10 +260,127 @@ impl Cache {
         }
         self.hits += 1;
         let (rule, until) = apps.values_mut().next()?;
-        *until = (*until).max(now + 300_000);
+        let refresh_ms = if rule.as_ref().is_some_and(|r| r.level == Level::Dedicated) {
+            1_800_000
+        } else {
+            300_000
+        };
+        *until = (*until).max(now + refresh_ms);
         rule.clone()
     }
     pub fn status(&self) -> serde_json::Value {
         serde_json::json!({"queries":self.queries,"replies":self.replies,"rejected":self.rejected,"fake_ip_rejected":self.fake_ip,"ambiguous":self.ambiguous,"hits":self.hits,"pending":self.pending.len(),"addresses":self.addresses.len(),"persisted":false})
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn encode_name(host: &str) -> Vec<u8> {
+        let mut out = Vec::new();
+        for label in host.split('.') {
+            out.push(label.len() as u8);
+            out.extend_from_slice(label.as_bytes());
+        }
+        out.push(0);
+        out
+    }
+
+    fn dns_query(id: u16, host: &str) -> Vec<u8> {
+        let mut out = Vec::new();
+        out.extend_from_slice(&id.to_be_bytes());
+        out.extend_from_slice(&0x0100u16.to_be_bytes());
+        out.extend_from_slice(&1u16.to_be_bytes());
+        out.extend_from_slice(&[0; 6]);
+        out.extend_from_slice(&encode_name(host));
+        out.extend_from_slice(&1u16.to_be_bytes());
+        out.extend_from_slice(&1u16.to_be_bytes());
+        out
+    }
+
+    fn dns_reply(id: u16, host: &str, ip: [u8; 4], ttl: u32) -> Vec<u8> {
+        let mut out = Vec::new();
+        out.extend_from_slice(&id.to_be_bytes());
+        out.extend_from_slice(&0x8180u16.to_be_bytes());
+        out.extend_from_slice(&1u16.to_be_bytes());
+        out.extend_from_slice(&1u16.to_be_bytes());
+        out.extend_from_slice(&[0; 4]);
+        let name = encode_name(host);
+        out.extend_from_slice(&name);
+        out.extend_from_slice(&1u16.to_be_bytes());
+        out.extend_from_slice(&1u16.to_be_bytes());
+        out.extend_from_slice(&name);
+        out.extend_from_slice(&1u16.to_be_bytes());
+        out.extend_from_slice(&1u16.to_be_bytes());
+        out.extend_from_slice(&ttl.to_be_bytes());
+        out.extend_from_slice(&4u16.to_be_bytes());
+        out.extend_from_slice(&ip);
+        out
+    }
+
+    fn v4_addr(ip: [u8; 4]) -> Address {
+        let mut bytes = [0; 16];
+        bytes[..4].copy_from_slice(&ip);
+        (4, bytes)
+    }
+
+    #[test]
+    fn dedicated_dns_entries_have_hour_floor_and_sliding_refresh_while_shared_ips_stay_ambiguous() {
+        let rules = RuleSet::parse(
+            r#"{"schema":1,"version":"test-1","source_revision":"0000000000000000000000000000000000000000","rules":[
+                {"domain":"ug.link","match":"suffix","app":"community:ugreen","level":"dedicated","source":"test","revision":"test-1","license":"MIT"},
+                {"domain":"cand.example","match":"suffix","app":"community:baidu","level":"candidate","source":"test","revision":"test-1","license":"MIT"}
+            ]}"#,
+        )
+        .unwrap();
+        let mac = [0x6c, 0x1f, 0xf7, 0x0c, 0xf2, 0x75];
+        let peer = Peer {
+            mac,
+            family: 4,
+            server: [8, 8, 8, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            client: [10, 0, 0, 194, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            port: 53000,
+        };
+        let mut cache = Cache::default();
+        let ug_ip = [43, 248, 128, 18];
+        let cand_ip = [47, 96, 1, 2];
+
+        cache.observe(peer.clone(), &dns_query(1, "nas.cn58.ug.link"), 1_000_000, &rules);
+        cache.observe(
+            peer.clone(),
+            &dns_reply(1, "nas.cn58.ug.link", ug_ip, 60),
+            1_000_010,
+            &rules,
+        );
+        cache.observe(peer.clone(), &dns_query(2, "cand.example"), 1_000_000, &rules);
+        cache.observe(
+            peer.clone(),
+            &dns_reply(2, "cand.example", cand_ip, 60),
+            1_000_010,
+            &rules,
+        );
+
+        // Candidate entry expires after 600s; Dedicated entry persists with a 3600s floor.
+        cache.expire(2_000_000);
+        assert!(cache.lookup(mac, v4_addr(cand_ip), 2_000_000).is_none());
+        let hit = cache.lookup(mac, v4_addr(ug_ip), 2_000_000);
+        assert_eq!(hit.as_ref().map(|r| r.app.as_str()), Some("community:ugreen"));
+
+        // An active lookup at +3000s extends the entry by 1800s past the initial +3600s expiry.
+        assert!(cache.lookup(mac, v4_addr(ug_ip), 4_000_000).is_some());
+        cache.expire(5_000_000);
+        assert!(cache.lookup(mac, v4_addr(ug_ip), 5_000_000).is_some());
+
+        // Adding a second app on the same IP marks it ambiguous and refuses guessing.
+        cache.observe(peer.clone(), &dns_query(3, "cand.example"), 5_001_000, &rules);
+        cache.observe(
+            peer,
+            &dns_reply(3, "cand.example", ug_ip, 60),
+            5_001_010,
+            &rules,
+        );
+        assert!(cache.lookup(mac, v4_addr(ug_ip), 5_001_020).is_none());
+        assert_eq!(cache.ambiguous, 1);
     }
 }

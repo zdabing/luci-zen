@@ -155,8 +155,12 @@ return baseclass.extend({
 		if (dash.querySelector('.zen-dash-devices'))
 			return dash.querySelector('.zen-dash-devices');
 
-		const state = await this.probe();
-		await identity.load();
+		this.refreshConnections();
+		const [initialDevices] = await Promise.all([
+			callDevices().then(data => (data && Array.isArray(data.dev) ? data.dev : null), () => null),
+			identity.load().catch(() => {})
+		]);
+		const state = initialDevices !== null ? 'ok' : 'missing';
 		const section = E('section', { 'class': 'zen-dash-panel zen-dash-devices' }, [
 			E('div', { 'class': 'zen-dash-dev-head' }, [
 				E('h3', {}, _('Device Traffic')),
@@ -239,7 +243,7 @@ return baseclass.extend({
 
 		poll.add(L.bind(this.tick, this), DEV_POLL_SECS);
 		dash.appendChild(section);
-		this.tick();
+		this.render(initialDevices);
 		return section;
 	},
 

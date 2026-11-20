@@ -5,12 +5,15 @@ use std::{collections::{HashMap,HashSet,VecDeque}, io::{Read, Write}, os::fd::As
 use aya::{Ebpf, Pod, maps::{Array, HashMap as BpfHashMap, MapData, RingBuf}};
 use crate::{app_usage::AppUsage, wan::Bytes};
 use crate::app_rules::{self, Evidence};
-use crate::app_rule_store::{Store,DomainRule};
+use crate::app_rule_store::{CustomRule, DomainRule, Level, Store};
 
 const SAMPLE_SIZE: usize = 4096;
 const FLOW_LIMIT: usize = 16_384;
 const SAMPLE_BATCH: usize = 2048; // Drain up to one full 8 MiB kernel ring per tick.
 const RESULT_BATCH: usize = 4096;
+const FLOW_TCP_CLOSED: u64 = 1;
+const UNMATCHED_DOMAIN_LIMIT: usize = 256;
+const UNMATCHED_DEVICE_LIMIT: usize = 32;
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -18,7 +21,7 @@ struct FlowKey { mac: [u8; 6], family: u8, protocol: u8, client: [u8; 16], serve
 unsafe impl Pod for FlowKey {}
 #[repr(C)]
 #[derive(Clone, Copy)]
-struct FlowStats { first_seen: u64, last_seen: u64, download: u64, upload: u64, samples: u64, control_samples: u64 }
+struct FlowStats { first_seen: u64, last_seen: u64, download: u64, upload: u64, samples: u64, control_samples: u64, flags: u64 }
 unsafe impl Pod for FlowStats {}
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -38,6 +41,129 @@ struct Flow {
     id: u64, first_seen: u64, previous: Bytes, last_seen: u64,
     classification: Option<Classification>, pending: Vec<(u64, Bytes)>,
     provisional: Vec<(u64, Bytes)>, diagnostic_host: Option<String>,feature_candidate:Option<String>,
+    unmatched_host: Option<String>,
+}
+
+#[derive(Clone, Default)]
+struct UnmatchedDomain {
+    bytes: Bytes,
+    connections: u64,
+    last_seen: u64,
+    last_protocol: String,
+    candidate_app: Option<String>,
+    candidate_name: Option<String>,
+    devices: HashMap<[u8; 6], Bytes>,
+}
+
+fn ensure_unmatched_capacity(unmatched: &mut HashMap<String, UnmatchedDomain>, host: &str) {
+    if unmatched.contains_key(host) || unmatched.len() < UNMATCHED_DOMAIN_LIMIT {
+        return;
+    }
+    if let Some(evict) = unmatched
+        .iter()
+        .min_by_key(|(_, entry)| (entry.bytes.download.saturating_add(entry.bytes.upload), entry.last_seen, entry.connections))
+        .map(|(k, _)| k.clone())
+    {
+        unmatched.remove(&evict);
+    }
+}
+
+fn add_unmatched_bytes(
+    unmatched: &mut HashMap<String, UnmatchedDomain>,
+    host: &str,
+    mac: [u8; 6],
+    bytes: Bytes,
+    now_epoch: u64,
+) {
+    if bytes == Bytes::default() {
+        return;
+    }
+    ensure_unmatched_capacity(unmatched, host);
+    let entry = unmatched.entry(host.to_owned()).or_default();
+    entry.bytes.download = entry.bytes.download.saturating_add(bytes.download);
+    entry.bytes.upload = entry.bytes.upload.saturating_add(bytes.upload);
+    if now_epoch != 0 {
+        entry.last_seen = entry.last_seen.max(now_epoch);
+    }
+    if entry.devices.contains_key(&mac) || entry.devices.len() < UNMATCHED_DEVICE_LIMIT {
+        let dev = entry.devices.entry(mac).or_default();
+        dev.download = dev.download.saturating_add(bytes.download);
+        dev.upload = dev.upload.saturating_add(bytes.upload);
+    }
+}
+
+fn record_unmatched_connection(
+    unmatched: &mut HashMap<String, UnmatchedDomain>,
+    host: &str,
+    mac: [u8; 6],
+    bytes: Bytes,
+    now_epoch: u64,
+    protocol: &str,
+    candidate_app: Option<String>,
+    candidate_name: Option<String>,
+) {
+    ensure_unmatched_capacity(unmatched, host);
+    let entry = unmatched.entry(host.to_owned()).or_default();
+    entry.connections = entry.connections.saturating_add(1);
+    entry.bytes.download = entry.bytes.download.saturating_add(bytes.download);
+    entry.bytes.upload = entry.bytes.upload.saturating_add(bytes.upload);
+    if now_epoch != 0 {
+        entry.last_seen = entry.last_seen.max(now_epoch);
+    }
+    if !protocol.is_empty() {
+        entry.last_protocol = protocol.to_owned();
+    }
+    if candidate_app.is_some() {
+        entry.candidate_app = candidate_app;
+        entry.candidate_name = candidate_name;
+    }
+    if entry.devices.contains_key(&mac) || entry.devices.len() < UNMATCHED_DEVICE_LIMIT {
+        let dev = entry.devices.entry(mac).or_default();
+        dev.download = dev.download.saturating_add(bytes.download);
+        dev.upload = dev.upload.saturating_add(bytes.upload);
+    }
+}
+
+fn flow_idle_limit_ns(
+    protocol: u8,
+    tcp_closed: bool,
+    classified: bool,
+    identified: bool,
+    total_bytes: u64,
+    high_pressure: bool,
+) -> u64 {
+    if protocol == 6 {
+        if tcp_closed {
+            return if high_pressure { 5_000_000_000 } else { 15_000_000_000 };
+        }
+        if classified {
+            if high_pressure {
+                return if identified { 300_000_000_000 } else { 30_000_000_000 };
+            }
+            return if identified { 3_600_000_000_000 } else { 600_000_000_000 };
+        }
+        return if high_pressure {
+            if total_bytes < 4096 { 15_000_000_000 } else { 45_000_000_000 }
+        } else {
+            120_000_000_000
+        };
+    }
+    if high_pressure {
+        if classified && identified && total_bytes >= 65_536 {
+            return 45_000_000_000;
+        }
+        return if classified || total_bytes < 4096 { 15_000_000_000 } else { 45_000_000_000 };
+    }
+    if classified {
+        return if identified {
+            if total_bytes >= 65_536 { 300_000_000_000 } else { 120_000_000_000 }
+        } else if total_bytes < 65_536 {
+            30_000_000_000
+        } else {
+            120_000_000_000
+        };
+    }
+    if total_bytes < 4096 { 30_000_000_000 } else { 120_000_000_000 }
 }
 
 impl Flow {
@@ -199,6 +325,7 @@ pub struct AppEngine {
     diagnostics_until: u64,
     pub rules:Store,pub dns:crate::app_dns::Cache,dns_ring:Option<RingBuf<MapData>>,pub dns_active:bool,dns_drops:[u64;2],dns_since:u64,
     realtime:HashMap<([u8;6],u32),Bytes>,realtime_at:u64,realtime_interval:u64,
+    unmatched: HashMap<String, UnmatchedDomain>,
 }
 impl AppEngine {
     pub fn start(bpf: &mut Ebpf) -> Self {
@@ -211,7 +338,8 @@ impl AppEngine {
             pending_sample:None,backpressure:0,stop_failed:0,diagnostics_until:0,
             rules:Store::load(std::path::Path::new("/etc/zen-traffic/app-rules.json")),dns:Default::default(),
             dns_ring:bpf.take_map("dns_samples").and_then(|map|RingBuf::try_from(map).ok()),dns_active:false,dns_drops:[0;2],dns_since:0,
-            realtime:HashMap::new(),realtime_at:0,realtime_interval:1000 };
+            realtime:HashMap::new(),realtime_at:0,realtime_interval:1000,
+            unmatched: HashMap::new() };
         // This process also holds transient samples. Never include them in
         // daemon core files, regardless of the system-wide dump policy.
         let core=libc::rlimit {rlim_cur:0,rlim_max:0};
@@ -244,7 +372,8 @@ impl AppEngine {
             let id = self.next_id; self.next_id = self.next_id.saturating_add(1);
             self.ids.insert(id, key);
             self.flows.insert(key, Flow { id, first_seen, previous: Bytes::default(), last_seen: first_seen,
-                classification: None, pending: Vec::new(), provisional:Vec::new(),diagnostic_host:None,feature_candidate:None });
+                classification: None, pending: Vec::new(), provisional:Vec::new(),diagnostic_host:None,feature_candidate:None,
+                unmatched_host: None });
         }
         self.flows.get_mut(&key)
     }
@@ -274,7 +403,7 @@ impl AppEngine {
         // flow is still generic. SNI often names a CDN host that has no rule
         // while the queried service (e.g. the video site) does, so a hostname
         // alone must not block this fallback.
-        if self.dns_active&&generic&&app.source=="ndpi" {
+        if self.dns_active && generic && matches!(app.source, "ndpi" | "infrastructure") {
             if let Some(rule)=self.dns.lookup(key.mac,(key.family,key.server),crate::state::now_mono_ms()) {
                 let entry=crate::app_catalog::by_key(&rule.app).unwrap();
                 app.app=entry.id;app.name=entry.name.into();app.identified=true;app.source="dns";
@@ -283,9 +412,189 @@ impl AppEngine {
         }
     }
 
-    pub fn configure_rules_path(&mut self,path:&std::path::Path){self.rules=Store::load(path);self.dns.clear();}
-    pub fn update_rules(&mut self,data:&str)->Result<(),String>{self.rules.update(data)?;self.dns.clear();Ok(())}
-    pub fn rollback_rules(&mut self)->Result<(),String>{self.rules.rollback()?;self.dns.clear();Ok(())}
+    pub fn configure_rules_path(&mut self,path:&std::path::Path){self.rules=Store::load(path);self.dns.clear();self.reclassify_live_unmatched();}
+    pub fn update_rules(&mut self,data:&str)->Result<(),String>{self.rules.update(data)?;self.dns.clear();self.reclassify_live_unmatched();Ok(())}
+    pub fn rollback_rules(&mut self)->Result<(),String>{self.rules.rollback()?;self.dns.clear();self.reclassify_live_unmatched();Ok(())}
+
+    fn reclassify_live_unmatched(&mut self) -> usize {
+        self.unmatched.retain(|host, _| {
+            !self.rules.set.find(host).is_some_and(|rule| {
+                rule.level == Level::Dedicated
+                    && crate::app_catalog::by_key(&rule.app)
+                        .is_some_and(|entry| entry.category != "infrastructure")
+            })
+        });
+        let mut count = 0usize;
+        for flow in self.flows.values_mut() {
+            let Some(host) = flow.unmatched_host.as_deref() else {
+                continue;
+            };
+            let Some(rule) = self.rules.set.find(host).cloned() else {
+                continue;
+            };
+            if rule.level != Level::Dedicated {
+                continue;
+            }
+            let Some(entry) = crate::app_catalog::by_key(&rule.app) else {
+                continue;
+            };
+            if entry.category == "infrastructure" {
+                continue;
+            }
+            let native_app = flow.classification.as_ref().map_or(0, |c| c.native_app);
+            flow.classification = Some(Classification {
+                app: entry.id,
+                name: entry.name.into(),
+                identified: true,
+                limited: false,
+                native_app,
+                evidence: Evidence::default(),
+                source: "dedicated_domain",
+                rule: Some(rule),
+                conflict: false,
+                rule_version: "custom".into(),
+                candidate: false,
+            });
+            flow.unmatched_host = None;
+            count += 1;
+        }
+        count
+    }
+
+    pub fn apply_custom_rules(&mut self, data: &str, now_epoch: u64) -> Result<(Vec<CustomRule>, usize), String> {
+        #[derive(serde::Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct RemoveItem {
+            domain: String,
+            #[serde(rename = "match")]
+            mode: String,
+        }
+        #[derive(serde::Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct Input {
+            #[serde(default)]
+            add: Vec<CustomRule>,
+            #[serde(default)]
+            remove: Vec<RemoveItem>,
+        }
+        if data.len() > 65_536 {
+            return Err("custom_rules_too_large".into());
+        }
+        let input: Input = serde_json::from_str(data).map_err(|_| "invalid_custom_rules")?;
+        if input.add.is_empty() && input.remove.is_empty() {
+            return Err("invalid_custom_rules".into());
+        }
+        let remove: Vec<(String, String)> = input
+            .remove
+            .into_iter()
+            .map(|r| (r.domain, r.mode))
+            .collect();
+        let saved = self.rules.apply_custom(&input.add, &remove, now_epoch)?;
+        let reclassified = self.reclassify_live_unmatched();
+        Ok((saved, reclassified))
+    }
+
+    pub fn unmatched_domains(&self, mac: Option<&str>, limit: usize) -> serde_json::Value {
+        let mac_filter = mac
+            .filter(|s| !s.is_empty())
+            .and_then(crate::daemon::parse_mac)
+            .map(|m| m.b);
+        let mut items: Vec<_> = self
+            .unmatched
+            .iter()
+            .filter_map(|(domain, stats)| {
+                let bytes = match mac_filter {
+                    Some(m) => stats.devices.get(&m).copied()?,
+                    None => stats.bytes,
+                };
+                if bytes == Bytes::default() && stats.connections == 0 {
+                    return None;
+                }
+                let (suggested_domain, suggested_match) =
+                    crate::app_rule_store::suggested_rule(domain, &self.rules.set);
+                Some((
+                    bytes.download.saturating_add(bytes.upload),
+                    stats.connections,
+                    domain.clone(),
+                    serde_json::json!({
+                        "domain": domain,
+                        "suggested_domain": suggested_domain,
+                        "suggested_match": suggested_match,
+                        "download": bytes.download,
+                        "upload": bytes.upload,
+                        "connections": stats.connections,
+                        "devices": stats.devices.len(),
+                        "last_seen": stats.last_seen,
+                        "last_protocol": stats.last_protocol,
+                        "candidate_app": stats.candidate_app,
+                        "candidate_name": stats.candidate_name,
+                    }),
+                ))
+            })
+            .collect();
+        items.sort_unstable_by(|a, b| {
+            b.0.cmp(&a.0)
+                .then_with(|| b.1.cmp(&a.1))
+                .then_with(|| a.2.cmp(&b.2))
+        });
+        let domains: Vec<_> = items
+            .into_iter()
+            .take(limit.clamp(1, 200))
+            .map(|(_, _, _, v)| v)
+            .collect();
+        let custom_rules: Vec<_> = self
+            .rules
+            .custom
+            .iter()
+            .map(|r| {
+                let entry = crate::app_catalog::by_key(&r.app);
+                serde_json::json!({
+                    "domain": r.domain,
+                    "match": r.mode,
+                    "app": r.app,
+                    "app_id": entry.map(|e| e.id),
+                    "app_name": entry.map(|e| e.name).unwrap_or(r.app.as_str()),
+                    "added_at": r.added_at,
+                })
+            })
+            .collect();
+        let applications: Vec<_> = crate::app_catalog::APPS
+            .iter()
+            .filter(|a| a.category != "infrastructure")
+            .map(|a| {
+                serde_json::json!({
+                    "id": a.id,
+                    "key": a.key,
+                    "name": a.name,
+                    "category": a.category,
+                    "service": a.slug,
+                })
+            })
+            .collect();
+        serde_json::json!({
+            "mac": mac.unwrap_or(""),
+            "total_tracked": self.unmatched.len(),
+            "domains": domains,
+            "custom_rules": custom_rules,
+            "custom_error": self.rules.custom_error,
+            "applications": applications,
+        })
+    }
+
+    pub fn clear_unmatched(&mut self, mac: Option<&str>) {
+        if let Some(m) = mac
+            .filter(|s| !s.is_empty())
+            .and_then(crate::daemon::parse_mac)
+            .map(|m| m.b)
+        {
+            self.unmatched.retain(|_, stats| {
+                stats.devices.remove(&m);
+                !stats.devices.is_empty()
+            });
+        } else {
+            self.unmatched.clear();
+        }
+    }
     pub fn set_dns(&mut self,bpf:&mut Ebpf,enabled:bool)->Result<(),String>{
         if enabled&&self.dns_ring.is_none(){return Err("dns_capture_unavailable".into());}
         let mut map=bpf.map_mut("dns_enabled").and_then(|map|Array::<_,u32>::try_from(map).ok()).ok_or("dns_capture_unavailable")?;
@@ -383,10 +692,29 @@ impl AppEngine {
                 ResultMessage::Detection(id, mut app, done) => if done {
                     if let Some(key) = self.ids.get(&id).copied() {
                         self.attribute(&key,&mut app);
+                        let is_infra = crate::app_catalog::is_infrastructure(app.app, &app.name);
+                        let unmatched_host = if !app.evidence.hostname.is_empty() && (!app.identified || is_infra) {
+                            app_rules::normalize_peer_hostname(&app.evidence.hostname)
+                        } else {
+                            None
+                        };
+                        let candidate_app = if app.candidate {
+                            app.rule.as_ref().map(|rule| rule.app.clone())
+                        } else {
+                            None
+                        };
+                        let candidate_name = candidate_app
+                            .as_deref()
+                            .and_then(crate::app_catalog::by_key)
+                            .map(|entry| entry.name.to_owned());
+                        let protocol_label = app.name.clone();
                         let mut epoch=None;
+                        let mut seed_bytes = Bytes::default();
                         if let Some(flow) = self.flows.get_mut(&key) {
                             if flow.classification.is_none() {
                                 if detail_enabled && app.evidence.has_hostname {flow.diagnostic_host=Some(app.evidence.hostname.clone());}
+                                flow.unmatched_host = unmatched_host.clone();
+                                seed_bytes = flow.previous;
                                 // Classification retains only metadata by default. Short-lived
                                 // host details are held separately and never reach SQLite.
                                 app.evidence.hostname=String::new();
@@ -395,6 +723,18 @@ impl AppEngine {
                                 epoch=Some(flow.first_seen);
                                 self.releases.push_back(id);
                             }
+                        }
+                        if let (Some(_), Some(host)) = (epoch, unmatched_host) {
+                            record_unmatched_connection(
+                                &mut self.unmatched,
+                                &host,
+                                key.mac,
+                                seed_bytes,
+                                crate::state::now_epoch(),
+                                &protocol_label,
+                                candidate_app,
+                                candidate_name,
+                            );
                         }
                         if let Some(epoch)=epoch {
                             let stopped=bpf.map_mut("app_verdicts")
@@ -451,6 +791,7 @@ impl AppEngine {
             flow.last_seen = stats.last_seen;
             let bytes = Bytes { download:stats.download.saturating_sub(flow.previous.download), upload:stats.upload.saturating_sub(flow.previous.upload) };
             flow.previous = Bytes { download:stats.download,upload:stats.upload };
+            let unmatched = if bytes != Bytes::default() { flow.unmatched_host.clone() } else { None };
             if bytes != Bytes::default() { Flow::accumulate(&mut flow.pending,now,bytes); }
             if flow.classification.is_none() && failed {
                 flow.decide(Classification::default(),&crate::persistence::mac_str(&key.mac),usage);
@@ -458,13 +799,17 @@ impl AppEngine {
             let app=flow.classification.as_ref().map(|app|app.app).unwrap_or(0);
             let rate=realtime.entry((key.mac,app)).or_default();rate.download=rate.download.saturating_add(bytes.download);rate.upload=rate.upload.saturating_add(bytes.upload);
             let total_bytes = stats.download.saturating_add(stats.upload);
-            let idle_limit_ns = if high_pressure {
-                if flow.classification.is_some() || total_bytes < 4096 { 15_000_000_000 } else { 45_000_000_000 }
-            } else if flow.classification.is_some() && total_bytes < 65_536 {
-                30_000_000_000
-            } else {
-                120_000_000_000
-            };
+            let tcp_closed = key.protocol == 6 && (stats.flags & FLOW_TCP_CLOSED) != 0;
+            let classified = flow.classification.is_some();
+            let identified = flow.classification.as_ref().is_some_and(|app| app.identified);
+            let idle_limit_ns = flow_idle_limit_ns(
+                key.protocol,
+                tcp_closed,
+                classified,
+                identified,
+                total_bytes,
+                high_pressure,
+            );
             let expired_flow = mono.saturating_sub(stats.last_seen) > idle_limit_ns;
             if flow.classification.is_some() || expired_flow {
                 flow.account(&crate::persistence::mac_str(&key.mac),usage,false);
@@ -473,6 +818,9 @@ impl AppEngine {
                 flow.account(&crate::persistence::mac_str(&key.mac),usage,true);
             }
             if expired_flow { expired.push(key); }
+            if let Some(host) = unmatched {
+                add_unmatched_bytes(&mut self.unmatched, &host, key.mac, bytes, now);
+            }
         }
         if let Some(map) = bpf.map_mut("app_flows") {
             if let Ok(mut map) = BpfHashMap::<_,FlowKey,FlowStats>::try_from(map) {
@@ -505,6 +853,7 @@ impl AppEngine {
 
     pub fn remove_device(&mut self, bpf: &mut Ebpf, mac: &str) {
         self.realtime.retain(|(device,_),_|crate::persistence::mac_str(device)!=mac);
+        self.clear_unmatched(Some(mac));
         // Preserve absolute-flow baselines: deleting them would replay all
         // pre-reset connection bytes on the next BPF map read.
         let rows: Vec<_> = bpf.map_mut("app_flows").and_then(|map| BpfHashMap::<_,FlowKey,FlowStats>::try_from(map).ok())
@@ -605,6 +954,7 @@ impl AppEngine {
                 "download":flow.previous.download,"upload":flow.previous.upload,"evidence":evidence})
         }).collect();
         serde_json::json!({"scope":"live_connections","idle_retention_seconds":120,
+            "tcp_established_retention_seconds":3600,
             "byte_basis":"ebpf_connection_counters","persisted":false,"mac":mac,
             "engine":self.status(),"rules_version":self.rules.set.package.version,"total":total,"categories":categories,
             "facets":{"hostname_without_application":with_host,"tls_quic_without_hostname":no_tls_host,
@@ -662,8 +1012,21 @@ mod tests {
     #[test]
     fn wire_layout_matches_the_kernel_and_worker_protocols() {
         assert_eq!(std::mem::size_of::<FlowKey>(),44);
-        assert_eq!(std::mem::size_of::<FlowStats>(),48);
+        assert_eq!(std::mem::size_of::<FlowStats>(),56);
         assert_eq!(std::mem::size_of::<Sample>(),4160);
+    }
+
+    #[test]
+    fn idle_retention_keeps_open_tcp_and_reclaims_closed_tcp_and_udp_probes() {
+        assert_eq!(flow_idle_limit_ns(6, false, true, true, 128, false), 3_600_000_000_000);
+        assert_eq!(flow_idle_limit_ns(6, false, true, true, 128, true), 300_000_000_000);
+        assert_eq!(flow_idle_limit_ns(6, false, true, false, 128, false), 600_000_000_000);
+        assert_eq!(flow_idle_limit_ns(6, false, true, false, 128, true), 30_000_000_000);
+        assert_eq!(flow_idle_limit_ns(6, true, true, true, 1_000_000, false), 15_000_000_000);
+        assert_eq!(flow_idle_limit_ns(6, true, true, true, 1_000_000, true), 5_000_000_000);
+        assert_eq!(flow_idle_limit_ns(17, false, true, true, 100_000, false), 300_000_000_000);
+        assert_eq!(flow_idle_limit_ns(17, false, false, false, 128, false), 30_000_000_000);
+        assert_eq!(flow_idle_limit_ns(17, false, false, false, 128, true), 15_000_000_000);
     }
 
     #[test]
@@ -672,6 +1035,48 @@ mod tests {
         results.send(ResultMessage::Ready("fixture".into())).unwrap();drop(results);
         let worker=Worker{sender:None,receiver:Some(receiver),pid:Arc::new(AtomicU32::new(0)),handle:None};
         let (messages,closed)=worker.drain();assert_eq!(messages.len(),1);assert!(closed);
+    }
+
+    #[test]
+    fn unmatched_tracker_ranks_high_traffic_and_bounds_entries() {
+        let mut map = HashMap::new();
+        let mac_a = [0x6c, 0x1f, 0xf7, 0x0c, 0xf2, 0x75];
+        let mac_b = [0x80, 0xa0, 0x36, 0xc9, 0x07, 0x0a];
+        record_unmatched_connection(
+            &mut map,
+            "heavy.nas.example",
+            mac_a,
+            Bytes { download: 1000, upload: 2000 },
+            10,
+            "TLS",
+            None,
+            None,
+        );
+        add_unmatched_bytes(
+            &mut map,
+            "heavy.nas.example",
+            mac_a,
+            Bytes { download: 5_000_000, upload: 9_000_000 },
+            15,
+        );
+        for i in 0..UNMATCHED_DOMAIN_LIMIT + 10 {
+            let host = format!("probe-{i}.small.example");
+            record_unmatched_connection(
+                &mut map,
+                &host,
+                mac_b,
+                Bytes { download: 100, upload: (i as u64) + 1 },
+                20 + i as u64,
+                "QUIC",
+                None,
+                None,
+            );
+        }
+        assert_eq!(map.len(), UNMATCHED_DOMAIN_LIMIT);
+        let heavy = map.get("heavy.nas.example").expect("high-traffic domain preserved");
+        assert_eq!(heavy.connections, 1);
+        assert_eq!(heavy.bytes.upload, 9_002_000);
+        assert_eq!(heavy.bytes.download, 5_001_000);
     }
 
     #[test]

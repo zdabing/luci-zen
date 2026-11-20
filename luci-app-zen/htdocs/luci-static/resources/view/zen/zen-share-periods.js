@@ -2,13 +2,19 @@
 'require baseclass';
 'require rpc';
 
-const history = rpc.declare({object:'zen.traffic',method:'getInternetHistory',params:['agg','mac'],reject:true});
+const history = rpc.declare({object:'zen.traffic',method:'getInternetHistory',params:['agg','mac','devices'],reject:true});
 const clock = rpc.declare({object:'zen.traffic',method:'getNotifications',reject:true});
 const decode = response => {
  const value = JSON.parse(response.json);
  if (!Array.isArray(value.days) || !Number(value.since)) throw new Error('Internet history unavailable');
  return value;
 };
+function parseDeviceDays(rows, since) {
+ const days = Array.isArray(rows) ? rows.map(row => Array.isArray(row)
+  ? { date: String(row[0] || ''), download: Number(row[1]) || 0, upload: Number(row[2]) || 0 }
+  : { date: String(row?.date || ''), download: Number(row?.download) || 0, upload: Number(row?.upload) || 0 }) : [];
+ return { days, since };
+}
 function startDate(today, period) {
  if (!/^\d{4}-\d{2}-\d{2}$/.test(today)) throw new Error('Router date unavailable');
  if (period === 'month') return today.slice(0,7)+'-01';
@@ -37,16 +43,28 @@ return baseclass.extend({
   if (pending) return pending;
   if (cached && Date.now()-refreshed < 60000) return cached;
   pending = (async()=>{
-   const [raw, time] = await Promise.all([history('day',''),clock()]);
-   const network = decode(raw), today = JSON.parse(time.json).today;
+   const raw = await history('day','',true);
+   const network = decode(raw);
+   const today = typeof network.today === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(network.today)
+    ? network.today : JSON.parse((await clock()).json).today;
    startDate(today,'day');
    const names = new Map(usage.dev.map(d=>[d.mac,d.host]));
    const macs = [...new Set([...(network.ranking||[]).map(d=>d.mac),...names.keys()])];
-   const devices = []; let index = 0;
-   // Bound concurrency; both charts share one snapshot, refreshed once a minute.
-   await Promise.all(Array.from({length:Math.min(4,macs.length)},async()=>{
-    while(index < macs.length) {const mac=macs[index++]; devices.push([mac,decode(await history('day',mac))]);}
-   }));
+   const embedded = network.device_days && typeof network.device_days === 'object' && !Array.isArray(network.device_days)
+    ? new Map(Object.entries(network.device_days).map(([mac, rows]) => [mac, parseDeviceDays(rows, network.since)]))
+    : null;
+   const deviceMap = embedded || new Map();
+   const fetchMacs = embedded
+    ? (network.devices_complete === true ? [] : macs.filter(mac => !deviceMap.has(mac)))
+    : macs;
+   if (fetchMacs.length) {
+    let index = 0;
+    // Bound concurrency; both charts share one snapshot, refreshed once a minute.
+    await Promise.all(Array.from({length:Math.min(4,fetchMacs.length)},async()=>{
+     while(index < fetchMacs.length) {const mac=fetchMacs[index++]; deviceMap.set(mac,decode(await history('day',mac)));}
+    }));
+   }
+   const devices = macs.map(mac => [mac, deviceMap.get(mac) || { days: [], since: network.since }]);
    const result = Object.fromEntries(['day','week','month'].map(period=>[period,aggregate(network,devices,today,period,names)]));
    ledger={network,devices,today,names};
    cached=result;refreshed=Date.now();return result;
