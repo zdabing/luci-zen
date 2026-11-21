@@ -154,8 +154,11 @@ return baseclass.extend({
 						typeof app.name !== 'string' || app.name.length > 64 || ![app.download, app.upload].every(n => Number.isFinite(n) && n >= 0))) throw Error('response');
 				this.rates=new Map();
 				try{const rate=rateReply?JSON.parse(rateReply.json):null;if((rate?.mac||'')===(mac||'')&&rate.age_ms<10000&&Array.isArray(rate.applications)&&rate.applications.length<=2048)for(const item of rate.applications)if([item.download,item.upload].every(n=>Number.isFinite(n)&&n>=0))this.rates.set(item.id,item);}catch(_error){}
+				const firstDraw = !this.body.children.length;
 				this.data=data;
-				this.draw(data);
+				if (this.mode !== 'unmatched' || firstDraw) {
+					this.draw(data);
+				}
 				if (this.mode === 'unmatched' && this.hasUnmatched && !this.unmatchedState.data && !this.unmatchedState.loading) {
 					this.loadUnmatched();
 				}
@@ -344,12 +347,13 @@ return baseclass.extend({
 		const st = this.unmatchedState;
 		const res = st.data;
 		const panel = E('div', { class: 'zen-unmatched-panel' });
+		const refreshBtn = E('button', { type: 'button', class: 'cbi-button', click: () => this.loadUnmatched() }, st.loading ? '刷新中…' : '刷新榜单');
+		const clearBtn = E('button', { type: 'button', class: 'cbi-button', click: () => this.clearUnmatchedList() }, '清空榜单');
+		refreshBtn.disabled = !!(st.loading || st.saving);
+		clearBtn.disabled = !!(st.loading || st.saving);
 		panel.appendChild(E('div', { class: 'zen-unmatched-head' }, [
 			E('span', { class: 'zen-app-muted' }, '统计当前已提取域名（SNI / Host）但尚未归属具体应用的流量（仅内存统计，不落盘）。'),
-			E('div', { class: 'zen-unmatched-head-actions' }, [
-				E('button', { type: 'button', class: 'cbi-button', disabled: st.loading || st.saving, click: () => this.loadUnmatched() }, st.loading ? '刷新中…' : '刷新榜单'),
-				E('button', { type: 'button', class: 'cbi-button', disabled: st.loading || st.saving, click: () => this.clearUnmatchedList() }, '清空榜单')
-			])
+			E('div', { class: 'zen-unmatched-head-actions' }, [refreshBtn, clearBtn])
 		]));
 		if (st.error) panel.appendChild(E('p', { class: 'alert-message warning', role: 'status' }, st.error));
 		else if (st.statusMsg) panel.appendChild(E('p', { class: 'zen-app-muted', role: 'status' }, st.statusMsg));
@@ -373,31 +377,31 @@ return baseclass.extend({
 			.sort((a, b) => a.label.localeCompare(b.label, 'zh-Hans-CN'));
 		const appSelect = E('select', {
 			'aria-label': '归属目标应用',
-			disabled: st.saving,
 			change: ev => { st.targetApp = ev.target.value; }
 		}, [
-			...(normalGroup.length ? [E('optgroup', { label: '常用应用与服务' }, normalGroup.map(a => E('option', { value: a.key, selected: st.targetApp === a.key }, a.label)))] : []),
-			...(customGroup.length ? [E('optgroup', { label: '自定义分类桶' }, customGroup.map(a => E('option', { value: a.key, selected: st.targetApp === a.key }, a.label)))] : [])
+			...(normalGroup.length ? [E('optgroup', { label: '常用应用与服务' }, normalGroup.map(a => E('option', { value: a.key }, a.label)))] : []),
+			...(customGroup.length ? [E('optgroup', { label: '自定义分类桶' }, customGroup.map(a => E('option', { value: a.key }, a.label)))] : [])
 		]);
+		appSelect.disabled = !!st.saving;
 		if (st.targetApp) appSelect.value = st.targetApp;
 
 		const allSelected = domains.length > 0 && domains.every(d => st.selected.has(d.domain));
 		const selectAllBox = E('input', {
 			type: 'checkbox',
-			checked: allSelected,
-			disabled: !domains.length || st.saving,
 			change: ev => {
 				if (ev.target.checked) domains.forEach(d => st.selected.add(d.domain));
 				else domains.forEach(d => st.selected.delete(d.domain));
 				this.draw(this.data || { available: false });
 			}
 		});
+		selectAllBox.checked = allSelected;
+		selectAllBox.disabled = !domains.length || !!st.saving;
 		const assignBtn = E('button', {
 			type: 'button',
 			class: 'cbi-button cbi-button-apply',
-			disabled: !st.selected.size || !st.targetApp || st.saving,
 			click: () => this.assignSelected()
 		}, st.saving ? '正在保存…' : '一键归属所选应用（' + st.selected.size + '）');
+		assignBtn.disabled = !st.selected.size || !st.targetApp || !!st.saving;
 
 		panel.appendChild(E('div', { class: 'zen-unmatched-bar' }, [
 			E('label', { class: 'zen-unmatched-checkall' }, [selectAllBox, E('span', {}, '全选（已选 ' + st.selected.size + '/' + domains.length + '）')]),
@@ -423,8 +427,6 @@ return baseclass.extend({
 					const canToggle = !!(item.suggested_domain && (item.suggested_match === 'suffix' || item.suggested_domain !== item.domain));
 					const rowCheck = E('input', {
 						type: 'checkbox',
-						checked,
-						disabled: st.saving,
 						'aria-label': '选择域名 ' + item.domain,
 						change: ev => {
 							if (ev.target.checked) st.selected.add(item.domain);
@@ -432,17 +434,19 @@ return baseclass.extend({
 							this.draw(this.data || { available: false });
 						}
 					});
+					rowCheck.checked = checked;
+					rowCheck.disabled = !!st.saving;
 					const scopeBtn = E('button', {
 						type: 'button',
 						class: 'zen-unmatched-scope',
 						'aria-pressed': String(spec.match === 'suffix'),
-						disabled: !canToggle || st.saving,
 						title: canToggle ? '点击切换按主域名后缀合并或仅精确匹配当前子域名' : '仅精确匹配当前子域名',
 						click: () => {
 							st.scopeMode.set(item.domain, spec.match === 'suffix' ? 'exact' : 'suffix');
 							this.draw(this.data || { available: false });
 						}
 					}, spec.match === 'suffix' ? '后缀 *.' + spec.domain : '精确 ' + spec.domain);
+					scopeBtn.disabled = !canToggle || !!st.saving;
 					const candidateLabel = item.candidate_app ? (names[(apps.find(a => a.key === item.candidate_app) || {}).id] || item.candidate_name || item.candidate_app) : '';
 					const domainCell = E('td', {}, E('div', { class: 'zen-unmatched-domain' }, [
 						E('strong', {}, item.domain),
@@ -469,14 +473,15 @@ return baseclass.extend({
 			customRules.length
 				? E('div', { class: 'zen-custom-rules-list' }, customRules.map(rule => {
 					const label = names[rule.app_id] || rule.app_name || rule.app;
+					const removeBtn = E('button', {
+						type: 'button',
+						class: 'cbi-button',
+						click: () => this.removeCustomRule(rule)
+					}, '移除');
+					removeBtn.disabled = !!st.saving;
 					return E('div', { class: 'zen-custom-rule-row' }, [
 						E('span', {}, (rule.match === 'suffix' ? '*.' : '') + rule.domain + ' → ' + label),
-						E('button', {
-							type: 'button',
-							class: 'cbi-button',
-							disabled: st.saving,
-							click: () => this.removeCustomRule(rule)
-						}, '移除')
+						removeBtn
 					]);
 				}))
 				: E('p', { class: 'zen-app-muted' }, '尚未添加自定义域名规则。')
