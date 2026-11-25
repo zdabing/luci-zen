@@ -2,6 +2,7 @@
 'require baseclass';
 'require rpc';
 'require view.zen-traffic.style as trafficStyle';
+'require view.zen.zen-select as picker';
 
 const callHistory = rpc.declare({ object: 'zen.traffic', method: 'getRealtimeHistory', params: ['iface', 'start', 'end', 'limit'], reject: true });
 const callDefaultHistory = rpc.declare({ object: 'zen.traffic', method: 'getRealtimeHistory', reject: true });
@@ -77,6 +78,8 @@ return baseclass.extend({
     this.chart,this.note
    ])
   ]);
+  picker.enhance(this.iface);
+  picker.enhance(this.range);
   if(initial.data) this.showData(initial.data);
   else {this.error.textContent=_('Realtime history is unavailable. Update and enable the zen-traffic service.');this.showData({samples:[],interfaces:[],step:5});}
   requestAnimationFrame(() => this.drawChart());

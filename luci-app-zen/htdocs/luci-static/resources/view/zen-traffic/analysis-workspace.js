@@ -239,7 +239,7 @@ return baseclass.extend({async render(data){
    svgEl.append(hoverBand);
    const stepSec=Number(rateData.step)||5,gapThreshold=isHourly?7200:Math.max(60,stepSec*3);
    const plotList=isHourly?valid:samples;
-   for(const [key,stroke,areaAlpha]of [['download','var(--dl,#168bff)',0.14],['upload','var(--ul,#ff6a00)',0.10]]){
+   for(const [key,stroke,areaAlpha]of [['download','var(--dl,#2563eb)',0.14],['upload','var(--ul,#f97316)',0.10]]){
     let seg=[];
     const flush=()=>{
      if(seg.length===1){svgEl.append(S('circle',{cx:xOf(seg[0].time).toFixed(1),cy:yOf(seg[0][key]).toFixed(1),r:3,fill:stroke}));seg=[];return;}
@@ -256,8 +256,8 @@ return baseclass.extend({async render(data){
    if(isHourly&&rateData.pinnedIdx!=null&&samples[rateData.pinnedIdx]?.available){
     const ps=samples[rateData.pinnedIdx],px=xOf(ps.time);
     svgEl.append(S('line',{x1:px.toFixed(1),x2:px.toFixed(1),y1:padT,y2:padT+ih,stroke:'var(--accent)','stroke-opacity':'.55','stroke-dasharray':'3 3'}));
-    svgEl.append(S('circle',{cx:px.toFixed(1),cy:yOf(ps.download).toFixed(1),r:4.5,fill:'var(--dl,#168bff)',stroke:'var(--bg-panel,#fff)','stroke-width':1.5}));
-    svgEl.append(S('circle',{cx:px.toFixed(1),cy:yOf(ps.upload).toFixed(1),r:4.5,fill:'var(--ul,#ff6a00)',stroke:'var(--bg-panel,#fff)','stroke-width':1.5}));
+    svgEl.append(S('circle',{cx:px.toFixed(1),cy:yOf(ps.download).toFixed(1),r:4.5,fill:'var(--dl,#2563eb)',stroke:'var(--bg-panel,#fff)','stroke-width':1.5}));
+    svgEl.append(S('circle',{cx:px.toFixed(1),cy:yOf(ps.upload).toFixed(1),r:4.5,fill:'var(--ul,#f97316)',stroke:'var(--bg-panel,#fff)','stroke-width':1.5}));
    }
    const fmtTick=t=>{
     const d=new Date(t*1000);
@@ -268,8 +268,8 @@ return baseclass.extend({async render(data){
    svgEl.append(S('text',{x:padL+iw/2,y:H-4,'text-anchor':'middle'},fmtTick(t0+span/2)));
    svgEl.append(S('text',{x:W-padR,y:H-4,'text-anchor':'end'},fmtTick(t1)));
    const cross=S('line',{y1:padT,y2:padT+ih,stroke:'var(--text-secondary)','stroke-opacity':'.45','stroke-dasharray':'3 3',visibility:'hidden'});
-   const dotDl=S('circle',{r:3.5,fill:'var(--dl,#168bff)',stroke:'var(--bg-panel,#fff)','stroke-width':1.5,visibility:'hidden'});
-   const dotUl=S('circle',{r:3.5,fill:'var(--ul,#ff6a00)',stroke:'var(--bg-panel,#fff)','stroke-width':1.5,visibility:'hidden'});
+   const dotDl=S('circle',{r:3.5,fill:'var(--dl,#2563eb)',stroke:'var(--bg-panel,#fff)','stroke-width':1.5,visibility:'hidden'});
+   const dotUl=S('circle',{r:3.5,fill:'var(--ul,#f97316)',stroke:'var(--bg-panel,#fff)','stroke-width':1.5,visibility:'hidden'});
    const hit=S('rect',{x:padL,y:padT,width:iw,height:ih,fill:'transparent',style:isHourly&&rateData.canPin?'cursor:pointer':''});
    svgEl.append(cross,dotDl,dotUl,hit);
    const defaultSample=isHourly&&rateData.pinnedIdx!=null&&samples[rateData.pinnedIdx]?samples[rateData.pinnedIdx]:(valid.at(-1)||samples.at(-1));

@@ -1152,17 +1152,35 @@ msgid "Visual theme"
 msgstr "界面主题"
 
 msgid "Meridian"
-msgstr "Meridian 橙彩玻璃"
+msgstr "Meridian 默认"
 
-msgid "Neutral cards, orange accents and glass navigation."
-msgstr "灰白卡片、橙色交互与玻璃导航。"
+msgid "Snow-white canvas, pure white cards and soft elevation."
+msgstr "雪白画布、纯白实色卡片与柔和投影。"
 
 
 msgid "Apple"
-msgstr "Apple 清爽卡片"
+msgstr "Apple 卡片"
 
-msgid "White cards, blue actions and colorful icons."
-msgstr "白色卡片、蓝色操作与彩色图标。"
+msgid "Crisp light-blue canvas, flat white cards and tinted icons."
+msgstr "微蓝清透白画布、极简平卡与彩色图标。"
+
+msgid "Accent color"
+msgstr "主题色"
+
+msgid "Aurora Blue"
+msgstr "极光蓝"
+
+msgid "Emerald Teal"
+msgstr "翡翠青"
+
+msgid "Indigo"
+msgstr "靛蓝紫"
+
+msgid "Minimal Ink"
+msgstr "极简墨"
+
+msgid "Warm Amber"
+msgstr "暖琥珀"
 
 msgid "View traffic"
 msgstr "查看流量"

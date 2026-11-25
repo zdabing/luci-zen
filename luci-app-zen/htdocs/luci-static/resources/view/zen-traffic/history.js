@@ -5,6 +5,7 @@
 'require view.zen-traffic.rate-history as rateHistory';
 'require view.zen-traffic.device-timeline as deviceTimeline';
 'require view.zen-traffic.style as trafficStyle';
+'require view.zen.zen-select as picker';
 
 /*
  * view.zen-traffic.history — luci-app-zen-traffic 历史曲线页。
@@ -218,6 +219,8 @@ return view.extend({
 
 		this.sel = sel;
 		this.sel.value = this.mac;
+		picker.enhance(sel);
+		picker.enhance(scope);
 		// Each analysis tool has one surface; hidden tabs do not query on entry.
 		const usage = E('section', {id:'zen-analysis-usage',role:'tabpanel','aria-labelledby':'zen-analysis-tab-usage'});
 		const heading = root.firstChild, description = heading.nextSibling;

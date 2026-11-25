@@ -1,6 +1,7 @@
 'use strict';
 'require baseclass';
 'require rpc';
+'require view.zen.zen-select as picker';
 const get=rpc.declare({object:'zen.traffic',method:'getP2pPolicy',params:['mac'],reject:true});
 const set=rpc.declare({object:'zen.traffic',method:'setP2pPolicy',params:['json'],reject:true});
 const getDomains=rpc.declare({object:'zen.traffic',method:'getP2pDomains',reject:true});
@@ -83,6 +84,7 @@ return baseclass.extend({
    risk, advanced, E('div', { class: 'rf-detail-form-actions' }, [refresh, save]), status
   ]);
   root.append(heading, stats, E('details', { class: 'zen-p2p-settings' }, [E('summary', {}, _('P2P settings')), form]));
+  picker.enhance(mode);
   host.append(root);
 
   let writable = false, domainsWritable = false, busy = false, policy = null;

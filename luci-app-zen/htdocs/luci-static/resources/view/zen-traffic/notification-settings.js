@@ -3,6 +3,7 @@
 'require rpc';
 'require poll';
 'require view.zen-traffic.style as trafficStyle';
+'require view.zen.zen-select as picker';
 
 const getSettings = rpc.declare({object:'zen.traffic',method:'getNotifications',reject:true});
 const setSettings = rpc.declare({object:'zen.traffic',method:'setNotifications',params:['json'],reject:true});
@@ -40,7 +41,7 @@ const toggle = (label,on) => { const input=E('input',{type:'checkbox'});
 function styles() {
  if (document.getElementById('zen-notify-css')) return;
  document.head.appendChild(E('style',{id:'zen-notify-css'},
-  '.zen-notify-channels{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}.zen-notify-card{min-width:0}.zen-notify-field{display:flex;flex-direction:column;gap:8px;margin:16px 0}.zen-notify-field input,.zen-notify-field select{width:100%;min-width:0;max-width:100%;min-height:38px}.zen-notify-toggle{display:flex;align-items:center;gap:10px;margin:14px 0}.zen-notify-toggle input{width:auto!important}.zen-notify-card h3{margin-top:0}.zen-notify-rule{display:grid;grid-template-columns:auto minmax(140px,2fr) minmax(100px,1fr) minmax(150px,1fr) auto;gap:12px;align-items:center;border-bottom:1px solid var(--border,rgba(127,127,127,.2));padding:12px 0}.zen-notify-rule .zen-notify-field{margin:0}.zen-notify-amount{display:flex;gap:6px}.zen-notify-actions{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}.zen-notify-result{font-size:13px;white-space:pre-wrap}.zen-notify-error{color:var(--danger,#dc2626)}.zen-notify-log{overflow-x:auto}.zen-notify-log td{white-space:nowrap}.zen-notify-rule button{align-self:end;min-height:38px}.zen-notify-master{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap}.zen-notify-report{display:flex;gap:32px;align-items:center;flex-wrap:wrap}@media(max-width:700px){.zen-notify-channels{grid-template-columns:1fr}.zen-notify-rule{grid-template-columns:1fr 1fr}.zen-notify-rule>label:first-child{grid-column:1/-1}.zen-notify-rule .zen-notify-device{grid-column:1/-1}.zen-notify-rule button{grid-column:2;justify-self:end}.zen-notify-rule .zen-notify-amount{min-width:0}.zen-notify-rule input{min-width:0}.zen-analysis-table{font-size:12px}}'
+  '.zen-notify-channels{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}.zen-notify-card{min-width:0}.zen-notify-field{display:flex;flex-direction:column;gap:8px;margin:16px 0}.zen-notify-field input,.zen-notify-field select{width:100%;min-width:0;max-width:100%;min-height:40px}.zen-notify-toggle{display:flex;align-items:center;gap:10px;margin:14px 0}.zen-notify-toggle input{width:auto!important}.zen-notify-card h3{margin-top:0}.zen-notify-rule{display:grid;grid-template-columns:auto minmax(140px,2fr) minmax(100px,1fr) minmax(150px,1fr) auto;gap:12px;align-items:end;border-bottom:1px solid var(--line,rgba(127,127,127,.2));padding:12px 0}.zen-notify-rule .zen-notify-field{margin:0}.zen-notify-amount{display:flex;gap:6px}.zen-notify-actions{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}.zen-notify-result{font-size:13px;white-space:pre-wrap}.zen-notify-error{color:var(--danger,#b42318)}.zen-notify-log{overflow-x:auto}.zen-notify-log td{white-space:nowrap}.zen-notify-rule button{align-self:end;min-height:40px}.zen-notify-master{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap}.zen-notify-report{display:flex;gap:32px;align-items:center;flex-wrap:wrap}@media(max-width:700px){.zen-notify-channels{grid-template-columns:1fr}.zen-notify-rule{grid-template-columns:1fr 1fr}.zen-notify-rule>label:first-child{grid-column:1/-1}.zen-notify-rule .zen-notify-device{grid-column:1/-1}.zen-notify-rule button{grid-column:2;justify-self:end}.zen-notify-rule .zen-notify-amount{min-width:0}.zen-notify-rule input{min-width:0}.zen-analysis-table{font-size:12px}}'
  ));
 }
 
@@ -72,6 +73,7 @@ return baseclass.extend({
   const recent=E('section',{class:'cbi-section zc-recent'},[E('h3',{},_('Recent deliveries')),this.log]);
   const save=E('div',{class:'zc-savebar'},[E('div',{class:'zc-save-feedback'},[this.dirtyState,this.status]),E('div',{class:'zc-save-actions'},[this.undoButton,this.saveButton])]);
   const root=E('div',{id:'zen-notifications',class:'cbi-map zen-traffic-page zc-notifications'},[master,channelCard,ruleCard,dailyCard,recent,save]);
+  picker.enhance(this.channelSelect);
   this.root=root;for(const rule of config.rules)this.addRule(rule);
   this.drawLog(data[0]);this.dirty=false;this.editRevision=0;this.dirtyState.textContent=_('Current configuration');this.undoButton.disabled=true;
   root.addEventListener('input',()=>this.markDirty());root.addEventListener('change',()=>this.markDirty());
@@ -110,6 +112,7 @@ return baseclass.extend({
    E('button',{type:'button','class':'cbi-button cbi-button-negative',click:()=>{
     row.node.remove();this.rows=this.rows.filter(r=>r!==row);this.addButton.disabled=false;this.markDirty();
    }},_('Remove'))]);
+  picker.enhance(device);picker.enhance(metric);picker.enhance(unit);
   this.rows.push(row);this.rules.appendChild(row.node);this.addButton.disabled=this.rows.length>=20;this.markDirty();
  },
  collect() {
@@ -168,7 +171,7 @@ return baseclass.extend({
    E('thead',{},E('tr',{},[_('Time'),_('Channel'),_('Message'),_('Status')].map(t=>E('th',{scope:'col'},t)))),
    E('tbody',{},data.recent.map(r=>E('tr',{},[
     E('td',{},new Date(r.at*1000).toLocaleString()),E('td',{},r.channel==='feishu'?_('Feishu'):_('WeCom')),
-    E('td',{},kinds[r.kind]||r.kind),E('td',{},[E('span',{},labels[r.status]||r.status),
+    E('td',{},kinds[r.kind]||r.kind),E('td',{},[E('span',{'class':'zen-notify-status-badge','data-status':r.status||''},labels[r.status]||r.status),
      r.error?E('small',{'class':'zen-notify-error'},' · '+errorText(r.error)):''])
    ])))
   ]));

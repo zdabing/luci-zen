@@ -6,6 +6,7 @@
 'require view.zen.zen-format as fmt';
 'require view.zen.zen-devices as devices';
 'require view.zen.zen-health as health';
+'require view.zen.zen-select as picker';
 
 /*
  * view.zen.dashboard — Zen 首页的数据与组件，供 admin/zen 的独立视图使用。
@@ -249,14 +250,32 @@ return baseclass.extend({
 
 	showDiskInfo() {
 		const disk = this.diskInfo;
-		const dialog = E('dialog', { 'class': 'zen-dash-disk-dialog' }, [
-			E('h3', {}, _('Storage')),
-			E('p', {}, disk ? _('Used %s').format(fmt.fmtBytes(disk.used)) : fmt.MISSING),
-			E('p', {}, disk ? _('Total %s').format(fmt.fmtBytes(disk.total)) : fmt.MISSING)
+		const dialog = E('dialog', { 'class': 'zen-dash-disk-dialog', 'aria-labelledby': 'zen-disk-dialog-title' });
+		const closeX = E('button', { type: 'button', 'class': 'zen-pref-close', 'aria-label': _('Close'), click: () => dialog.close() }, '×');
+		const head = E('div', { 'class': 'zen-dialog-head' }, [
+			E('h3', { id: 'zen-disk-dialog-title' }, _('Storage')),
+			closeX
 		]);
-		const close = E('button', { type: 'button' }, _('Close'));
-		close.addEventListener('click', () => dialog.close());
-		dialog.appendChild(close);
+		const body = E('div', { 'class': 'zen-dialog-body' }, [
+			E('dl', { 'class': 'zen-modal-kv' }, [
+				E('div', {}, [
+					E('dt', {}, _('Storage')),
+					E('dd', {}, disk ? _('Used %s').format(fmt.fmtBytes(disk.used)) : fmt.MISSING)
+				]),
+				E('div', {}, [
+					E('dt', {}, _('Total')),
+					E('dd', {}, disk ? _('Total %s').format(fmt.fmtBytes(disk.total)) : fmt.MISSING)
+				])
+			])
+		]);
+		const closeBtn = E('button', { type: 'button', 'class': 'cbi-button cbi-button-positive', click: () => dialog.close() }, _('Close'));
+		const actions = E('div', { 'class': 'zen-dialog-actions' }, [closeBtn]);
+		dialog.append(head, body, actions);
+		dialog.addEventListener('click', ev => {
+			if (ev.target !== dialog) return;
+			const r = dialog.getBoundingClientRect();
+			if (ev.clientX < r.left || ev.clientX > r.right || ev.clientY < r.top || ev.clientY > r.bottom) dialog.close();
+		});
 		dialog.addEventListener('close', () => dialog.remove());
 		document.body.appendChild(dialog);
 		dialog.showModal();
@@ -415,7 +434,7 @@ return baseclass.extend({
 				E('section', { 'class': 'zen-dash-panel zen-dash-traffic' }, [
 					E('header', { 'class': 'zen-dash-traffic-head' }, [
 						E('h3', {}, [_('Realtime Traffic'), E('span', { 'class': 'zen-dash-hint' }, _('Last 5 minutes') + ' · ' + _('5-second updates'))]),
-						E('label', { 'class': 'zen-dash-iface-control' }, [E('span', {}, _('Interface')), iface])
+						E('div', { 'class': 'zen-dash-iface-control' }, [E('span', {}, _('Interface')), iface])
 					]),
 					E('div', { 'class': 'zen-dash-traffic-stats' }, [
 						E('div', { 'class': 'zen-dash-stat tx' }, [
@@ -462,6 +481,7 @@ return baseclass.extend({
 		body.classList.add('zen-dash-focus-body');
 		root.insertBefore(this.buildConnectionSummary(), body);
 		root.appendChild(details);
+		picker.enhance(iface);
 		return root;
 
 	},

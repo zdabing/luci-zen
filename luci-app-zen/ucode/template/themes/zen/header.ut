@@ -28,7 +28,7 @@
 -%}
 
 <!DOCTYPE html>
-<html lang="{{ dispatcher.lang }}" data-zen-appearance="router" data-zen-authenticated="{{ ctx.authsession ? 'true' : 'false' }}" data-zen-saved="{{ appearance.saved == '1' ? 'true' : 'false' }}" data-zen-mode="{{ entityencode(appearance.mode ?? 'auto', true) }}" data-zen-skin="{{ appearance.skin == 'apple' ? 'apple' : 'meridian' }}" data-zen-layout="{{ entityencode(appearance.layout ?? 'sidebar', true) }}">
+<html lang="{{ dispatcher.lang }}" data-zen-appearance="router" data-zen-authenticated="{{ ctx.authsession ? 'true' : 'false' }}" data-zen-saved="{{ appearance.saved == '1' ? 'true' : 'false' }}" data-zen-mode="{{ entityencode(appearance.mode ?? 'auto', true) }}" data-zen-skin="{{ appearance.skin == 'apple' ? 'apple' : 'meridian' }}" data-zen-accent="{{ entityencode(appearance.accent ?? 'blue', true) }}" data-zen-layout="{{ entityencode(appearance.layout ?? 'sidebar', true) }}">
 	<head>
 		<meta charset="utf-8">
 		<title>{{ striptags(`${boardinfo.hostname ?? '?'}${dispatched?.title ? ` | ${_(dispatched.title)}` : ''}`) }}</title>

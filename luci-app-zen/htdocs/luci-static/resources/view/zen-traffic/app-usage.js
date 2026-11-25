@@ -2,6 +2,7 @@
 'require baseclass';
 'require rpc';
 'require view.zen.zen-brand-icons as brandIcons';
+'require view.zen.zen-select as picker';
 
 const callUsage = rpc.declare({ object: 'zen.traffic', method: 'getAppUsage', params: ['mac', 'date', 'hour'], reject: true });
 const callRates = rpc.declare({ object:'zen.traffic',method:'getAppRealtime',params:['mac'],reject:true });
@@ -408,6 +409,7 @@ return baseclass.extend({
 			appSelect,
 			assignBtn
 		]));
+		picker.enhance(appSelect);
 
 		if (!domains.length) {
 			panel.appendChild(E('p', { class: 'zen-app-muted' }, '暂无未识别的高频域名。有未归属域名产生流量后将按总流量自动排序。'));

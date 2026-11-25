@@ -5,6 +5,7 @@
 'require view.zen.zen-icons as icons';
 'require view.zen.zen-vendors as vendors';
 'require view.zen.zen-brand-icons as brandIcons';
+'require view.zen.zen-select as picker';
 
 const BRANDS = {
  realme: ['realme','R','#e7b900'], xiaomi: ['Xiaomi','mi','#f57921'],
@@ -69,11 +70,22 @@ return baseclass.extend({
    catch(e){error.textContent=_('Unable to save device identity');error.hidden=false;}
    finally{save.disabled=false;}
   }},_('Save'));
-  ui.showModal(_('Device identity'),[
-   E('p',{},d.host||d.ip4||d.mac),
-   E('div',{'class':'zen-identity-form'},[
-    E('label',{},[_('Brand'),brand]),E('label',{},[_('Device type'),type]),E('label',{},[_('Model'),model])]),
-   E('p',{},_('Automatic uses device names and MAC vendors. Private MAC addresses cannot identify a brand.')),
-   error,E('div',{'class':'right'},[E('button',{type:'button','class':'cbi-button',click:()=>ui.hideModal()},_('Cancel')),' ',save])]);
+  const body = E('div', { 'class': 'zen-modal-body' }, [
+   E('p', {}, d.host || d.ip4 || d.mac),
+   E('div', { 'class': 'zen-identity-form' }, [
+    E('label', { 'class': 'zen-modal-field' }, [E('span', {}, _('Brand')), brand]),
+    E('label', { 'class': 'zen-modal-field' }, [E('span', {}, _('Device type')), type]),
+    E('label', { 'class': 'zen-modal-field' }, [E('span', {}, _('Model')), model])
+   ]),
+   E('p', {}, _('Automatic uses device names and MAC vendors. Private MAC addresses cannot identify a brand.')),
+   error
+  ]);
+  const actions = E('div', { 'class': 'zen-modal-actions' }, [
+   E('button', { type: 'button', 'class': 'cbi-button', click: () => ui.hideModal() }, _('Cancel')),
+   save
+  ]);
+  ui.showModal(_('Device identity'), [body, actions]);
+  picker.enhance(brand);
+  picker.enhance(type);
  }
 });

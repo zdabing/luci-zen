@@ -1,10 +1,16 @@
-/* Zen display preferences. Native browser controls, no theme-library runtime.
- * Keep the public adapter name and mode/layout keys for existing installations. */
+/* Zen display preferences (Z Design System v2.0.0).
+ * Native browser controls, no theme-library runtime.
+ * Keeps public ZenAppearance API and existing mode/layout/skin storage keys. */
 (function () {
 	'use strict';
 	if (window.ZenAppearance) return;
 	const root = document.documentElement;
-	const storageKeys = { mode: 'luci-theme-zen', layout: 'luci-theme-zen-layout', skin: 'luci-theme-zen-skin' };
+	const storageKeys = {
+		mode: 'luci-theme-zen',
+		layout: 'luci-theme-zen-layout',
+		skin: 'luci-theme-zen-skin',
+		accent: 'luci-theme-zen-accent'
+	};
 	const media = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
 	const router = root.dataset.zenAppearance === 'router';
 	const managed = router && root.dataset.zenAuthenticated === 'true';
@@ -12,23 +18,35 @@
 	let adapter, activeWrite, queued = {}, failure = false, writing = false;
 	let modal, returnFocus;
 	const forms = new Set();
+	const ACCENTS = [
+		['blue', 'Aurora Blue', '#2563eb', '#3b82f6'],
+		['teal', 'Emerald Teal', '#0d9488', '#14b8a6'],
+		['indigo', 'Indigo', '#4f46e5', '#6366f1'],
+		['ink', 'Minimal Ink', '#18181b', '#e4e4e7'],
+		['amber', 'Warm Amber', '#ea580c', '#f97316']
+	];
 	const validMode = value => ['light', 'dark'].includes(value) ? value : 'auto';
 	const validSkin = value => value === 'apple' ? 'apple' : 'meridian';
 	const validLayout = value => value === 'top' ? 'top' : 'sidebar';
+	const validAccent = value => ['blue', 'teal', 'indigo', 'ink', 'amber'].includes(value) ? value : 'blue';
 	function read(key) { try { return localStorage.getItem(key); } catch (e) { storageOK = false; return null; } }
 	function write(key, value) { try { localStorage.setItem(key, value); } catch (e) { storageOK = false; } }
 	const state = {
 		mode: validMode(router && saved ? root.dataset.zenMode : read(storageKeys.mode)),
 		layout: validLayout(router && saved ? root.dataset.zenLayout : read(storageKeys.layout)),
-		skin: validSkin(router && saved ? root.dataset.zenSkin : read(storageKeys.skin))
+		skin: validSkin(router && saved ? root.dataset.zenSkin : read(storageKeys.skin)),
+		accent: validAccent(router && saved ? root.dataset.zenAccent : read(storageKeys.accent))
 	};
 	function tr(text) {
 		const _ = value => typeof window._ === 'function' ? window._(value) : value;
 		const labels = {
 			'Theme settings': _('Theme settings'), 'Appearance & layout': _('Appearance & layout'),
 			'Visual theme': _('Visual theme'), 'Meridian': _('Meridian'),
-			'Neutral cards, orange accents and glass navigation.': _('Neutral cards, orange accents and glass navigation.'),
-			'Apple': _('Apple'), 'White cards, blue actions and colorful icons.': _('White cards, blue actions and colorful icons.'),
+			'Snow-white canvas, pure white cards and soft elevation.': _('Snow-white canvas, pure white cards and soft elevation.'),
+			'Apple': _('Apple'), 'Crisp light-blue canvas, flat white cards and tinted icons.': _('Crisp light-blue canvas, flat white cards and tinted icons.'),
+			'Accent color': _('Accent color'),
+			'Aurora Blue': _('Aurora Blue'), 'Emerald Teal': _('Emerald Teal'),
+			'Indigo': _('Indigo'), 'Minimal Ink': _('Minimal Ink'), 'Warm Amber': _('Warm Amber'),
 			'A quieter view of your network.': _('A quieter view of your network.'),
 			'Display mode': _('Display mode'), 'Follow system': _('Follow system'), 'Light mode': _('Light mode'), 'Dark mode': _('Dark mode'),
 			'Navigation layout': _('Navigation layout'), 'Left navigation': _('Left navigation'), 'Top navigation': _('Top navigation'),
@@ -53,29 +71,46 @@
 		return storageOK ? 'Saved in this browser' : 'Storage unavailable; appearance applies for this session only';
 	}
 	function sync() {
+		const isDark = root.dataset.theme === 'dark';
 		for (const form of forms) {
 			for (const button of form.querySelectorAll('[data-pref-group]')) {
 				const chosen = state[button.dataset.prefGroup] === button.dataset.prefValue;
 				button.setAttribute('aria-pressed', String(chosen));
+			}
+			for (const dot of form.querySelectorAll('.zen-accent-dot[data-light-color]')) {
+				dot.style.backgroundColor = isDark ? dot.dataset.darkColor : dot.dataset.lightColor;
 			}
 			const note = form.querySelector('.zen-pref-save-note');
 			if (note) { note.textContent = tr(status()); note.classList.toggle('is-error', failure); }
 			const retryButton = form.querySelector('.zen-pref-retry');
 			if (retryButton) retryButton.hidden = !failure;
 		}
+		if (modal) {
+			const note = modal.querySelector('.zen-dialog-actions .zen-pref-save-note');
+			if (note) { note.textContent = tr(status()); note.classList.toggle('is-error', failure); }
+			const retryButton = modal.querySelector('.zen-dialog-actions .zen-pref-retry');
+			if (retryButton) retryButton.hidden = !failure;
+		}
 		for (const button of document.querySelectorAll('.zen-mode-toggle')) {
-			const label = tr(root.dataset.theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
+			const label = tr(isDark ? 'Switch to light mode' : 'Switch to dark mode');
 			button.setAttribute('aria-label', label); button.title = label;
 			const span = button.querySelector('.zen-mode-label');
-			if (span) span.textContent = tr(root.dataset.theme === 'dark' ? 'Light mode' : 'Dark mode');
+			if (span) span.textContent = tr(isDark ? 'Light mode' : 'Dark mode');
 		}
 	}
 	function apply() {
-		root.dataset.theme = state.mode === 'auto' ? (media && media.matches ? 'dark' : 'light') : state.mode;
-		root.dataset.darkmode = String(root.dataset.theme === 'dark');
-		root.dataset.themeMode = state.mode; root.dataset.layout = state.layout; root.dataset.skin = state.skin;
+		const scheme = state.mode === 'auto' ? (media && media.matches ? 'dark' : 'light') : state.mode;
+		root.dataset.theme = scheme;
+		root.dataset.darkmode = String(scheme === 'dark');
+		root.dataset.themeMode = state.mode;
+		root.dataset.layout = state.layout;
+		root.dataset.skin = state.skin;
+		root.dataset.accent = state.accent;
+		root.dataset.zStyle = state.skin;
+		root.dataset.zScheme = scheme;
+		root.dataset.zAccent = state.accent;
 		sync();
-		document.dispatchEvent(new CustomEvent('zenappearancechange', { detail: { ...state, theme: root.dataset.theme } }));
+		document.dispatchEvent(new CustomEvent('zenappearancechange', { detail: { ...state, theme: scheme } }));
 	}
 	function flush() {
 		if (activeWrite || !adapter || !Object.keys(queued).length) return activeWrite || Promise.resolve();
@@ -94,6 +129,7 @@
 		if (Object.prototype.hasOwnProperty.call(value, 'mode')) patch.mode = validMode(value.mode);
 		if (Object.prototype.hasOwnProperty.call(value, 'skin')) patch.skin = validSkin(value.skin);
 		if (Object.prototype.hasOwnProperty.call(value, 'layout')) patch.layout = validLayout(value.layout);
+		if (Object.prototype.hasOwnProperty.call(value, 'accent')) patch.accent = validAccent(value.accent);
 		Object.assign(state, patch);
 		for (const key of Object.keys(patch)) write(storageKeys[key], patch[key]);
 		apply();
@@ -131,32 +167,73 @@
 		}
 		field.appendChild(list); return field;
 	}
-	function render() {
+	function accentChoices() {
+		const field = node('fieldset', 'zen-pref-field');
+		field.appendChild(node('legend', '', 'Accent color'));
+		const list = node('div', 'zen-pref-options zen-pref-accent zen-accent-grid');
+		const isDark = root.dataset.theme === 'dark';
+		for (const [value, label, lightHex, darkHex] of ACCENTS) {
+			const button = node('button', 'zen-pref-choice zen-accent-btn'); button.type = 'button';
+			button.dataset.prefGroup = 'accent'; button.dataset.prefValue = value;
+			const dot = node('span', 'zen-accent-dot'); dot.setAttribute('aria-hidden', 'true');
+			dot.dataset.lightColor = lightHex; dot.dataset.darkColor = darkHex;
+			dot.style.backgroundColor = isDark ? darkHex : lightHex;
+			button.append(dot, node('span', 'zen-accent-label', label));
+			button.addEventListener('click', () => set({ accent: value }));
+			list.appendChild(button);
+		}
+		field.appendChild(list); return field;
+	}
+	function render(options) {
+		const inDialog = !!(options && options.inDialog);
 		const form = node('div', 'zen-preferences');
 		const intro = node('header', 'zen-pref-intro');
 		intro.append(node('span', 'zen-pref-eyebrow', 'Theme settings'), node('h2', '', 'A quieter view of your network.'), node('p', '', 'Changes apply immediately.'));
 		const controls = node('div', 'zen-pref-controls');
 		controls.append(
-			choices('skin', 'Visual theme', [['meridian', 'Meridian', 'Neutral cards, orange accents and glass navigation.'], ['apple', 'Apple', 'White cards, blue actions and colorful icons.']]),
+			choices('skin', 'Visual theme', [
+				['meridian', 'Meridian', 'Snow-white canvas, pure white cards and soft elevation.'],
+				['apple', 'Apple', 'Crisp light-blue canvas, flat white cards and tinted icons.']
+			]),
+			accentChoices(),
 			choices('mode', 'Display mode', [['auto', 'Follow system'], ['light', 'Light mode'], ['dark', 'Dark mode']]),
 			choices('layout', 'Navigation layout', [['sidebar', 'Left navigation', 'Keep pages within reach in the sidebar.'], ['top', 'Top navigation', 'Use the full width with navigation above.']])
 		);
-		const footer = node('footer', 'zen-pref-footer');
-		const note = node('p', 'zen-pref-save-note'); note.setAttribute('role', 'status'); note.setAttribute('aria-live', 'polite');
-		const retryButton = node('button', 'zen-pref-retry', 'Retry saving'); retryButton.type = 'button'; retryButton.addEventListener('click', retry);
-		footer.append(note, retryButton); form.append(intro, controls, footer); forms.add(form); sync(); return form;
+		if (inDialog) {
+			form.append(controls);
+		} else {
+			const footer = node('footer', 'zen-pref-footer');
+			const note = node('p', 'zen-pref-save-note'); note.setAttribute('role', 'status'); note.setAttribute('aria-live', 'polite');
+			const retryButton = node('button', 'zen-pref-retry', 'Retry saving'); retryButton.type = 'button'; retryButton.addEventListener('click', retry);
+			footer.append(note, retryButton); form.append(intro, controls, footer);
+		}
+		forms.add(form); sync(); return form;
 	}
 	function open(trigger) {
 		if (!modal) {
-			modal = node('dialog', 'zen-preferences-dialog'); modal.id = 'zen-appearance-dialog'; modal.setAttribute('aria-label', tr('Theme settings'));
+			modal = node('dialog', 'zen-preferences-dialog'); modal.id = 'zen-appearance-dialog'; modal.setAttribute('aria-labelledby', 'zen-appearance-dialog-title');
+			const head = node('div', 'zen-dialog-head');
+			const title = node('h4', '', 'Theme settings'); title.id = 'zen-appearance-dialog-title';
 			const close = node('button', 'zen-pref-close', '×'); close.type = 'button'; close.setAttribute('aria-label', tr('Close'));
-			close.addEventListener('click', () => modal.close()); modal.append(close, render()); document.body.appendChild(modal);
+			close.addEventListener('click', () => modal.close());
+			head.append(title, close);
+			const body = node('div', 'zen-dialog-body');
+			body.append(render({ inDialog: true }));
+			const actions = node('div', 'zen-dialog-actions');
+			const note = node('p', 'zen-pref-save-note'); note.setAttribute('role', 'status'); note.setAttribute('aria-live', 'polite');
+			const retryButton = node('button', 'zen-pref-retry', 'Retry saving'); retryButton.type = 'button'; retryButton.addEventListener('click', retry);
+			const doneButton = node('button', 'cbi-button cbi-button-positive zen-dialog-done', 'Close'); doneButton.type = 'button';
+			doneButton.addEventListener('click', () => modal.close());
+			actions.append(note, retryButton, doneButton);
+			modal.append(head, body, actions);
+			document.body.appendChild(modal);
 			modal.addEventListener('close', () => { if (returnFocus && returnFocus.isConnected) returnFocus.focus({ preventScroll: true }); });
 			modal.addEventListener('click', event => {
 				if (event.target !== modal) return;
 				const r = modal.getBoundingClientRect();
 				if (event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom) modal.close();
 			});
+			sync();
 		}
 		if (!modal.open) { returnFocus = trigger || document.activeElement; modal.showModal(); }
 	}
@@ -173,7 +250,13 @@
 		if (event.key === storageKeys.mode) state.mode = validMode(event.newValue);
 		else if (event.key === storageKeys.skin) state.skin = validSkin(event.newValue);
 		else if (event.key === storageKeys.layout) state.layout = validLayout(event.newValue);
-		else if (event.key === null) { state.mode = validMode(read(storageKeys.mode)); state.layout = validLayout(read(storageKeys.layout)); state.skin = validSkin(read(storageKeys.skin)); }
+		else if (event.key === storageKeys.accent) state.accent = validAccent(event.newValue);
+		else if (event.key === null) {
+			state.mode = validMode(read(storageKeys.mode));
+			state.layout = validLayout(read(storageKeys.layout));
+			state.skin = validSkin(read(storageKeys.skin));
+			state.accent = validAccent(read(storageKeys.accent));
+		}
 		else return;
 		apply();
 	});

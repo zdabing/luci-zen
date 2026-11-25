@@ -35,8 +35,8 @@
 		position: fixed;
 		inset: 0;
 		background: var(--modal-mask);
-		backdrop-filter: blur(4px);
-		-webkit-backdrop-filter: blur(4px);
+		backdrop-filter: none;
+		-webkit-backdrop-filter: none;
 		z-index: 45;
 		opacity: 0;
 		visibility: hidden;
@@ -46,6 +46,14 @@
 	.main-right {
 		padding: 14px 12px 24px;
 		margin-left: 0;
+	}
+
+	.btn,
+	.cbi-button,
+	input[type="submit"],
+	input[type="button"],
+	button {
+		min-height: 44px;
 	}
 
 	.cbi-value {
