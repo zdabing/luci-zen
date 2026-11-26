@@ -17,7 +17,7 @@
 
 .zen-console body { background: var(--bg-base); }
 .zen-console #maincontent, .zen-console #maincontent > .container { max-width: none; }
-.zen-console .main-right { padding: 0 24px 24px; }
+.zen-console .main-right { padding: 18px 24px 24px; }
 .zc-app-nav {
   display: flex; gap: 10px; align-items: center; min-height: 48px;
   border-bottom: 1px solid var(--line); margin: 0 -24px 18px; padding: 0 24px;
@@ -52,95 +52,120 @@
 .zen-console :is(button, input, select):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .zen-console button:disabled { opacity: .5; cursor: default; }
 
-/* Settings & Notifications */
-.zen-console #zen-settings { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-items: start; max-width: none; }
+/* Settings & Notifications (Compact Balanced 2-Column Workspace) */
+.zen-console #zen-settings { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; align-items: start; max-width: none; }
+.zen-console #zen-settings > .zen-settings-title { margin: 0; font-size: 19px; font-weight: 650; line-height: 1.3; letter-spacing: -.02em; }
 :root.zen-console #zen-settings .zen-settings-tabs { margin: 0; }
-.zc-settings-content { display: grid; gap: 24px; min-width: 0; }
+.zc-settings-content { display: grid; grid-template-columns: minmax(0, .92fr) minmax(0, 1.08fr); gap: 12px; align-items: start; min-width: 0; }
 .zen-settings-panel { min-width: 0; scroll-margin-top: 76px; }
-.zen-settings-section-title { margin: 0 0 12px; padding: 0; border: 0; font-size: 17px; font-weight: 650; line-height: 1.4; color: var(--text); }
-.zen-console #zen-notifications { display: grid; gap: 14px; margin: 0; padding: 0; min-width: 0; }
-.zen-console #zen-notifications .cbi-section { margin: 0; padding: 18px 20px; border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--bg-panel); min-width: 0; box-shadow: var(--shadow-card); }
-.zen-console #zen-notifications h3 { font-size: 16px; line-height: 1.4; font-weight: 650; margin: 0 0 14px; padding: 0; border: 0; }
-.zen-console .zc-master { padding: 14px 20px !important; }
-.zc-master .zen-notify-toggle { display: flex; flex-direction: row-reverse; justify-content: space-between; margin: 0; font-size: 15px; font-weight: 600; min-height: 32px; }
+#zen-settings-appearance { grid-column: 1; grid-row: 1; }
+#zen-settings-versions { grid-column: 1; grid-row: 2; align-self: start; }
+#zen-settings-appearance, #zen-settings-notifications {
+  display: flex; flex-direction: column; padding: 14px 16px;
+  border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--bg-panel); box-shadow: var(--shadow-card);
+}
+#zen-settings-notifications { grid-column: 2; grid-row: 1 / span 2; align-self: start; }
+#zen-settings-versions, #zen-settings-versions > .zen-settings-body { display: flex; flex-direction: column; min-width: 0; }
+#zen-settings-appearance > .zen-settings-body { display: flex; flex-direction: column; }
+.zen-settings-section-title { margin: 0 0 10px; padding: 0; border: 0; font-size: 15px; font-weight: 650; line-height: 1.35; color: var(--text); }
+.zen-console #zen-notifications { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin: 0; padding: 0; min-width: 0; }
+.zen-console #zen-notifications .zc-notify-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; align-items: start; min-width: 0; }
+.zen-console #zen-notifications .zc-notify-col { display: grid; gap: 8px; align-content: start; min-width: 0; }
+.zen-console #zen-notifications:not(:has(.zc-notify-grid)) > .zc-master { order: 1; }
+.zen-console #zen-notifications:not(:has(.zc-notify-grid)) > .zc-channel-card { order: 2; }
+.zen-console #zen-notifications:not(:has(.zc-notify-grid)) > .zc-daily { order: 3; }
+.zen-console #zen-notifications:not(:has(.zc-notify-grid)) > .zc-rule-card { order: 4; }
+.zen-console #zen-notifications:not(:has(.zc-notify-grid)) > .zc-recent { display: none !important; }
+.zen-console #zen-notifications:not(:has(.zc-notify-grid)) > .zc-savebar { order: 5; }
+.zen-console #zen-notifications .cbi-section { margin: 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-micro); background: var(--bg-panel); min-width: 0; box-shadow: none; }
+.zen-console #zen-notifications h3 { font-size: 13.5px; line-height: 1.4; font-weight: 650; margin: 0 0 8px; padding: 0; border: 0; }
+.zen-console .zc-master { padding: 8px 14px !important; }
+.zc-master .zen-notify-toggle { display: flex; flex-direction: row-reverse; justify-content: space-between; margin: 0; font-size: 13.5px; font-weight: 600; min-height: 26px; }
 .zen-console .zen-notify-toggle input { appearance: none; -webkit-appearance: none; width: 40px !important; height: 22px; min-height: 0; min-width: 40px; padding: 0; border: 0; background: var(--switch-off); border-radius: 999px; position: relative; cursor: pointer; box-shadow: none; flex: none; transition: background .15s; }
 .zen-notify-toggle input::after { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; background: #fff; border-radius: 50%; transition: transform .15s; box-shadow: 0 1px 2px rgba(0,0,0,.18); }
 .zen-console .zen-notify-toggle input:checked { background: var(--accent); }
 .zen-notify-toggle input:checked::after { transform: translateX(18px); }
-.zc-form-row { display: grid; grid-template-columns: 132px minmax(0, 1fr); align-items: center; gap: 16px; margin: 10px 0; max-width: 840px; font-size: 14px; }
+.zc-form-row { display: grid; grid-template-columns: 76px minmax(0, 1fr); align-items: center; gap: 10px; margin: 6px 0; max-width: none; font-size: 13px; }
 .zen-console #zen-notifications :is(input:not([type="checkbox"]), select) {
-  width: 100%; max-width: none; min-width: 0; min-height: 40px; height: 40px;
-  background: var(--bg-panel); border: 1px solid var(--line); border-radius: var(--radius-control);
-  padding: 8px 12px; box-shadow: none; color: var(--text); font: inherit; font-size: 13px;
+  width: 100%; max-width: none; min-width: 0; min-height: 36px; height: 36px;
+  background: var(--bg-panel); border: 1px solid var(--line); border-radius: 10px;
+  padding: 6px 10px; box-shadow: none; color: var(--text); font: inherit; font-size: 13px;
 }
 .zc-secret-input { display: flex; align-items: center; position: relative; min-width: 0; }
-.zen-console #zen-notifications .zc-secret-input input { padding-right: 60px; }
-.zc-reveal { position: absolute; right: 5px; top: 3px; min-height: 34px; padding: 5px 8px; border: 0; background: transparent; color: var(--text-secondary); border-radius: 6px; font: inherit; font-size: 12px; cursor: pointer; }
-.zc-channel-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; max-width: 840px; margin-top: 10px; }
+.zen-console #zen-notifications .zc-secret-input input { padding-right: 54px; }
+.zen-console #zen-notifications .zc-secret-input input:has(+ .zc-reveal[hidden]) { padding-right: 10px; }
+.zc-reveal { position: absolute; right: 4px; top: 2px; min-height: 32px; padding: 4px 8px; border: 0; background: transparent; color: var(--text-secondary); border-radius: 6px; font: inherit; font-size: 12px; cursor: pointer; }
+.zc-reveal[hidden] { display: none !important; }
+.zc-channel-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; max-width: none; margin-top: 6px; }
+.zen-console #zen-notifications :is(.zc-channel-actions .cbi-button, .zc-card-head .cbi-button) { min-height: 32px; padding: 4px 11px; font-size: 12px; }
 .zen-console #zen-notifications .zen-notify-result { margin: 0; font-size: 12px; line-height: 1.5; min-width: 0; overflow-wrap: anywhere; color: var(--accent-strong); }
 .zen-console #zen-notifications .zen-notify-result.zen-notify-error { color: var(--danger); }
-.zc-card-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.zc-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 4px; }
 .zen-console #zen-notifications .zc-card-head h3 { margin: 0; }
-.zen-console .zen-notify-rule { display: grid; grid-template-columns: 80px minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1.1fr) auto; gap: 12px; padding: 14px 0; align-items: end; border: 0; border-top: 1px solid var(--line); border-radius: 0; background: transparent; }
+.zen-console .zen-notify-rule { display: grid; grid-template-columns: 60px minmax(0, 1.35fr) minmax(0, .85fr) minmax(0, 1.1fr) auto; gap: 8px; padding: 8px 0; align-items: end; border: 0; border-top: 1px solid var(--line); border-radius: 0; background: transparent; }
+.zen-console .zen-notify-rule:first-child { border-top: 0; padding-top: 4px; }
 .zen-console .zen-notify-rule .zen-notify-toggle { font-size: 12px; gap: 6px; margin: 0; flex-wrap: wrap; align-self: center; }
-.zen-console .zen-notify-rule .zen-notify-field { gap: 6px; margin: 0; min-width: 0; font-size: 12px; }
+.zen-console .zen-notify-rule .zen-notify-field { gap: 4px; margin: 0; min-width: 0; font-size: 11px; color: var(--text-secondary); }
+.zen-console #zen-notifications .zen-notify-rule .zen-picker-trigger { min-height: 34px; height: 34px; padding: 0 9px; font-size: 12px; border-radius: 10px; }
 .zen-console .zen-notify-amount { display: flex; gap: 6px; min-width: 0; }
-.zen-console #zen-notifications .zen-notify-amount input { width: 56%; min-width: 0; }
+.zen-console #zen-notifications .zen-notify-amount input { width: 54%; min-width: 0; min-height: 34px; height: 34px; }
 .zen-console #zen-notifications .zen-notify-amount select,
-.zen-console #zen-notifications .zen-notify-amount .zen-picker { width: 44%; min-width: 72px; }
-.zen-console .zen-notify-rule .cbi-button-negative { color: var(--danger); padding-inline: 12px; }
-.zc-daily-row { display: flex; justify-content: space-between; align-items: center; gap: 18px; max-width: 840px; }
-.zc-daily-row .zen-notify-toggle { margin: 0; font-size: 14px; gap: 14px; flex-direction: row-reverse; }
-.zc-time-field { display: flex; align-items: center; gap: 16px; font-size: 14px; }
-.zen-console #zen-notifications .zc-time-field input { width: 160px; }
-.zen-console .zc-recent .zen-notify-log { min-height: 38px; font-size: 12px; overflow-x: auto; }
-.zen-console .zc-recent table.table { width: 100%; border-collapse: collapse; }
-.zen-console .zc-recent table.table th { font-size: 11px; font-weight: 600; color: var(--text-secondary); border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; }
-.zen-console .zc-recent table.table td { padding: 9px 10px; border-bottom: 1px solid var(--line); color: var(--text); }
-.zen-console .zc-recent .zen-app-muted { margin: 14px 0; text-align: center; font-size: 13px; color: var(--text-secondary); }
-.zen-notify-status-badge {
-  display: inline-flex; align-items: center; justify-content: center; width: 68px; min-height: 22px;
-  padding: 1px 6px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg-panel);
-  color: var(--text-secondary); font: 600 10px/1.4 var(--mono); white-space: nowrap;
-}
-.zen-notify-status-badge[data-status="sent"] { color: var(--ok); background: var(--ok-soft); border-color: color-mix(in srgb, var(--ok) 32%, transparent); }
-.zen-notify-status-badge[data-status="failed"] { color: var(--danger); background: var(--danger-soft); border-color: var(--danger-line); }
-.zen-notify-status-badge[data-status="retry"],
-.zen-notify-status-badge[data-status="queued"],
-.zen-notify-status-badge[data-status="sending"] { color: var(--warn); background: var(--warn-soft); border-color: color-mix(in srgb, var(--warn) 32%, transparent); }
+.zen-console #zen-notifications .zen-notify-amount .zen-picker { width: 46%; min-width: 68px; }
+.zen-console .zen-notify-rule .cbi-button-negative { min-height: 34px; color: var(--danger); padding: 4px 10px; font-size: 12px; }
+.zen-console #zen-notifications .zc-daily { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 14px; padding: 9px 14px; }
+.zen-console #zen-notifications .zc-daily h3 { margin: 0; }
+.zc-daily-row { display: flex; flex: 1; justify-content: flex-end; align-items: center; gap: 16px; max-width: none; }
+.zc-daily-row .zen-notify-toggle { margin: 0; font-size: 13px; gap: 10px; flex-direction: row-reverse; }
+.zc-time-field { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary); }
+.zen-console #zen-notifications .zc-time-field input { width: 118px; min-height: 34px; height: 34px; }
 
-.zc-savebar { position: static; display: flex; align-items: center; justify-content: space-between; gap: 16px; border: 1px solid var(--line); border-radius: var(--radius-card); background: var(--bg-panel); padding: 12px 18px; box-shadow: var(--shadow-card); }
-.zc-save-feedback { display: grid; gap: 3px; min-width: 0; }
-.zc-save-state { font-size: 13px; }
+.zc-savebar { position: static; display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid var(--line); border-radius: var(--radius-micro); background: var(--bg-panel); padding: 9px 14px; box-shadow: none; }
+.zc-save-feedback { display: grid; gap: 2px; min-width: 0; }
+.zc-save-state { font-size: 12px; color: var(--text-secondary); }
 .zc-save-actions { display: flex; gap: 8px; flex: none; }
+.zc-save-actions .cbi-button { min-height: 32px; padding: 4px 13px; font-size: 12px; }
 
-:root.zen-console #zen-settings .zen-preferences { padding: 0; margin: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+:root.zen-console #zen-settings .zen-preferences { display: flex; flex-direction: column; gap: 10px; padding: 0; margin: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 .zen-console #zen-settings .zen-pref-intro { display: none; }
-.zen-console #zen-settings .zen-pref-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: stretch; }
-.zen-console #zen-settings .zen-pref-field { display: block; padding: 18px 20px; margin: 0; border-radius: var(--radius-card); border: 1px solid var(--line); background: var(--bg-panel); box-shadow: var(--shadow-card); }
-.zen-console #zen-settings .zen-pref-field > legend { float: left; width: 100%; margin: 0 0 12px; padding: 0; border-bottom: 0; font-size: 15px; font-weight: 650; line-height: 1.4; color: var(--text); }
-.zen-console #zen-settings .zen-pref-options { clear: both; display: grid; gap: 10px; }
-.zen-console #zen-settings .zen-pref-accent.zen-accent-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.zen-console #zen-settings .zen-pref-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 14px; align-items: start; }
+.zen-console #zen-settings .zen-pref-group { min-width: 0; display: grid; gap: 7px; }
+.zen-console #zen-settings .zen-pref-group.wide { grid-column: 1 / -1; }
+.zen-console #zen-settings .zen-pref-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); line-height: 1.4; }
+.zen-console #zen-settings .zen-pref-field { display: block; padding: 10px 12px; margin: 0; border-radius: var(--radius-micro); border: 1px solid var(--line); background: var(--bg-panel); box-shadow: none; }
+.zen-console #zen-settings .zen-pref-field > legend { float: left; width: 100%; margin: 0 0 6px; padding: 0; border-bottom: 0; font-size: 12px; font-weight: 600; line-height: 1.35; color: var(--text-secondary); }
+.zen-console #zen-settings .zen-pref-options { clear: both; display: grid; gap: 8px; }
+.zen-console #zen-settings .zen-pref-accent.zen-accent-grid { display: flex; flex-wrap: wrap; gap: 7px; }
 .zen-console #zen-settings .zen-pref-skin, .zen-console #zen-settings .zen-pref-layout { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.zen-console #zen-settings .zen-pref-mode { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.zen-console #zen-settings .zen-pref-choice { display: flex; align-items: flex-start; gap: 10px; border-radius: var(--radius-control); padding: 12px 14px; min-height: 46px; height: 100%; background: var(--bg-panel); border: 1px solid var(--line); box-shadow: none; }
-.zen-console #zen-settings .zen-accent-btn { width: auto; height: auto; min-height: 38px; padding: 7px 13px; align-items: center; border-radius: 10px; }
-.zen-console #zen-settings .zen-pref-choice[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-strong); }
+.zen-console #zen-settings .zen-pref-mode { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--bg-nested); }
+.zen-console #zen-settings .zen-pref-choice { display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: var(--radius-control); padding: 8px 10px; min-height: 40px; height: auto; background: var(--bg-panel); border: 1px solid var(--line); color: var(--text-secondary); font-size: 12.5px; font-weight: 550; box-shadow: none; }
+.zen-console #zen-settings .zen-pref-choice:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); color: var(--text); }
+.zen-console #zen-settings .zen-accent-btn { width: auto; height: auto; min-height: 34px; padding: 5px 11px; align-items: center; border-radius: 10px; font-size: 12px; gap: 6px; }
+.zen-console #zen-settings .zen-accent-dot { width: 12px; height: 12px; }
+.zen-console #zen-settings .zen-pref-choice[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-strong); font-weight: 600; }
 .zen-console #zen-settings .zen-pref-choice[aria-pressed="true"] strong { color: var(--accent-strong); }
-.zen-console #zen-settings .zen-pref-mark { margin-top: 2px; }
-.zen-console #zen-settings .zen-pref-choice strong { font-size: 13px; font-weight: 600; }
-.zen-console #zen-settings .zen-pref-choice small { display: block; margin-top: 4px; font-size: 12px; line-height: 1.45; color: var(--text-secondary); }
-.zen-console #zen-settings .zen-pref-mode .zen-pref-choice { align-items: center; justify-content: center; padding: 10px 12px; text-align: center; }
-.zen-console #zen-settings .zen-pref-footer { margin-top: 14px; padding: 12px 18px; border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--bg-panel); display: flex; align-items: center; justify-content: space-between; }
+.zen-console #zen-settings .zen-pref-mark { margin-top: 0; }
+.zen-console #zen-settings .zen-pref-choice small { display: none; }
+.zen-console #zen-settings .zen-pref-mode .zen-pref-choice { align-items: center; justify-content: center; padding: 6px 8px; text-align: center; min-height: 34px; border: 0; border-radius: 9px; background: transparent; font-size: 12px; font-weight: 500; box-shadow: none; }
+.zen-console #zen-settings .zen-pref-mode .zen-pref-choice:hover { border-color: transparent; color: var(--text); background: color-mix(in srgb, var(--bg-panel) 55%, transparent); }
+.zen-console #zen-settings .zen-pref-mode .zen-pref-choice[aria-pressed="true"] { background: var(--bg-panel); color: var(--accent-strong); font-weight: 600; box-shadow: 0 1px 4px rgba(16, 24, 40, 0.08); }
+:root[data-theme="dark"].zen-console #zen-settings .zen-pref-mode .zen-pref-choice[aria-pressed="true"] { box-shadow: 0 1px 4px rgba(0, 0, 0, 0.32); }
+.zen-console #zen-settings .zen-pref-footer { margin-top: 2px; padding: 2px 2px 0; border: 0; border-radius: 0; background: transparent; display: flex; align-items: center; justify-content: space-between; font-size: 11.5px; color: var(--text-muted); }
 
-:root.zen-console #zen-settings #zen-updates { padding: 20px 22px; margin: 0; border-radius: var(--radius-card); border: 1px solid var(--line); background: var(--bg-panel); box-shadow: var(--shadow-card); }
-.zen-console #zen-updates .zen-update-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
-.zen-console #zen-updates h2 { font-size: 17px; font-weight: 650; margin: 0; }
+:root.zen-console #zen-settings #zen-updates { display: flex; flex-direction: column; padding: 14px 16px; margin: 0; border-radius: var(--radius-card); border: 1px solid var(--line); background: var(--bg-panel); box-shadow: var(--shadow-card); }
+.zen-console #zen-updates .zen-update-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.zen-console #zen-updates h2 { font-size: 15px; font-weight: 650; margin: 0; }
+.zen-console #zen-updates .zen-update-actions .btn { min-height: 30px; padding: 4px 10px; font-size: 12px; }
 .zen-console #zen-updates .zen-update-refresh { background: var(--bg-panel); border-color: var(--line); color: var(--text-secondary); }
 .zen-console #zen-updates .zen-update-check { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
-.zen-console #zen-updates .zen-version-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; border-top: 0; padding: 0; }
-.zen-console #zen-updates .zen-version-item { display: flex; flex-direction: column; gap: 8px; min-height: 0; padding: 16px 18px; border-radius: var(--radius-micro); background: var(--bg-panel); border: 1px solid var(--line); }
-.zen-console #zen-updates .zen-update-footer { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); display: grid; gap: 8px; }
+.zen-console #zen-updates .zen-version-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; border-top: 0; padding: 0; }
+.zen-console #zen-updates .zen-version-item { display: flex; flex-direction: column; gap: 4px; min-height: 0; padding: 11px 13px; border-radius: var(--radius-micro); background: var(--bg-panel); border: 1px solid var(--line); box-shadow: none; }
+.zen-console #zen-updates .zen-version-name { font-size: 13px; }
+.zen-console #zen-updates .zen-update-footer { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); display: grid; gap: 6px; }
+.zen-console #zen-updates .zen-update-links { justify-content: space-between; gap: 10px; }
+@media (max-width: 1120px) {
+  .zc-settings-content { grid-template-columns: minmax(0, 1fr); }
+  #zen-settings-appearance, #zen-settings-versions, #zen-settings-notifications { grid-column: auto; grid-row: auto; }
+}
 @media (max-width: 960px) { .zen-console #zen-settings .zen-pref-controls { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 599px) { .zen-console #zen-settings .zen-pref-skin, .zen-console #zen-settings .zen-pref-layout { grid-template-columns: minmax(0, 1fr); } }
 
@@ -148,7 +173,13 @@
 .zen-console #za-workspace { gap: 14px; padding-bottom: 12px; font-family: inherit; }
 .zen-console .za-usage-view { gap: 14px; }
 .zen-console .za-panel { padding: 18px 20px; border-radius: var(--radius-card); border: 1px solid var(--line); background: var(--bg-panel); box-shadow: var(--shadow-card); }
-.zen-console .za-filterbar { margin-bottom: 14px; gap: 12px; flex-wrap: wrap; }
+.zen-console .za-filterbar { display: flex; justify-content: space-between; margin-bottom: 14px; gap: 10px 14px; flex-wrap: wrap; align-items: center; }
+.zen-console .za-filter-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; min-width: 0; }
+.zen-console .za-filter-head h2 { margin: 0; font-size: 17px; font-weight: 650; }
+.zen-console .za-filter-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-left: auto; min-width: 0; }
+.zen-console .za-date-stepper { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
+.zen-console .za-stepper-btn { display: grid; place-items: center; width: 36px; min-width: 36px; height: 36px; min-height: 36px; padding: 0; border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--bg-panel); color: var(--text-secondary); font-size: 16px; line-height: 1; cursor: pointer; }
+.zen-console .za-stepper-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent-strong); }
 .zen-console .za-date-range { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
 .zen-console .za-date-range .zen-date-picker { width: auto; min-width: 0; }
 .zen-console .za-date-range .zen-date-trigger { min-height: 36px; padding: 6px 10px; border-radius: var(--radius-control); gap: 8px; font-size: 12px; white-space: nowrap; }
@@ -158,14 +189,40 @@
 .zen-console .zen-app-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 10px; }
 .zen-console .zen-app-usage .zen-app-head h4 { margin: 0; }
 .zen-console #za-workspace .zen-app-unpin { min-height: 28px; padding: 3px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg-panel); font-size: 12px; color: var(--accent-strong); }
-.zen-console .za-stat-line { margin-bottom: 12px; align-items: center; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 12px 0; display: grid; grid-template-columns: 1fr 2fr; }
-.zen-console .za-total-label { font-size: 12px; margin-bottom: 4px; }
-.zen-console .za-total { font-size: 30px; letter-spacing: -.6px; line-height: 1.2; white-space: nowrap; }
-.zen-console .za-total small { font-size: 13px; margin-left: 6px; }
-.zen-console .za-totals-directions { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0; margin: 0; }
-.zen-console .za-totals-directions > div { border-left: 1px solid var(--line); padding-left: 20px; }
-.zen-console .za-totals-directions span { font-size: 12px; margin-bottom: 4px; }
-.zen-console .za-totals-directions strong { font-size: 24px; font-weight: 600; white-space: nowrap; }
+.zen-console .za-overview-3col { display: grid; grid-template-columns: 276px minmax(0, 1fr) minmax(0, 1fr); gap: 12px; margin-bottom: 14px; align-items: stretch; }
+@media (max-width: 1040px) { .zen-console .za-overview-3col { grid-template-columns: repeat(2, minmax(0, 1fr)); } .zen-console .za-ov-total { grid-column: 1 / -1; } }
+.zen-console .za-ov-card { min-width: 0; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius-micro); background: var(--bg-panel); display: flex; flex-direction: column; justify-content: space-between; gap: 10px; }
+.zen-console .za-ov-total { flex-direction: row; align-items: center; gap: 14px; }
+.zen-console .za-donut-wrap { position: relative; width: 92px; height: 92px; flex: none; }
+.zen-console .za-donut { display: block; width: 92px; height: 92px; }
+.zen-console .za-donut-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; pointer-events: none; line-height: 1.1; }
+.zen-console .za-donut-center .za-total { font-size: 17px; font-weight: 650; letter-spacing: -.4px; font-variant-numeric: tabular-nums; color: var(--text); }
+.zen-console .za-donut-center small { font-size: 11px; color: var(--text-secondary); margin: 2px 0 0; }
+.zen-console .za-overview-metrics { flex: 1; display: grid; gap: 8px; min-width: 0; }
+.zen-console .za-metric-row { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 8px; align-items: baseline; font-size: 12px; }
+.zen-console .za-metric-key { display: inline-flex; align-items: center; gap: 6px; color: var(--text-secondary); }
+.zen-console .za-metric-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: currentColor; }
+.zen-console .za-metric-row.za-download .za-metric-dot { background: var(--dl); }
+.zen-console .za-metric-row.za-upload .za-metric-dot { background: var(--ul); }
+.zen-console .za-metric-share { justify-self: end; font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.zen-console .za-metric-row strong { grid-column: 1 / -1; font-size: 15px; font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.zen-console .za-ov-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-width: 0; }
+.zen-console .za-ov-head strong { font-size: 13px; font-weight: 650; color: var(--text); }
+.zen-console .za-ov-head .za-ov-stat { font-size: 14px; font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.zen-console .za-share-bars { display: grid; gap: 7px; }
+.zen-console .za-share-line { display: grid; gap: 3px; }
+.zen-console .za-share-line-head { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.zen-console .za-share-track { display: flex; height: 8px; border-radius: 999px; overflow: hidden; background: var(--progress-track); gap: 1px; }
+.zen-console .za-share-seg { height: 100%; min-width: 2px; }
+.zen-console .za-share-legend { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px 10px; min-width: 0; }
+.zen-console .za-share-chip { display: flex; align-items: center; gap: 6px; min-width: 0; border: 0; padding: 2px 0; background: transparent; color: var(--text-secondary); font: inherit; font-size: 11px; text-align: left; cursor: pointer; }
+.zen-console .za-share-chip:disabled { cursor: default; }
+.zen-console .za-share-chip:not(:disabled):hover { color: var(--accent-strong); }
+.zen-console .za-share-chip i { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.zen-console .za-share-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
+.zen-console .za-share-chip small { flex: none; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.zen-console .za-p2p-meta { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.zen-console .za-p2p-meta strong { color: var(--text); font-weight: 600; }
 .zen-console .za-chart { height: 140px; }
 .zen-console .za-chart-head { margin-bottom: 3px; }
 .zen-console .za-chart-readout { min-height: 0; margin-top: 2px; font-size: 11px; }
@@ -226,51 +283,70 @@
 
 @media (max-width: 1199px) {
   .zc-analysis-lower { grid-template-columns: minmax(0, 1fr); }
-  .zen-console .zen-notify-rule { grid-template-columns: 72px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto; }
-  .zen-console .zc-form-row { grid-template-columns: 110px minmax(0, 1fr); }
 }
 @media (max-width: 767px) {
-  .zen-console .main-right { padding: 0 12px 18px; }
+  .zen-console .main-right { padding: 12px 12px 18px; }
   .zc-app-nav { margin: 0 -12px 14px; padding: 0 12px; gap: 6px; min-height: 44px; }
   .zc-app-nav a { min-height: 44px; font-size: 13px; padding: 9px 12px; }
   .zen-console .rf-page-head { gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
   .zen-console .rf-page-head h1 { font-size: 22px; }
-  .zen-console #zen-settings { display: grid; gap: 12px; }
-  .zc-settings-content { gap: 18px; }
-  .zen-settings-section-title { font-size: 16px; margin-bottom: 10px; }
-  .zen-console #zen-notifications { gap: 12px; }
-  .zen-console #zen-notifications .cbi-section { padding: 15px; border-radius: var(--radius-card); }
-  .zen-console #zen-notifications h3 { font-size: 16px; margin-bottom: 12px; }
-  .zen-console .zc-form-row { grid-template-columns: minmax(0, 1fr); gap: 6px; margin: 12px 0; font-size: 13px; }
-  .zen-console #zen-notifications :is(input:not([type="checkbox"]), select) { height: 44px; min-height: 44px; font-size: 16px; }
-  .zc-channel-actions { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; margin-top: 14px; }
-  .zc-channel-actions button { width: 100%; min-height: 44px; }
-  .zen-console .zen-notify-rule { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .zen-console #zen-settings { display: grid; gap: 10px; }
+  .zc-settings-content { gap: 12px; }
+  #zen-settings-appearance, #zen-settings-notifications { padding: 14px; border-radius: var(--radius-card); }
+  .zen-settings-section-title { font-size: 15px; margin-bottom: 10px; }
+  .zen-console #zen-notifications { gap: 10px; }
+  .zen-console #zen-notifications .cbi-section { padding: 13px; border-radius: var(--radius-micro); }
+  .zen-console #zen-notifications h3 { font-size: 14px; margin-bottom: 10px; }
+  .zen-console .zc-form-row { grid-template-columns: minmax(0, 1fr); gap: 6px; margin: 10px 0; font-size: 13px; }
+  .zen-console #zen-notifications :is(input:not([type="checkbox"]), select) { height: 42px; min-height: 42px; font-size: 15px; }
+  .zc-reveal { top: 4px; min-height: 34px; }
+  .zc-channel-actions { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin-top: 10px; }
+  .zc-channel-actions button { width: 100%; min-height: 42px; }
+  .zen-console #zen-notifications .zc-card-head .cbi-button { min-height: 40px; }
+  .zen-console .zen-notify-rule { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .zen-console .zen-notify-rule .zen-notify-device { grid-column: 1 / -1; }
   .zen-console .zen-notify-rule .zen-notify-toggle { grid-column: 1 / -1; flex-wrap: nowrap; gap: 8px; min-height: 30px; }
-  .zen-console .zen-notify-rule > button { min-height: 44px; justify-self: stretch; grid-column: 2; }
-  .zen-console .zen-notify-rule .zen-notify-amount input { font-size: 16px; }
-  .zc-daily-row { align-items: flex-start; flex-direction: column; gap: 14px; }
+  .zen-console .zen-notify-rule > button { min-height: 42px; justify-self: stretch; grid-column: 2; }
+  .zen-console .zen-notify-rule .zen-notify-amount input { font-size: 15px; }
+  .zen-console #zen-notifications .zen-notify-rule .zen-picker-trigger { min-height: 40px; height: 40px; }
+  .zen-console #zen-notifications .zen-notify-amount input { min-height: 40px; height: 40px; }
+  .zen-console #zen-notifications .zc-daily { display: block; padding: 13px; }
+  .zen-console #zen-notifications .zc-daily h3 { margin-bottom: 10px; }
+  .zen-console #zen-notifications .zc-daily-row { align-items: flex-start; flex-direction: column; gap: 10px; justify-content: flex-start; }
   .zc-time-field { display: grid; grid-template-columns: 1fr 1fr; width: 100%; font-size: 13px; }
-  .zen-console #zen-notifications .zc-time-field input { width: 100%; }
+  .zen-console #zen-notifications .zc-time-field input { width: 100%; min-height: 40px; height: 40px; }
   .zc-savebar { bottom: 8px; padding: 10px 12px; gap: 8px; }
   .zc-save-actions { gap: 6px; }
-  .zc-save-actions .cbi-button { padding: 8px 12px; min-height: 44px; font-size: 12px; }
+  .zc-save-actions .cbi-button { padding: 8px 12px; min-height: 42px; font-size: 12px; }
   .zc-save-state { font-size: 12px; }
   .zc-save-feedback { max-width: 45%; }
   .zen-console #zen-settings .zen-version-grid { grid-template-columns: minmax(0, 1fr); }
-  .zen-console #zen-settings .zen-pref-field { padding: 15px; border-radius: var(--radius-card); }
+  .zen-console #zen-settings .zen-pref-field { padding: 12px; border-radius: var(--radius-micro); background: var(--bg-panel); }
   :root.zen-console #zen-settings .zen-preferences { padding: 0; }
-  .zen-console #zen-settings .zen-pref-choice { padding: 12px; }
-  .zen-console #zen-settings .zen-pref-choice strong { font-size: 13px; }
-  :root.zen-console #zen-settings #zen-updates { padding: 15px; border-radius: var(--radius-card); }
+  .zen-console #zen-settings .zen-pref-choice { min-height: 42px; padding: 8px 10px; font-size: 13px; }
+  .zen-console #zen-settings .zen-pref-mode .zen-pref-choice { min-height: 40px; }
+  .zen-console #zen-settings .zen-accent-btn { min-height: 40px; padding: 6px 12px; font-size: 12px; }
+  :root.zen-console #zen-settings #zen-updates { padding: 14px; border-radius: var(--radius-card); }
   .zen-console #zen-updates .zen-update-heading { flex-wrap: wrap; }
-  .zen-console #zen-updates .zen-update-heading h2 { font-size: 16px; }
+  .zen-console #zen-updates .zen-update-heading h2 { font-size: 15px; }
+  .zen-console #zen-updates .zen-update-actions .btn { min-height: 40px; padding: 6px 12px; }
   .zen-console .za-panel, .zen-console .za-detail { padding: 16px; border-radius: var(--radius-card); }
   .zen-console .za-filterbar { flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
-  .zen-console #za-workspace .zu-periods { display: flex; width: 100%; order: 1; }
+  .zen-console .za-filter-controls { width: 100%; margin-left: 0; gap: 8px; }
+  .zen-console #za-workspace .zu-periods { display: flex; width: 100%; }
   .zen-console #za-workspace .zu-periods button { flex: 1; padding: 8px 6px; min-height: 40px; }
-  .zen-console .za-stat-line { grid-template-columns: 1fr 2fr; padding: 12px 0; gap: 8px; }
+  .zen-console #za-workspace .zen-app-filter { display: flex; flex-wrap: wrap; width: 100%; order: 0; }
+  .zen-console #za-workspace .zen-app-filter > button { flex: 1 1 auto; min-height: 40px; padding: 6px 10px; font-size: 12px; }
+  .zen-console .za-date-stepper { width: 100%; justify-content: space-between; }
+  .zen-console .za-stepper-btn { width: 40px; min-width: 40px; height: 40px; min-height: 40px; }
+  .zen-console .za-date-range { flex: 1; justify-content: center; flex-wrap: wrap; gap: 4px; }
+  .zen-console .za-overview-3col { grid-template-columns: minmax(0, 1fr); gap: 10px; margin-bottom: 12px; }
+  .zen-console .za-ov-total { grid-column: auto; }
+  .zen-console .za-donut-wrap, .zen-console .za-donut { width: 84px; height: 84px; }
+  .zen-console .za-donut-center .za-total { font-size: 16px; }
+  .zen-console .za-metric-row strong { font-size: 14px; }
+  .zen-console .rf-today-strip { padding: 14px 16px; }
+  .zen-console .rf-today-link { margin-left: 0; min-height: 40px; display: inline-flex; align-items: center; }
   .zen-console .za-total { font-size: 24px; letter-spacing: -.5px; }
   .zen-console .za-total small { font-size: 11px; margin-left: 3px; }
   .zen-console .za-totals-directions > div { padding-left: 10px; }
@@ -291,19 +367,20 @@
   .zen-console #za-workspace .za-table-tools .zen-picker { flex: 0 0 112px; }
   .zen-console #za-workspace .za-table-tools .zen-picker-trigger { min-height: 40px; height: 40px; }
   .zen-console #za-workspace .za-search { min-height: 40px; font-size: 14px; }
-  .zen-console .za-date-range .zen-date-trigger { min-height: 40px; }
+  .zen-console .za-date-range .zen-date-trigger { min-height: 40px; padding: 6px 8px; gap: 5px; font-size: 11px; }
+  .zen-console .za-date-range .zen-date-trigger svg { width: 14px; height: 14px; }
   .zen-console #za-workspace .za-rate-head .zu-periods button { min-height: 40px; }
   .zen-console #za-workspace .za-text-button { min-height: 40px; }
   .zen-console .zen-app-tail-btn,
   .zen-console .zen-app-compact-toggle { min-height: 40px !important; }
+  .zen-console .zen-domain-search,
+  .zen-console .zen-domain-toolbar .cbi-button { min-height: 40px !important; }
+  .zen-console .zen-domain-subs { padding-left: 14px; }
 }
 @media (max-width: 599px) {
   .zc-app-nav { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 6px 12px; overflow-x: visible; }
   .zc-app-nav a { justify-content: center; text-align: center; padding: 8px 6px; min-height: 44px; font-size: 12px; }
-  .zen-console .za-stat-line { gap: 6px; }
-  .zen-console .za-total { font-size: 22px; }
-  .zen-console .za-totals-directions strong { font-size: 15px; }
-  .zen-console .za-totals-directions > div { padding-left: 8px; }
+  .zen-console .za-metric-row strong { font-size: 14px; }
   .zen-console .za-device-name small { font-size: 9px; }
   .zen-console .za-device-name strong { font-size: 11px; }
   .zen-console .za-device-amount { font-size: 10px; }
@@ -364,67 +441,225 @@
 .zen-console .zc-sr-only { position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 .zen-console .rf-page-head:has(> .zc-sr-only) { min-height: 0; margin-bottom: 12px; }
 
-/* Home dashboard: split layout */
-.zen-console .rf-router-meta { font-size: 12px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.zen-console .rf-router-meta[hidden] { display: none; }
-.zen-console #zen-dashboard[data-home-layout] :is([data-health-metric="temperature"], [data-health-metric="connections"]) .zen-dash-health-track { display: none; }
-.zen-console #zen-dashboard[data-home-layout] :is([data-health-metric="temperature"], [data-health-metric="connections"]) { align-content: center; }
+/* Home dashboard: redesigned symmetric hero + aligned device table */
+:root.zen-console #zen-dashboard[data-home-layout="split"] { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-items: start; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] > :is(.rf-router, .rf-live) {
+  container-type: inline-size; display: flex; flex-direction: column; justify-content: space-between; gap: 14px;
+  padding: 20px 22px; background: var(--bg-panel); border: 1px solid var(--line);
+  border-radius: var(--radius-card); box-shadow: var(--shadow-card);
+}
+:root.zen-console[data-skin="apple"] #zen-dashboard[data-home-layout="split"] > :is(.rf-router, .rf-live, .zen-dash-devices) { box-shadow: none; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-head-icon { width: 16px; height: 16px; flex: none; color: var(--accent-strong); }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-kpi-icon { width: 14px; height: 14px; flex: none; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-kpi-icon-dl { color: var(--dl); }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-kpi-icon-ul { color: var(--ul); }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-router-head { display: flex; align-items: center; justify-content: space-between; gap: 10px 14px; flex-wrap: wrap; margin: 0; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-router-title-wrap { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-router-title { display: inline-flex; align-items: center; gap: 7px; font-size: 17px; font-weight: 650; letter-spacing: -.01em; line-height: 1.3; margin: 0; padding: 0; border: 0; color: var(--text); white-space: nowrap; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-router-title .rf-head-icon { align-self: center; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-router-meta { font-size: 12px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-router-meta[hidden] { display: none; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-wan-pill { padding: 0; margin-left: auto; font-size: 12px; font-weight: 600; gap: 10px; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-wan-pill [data-health-metric="latency"] { padding-left: 10px; }
 
-.zc-app-nav a.apple-icon-label { gap: 7px; }
-:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-live,
-:root.zen-console[data-skin="meridian"] #zen-dashboard[data-home-layout="split"] .rf-router { padding: 18px 20px; }
-:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-health .apple-icon { width: 24px; height: 24px; border-radius: 7px; }
-:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-health .apple-icon svg { width: 14px; height: 14px; }
-:root.zen-console #zen-dashboard[data-home-layout="split"] .zen-dash-connection .apple-small-icon { width: 22px; height: 22px; border-radius: 6px; }
-:root.zen-console #zen-dashboard[data-home-layout="split"] .zen-dash-connection .apple-small-icon svg { width: 13px; height: 13px; }
-:root.zen-console #zen-dashboard[data-home-layout="split"] .apple-icon-label { gap: 6px !important; }
-.zen-console #zen-dashboard[data-home-layout="split"] .rf-router-head { margin-bottom: 12px; }
-.zen-console #zen-dashboard[data-home-layout="split"] .rf-router-title { font-size: 20px; }
-.zen-console #zen-dashboard[data-home-layout="split"] .rf-wan-pill { padding: 2px 0; font-size: 13px; }
-.zen-console #zen-dashboard[data-home-layout="split"] .rf-health { gap: 10px; margin-bottom: 10px; }
-.zen-console #zen-dashboard[data-home-layout="split"] .rf-health .apple-icon-label { white-space: nowrap; }
-.zen-console #zen-dashboard[data-home-layout="split"] .rf-health :is(.rf-health-metric, .zen-dash-health-metric) { grid-template-columns: auto minmax(0, 1fr); padding: 10px 11px; gap: 6px 6px; border-radius: var(--radius-micro); font-size: 12px; }
-.zen-console #zen-dashboard[data-home-layout="split"] .rf-health :is(.rf-health-metric b, .zen-dash-health-metric strong) { font-size: 16px; line-height: 1.2; justify-self: end; }
-.zen-console #zen-dashboard[data-home-layout="split"] .rf-router .zen-dash-connections { gap: 10px; }
-.zen-console #zen-dashboard[data-home-layout="split"] .rf-router .zen-dash-connection { padding: 12px 14px; gap: 6px; border-radius: var(--radius-micro); }
-.zen-console #zen-dashboard[data-home-layout="split"] .rf-router .zen-dash-connection-label { font-size: 12px; }
-.zen-console #zen-dashboard[data-home-layout="split"] .rf-router .zen-dash-connection strong { font-size: 15px; }
-.zen-console #zen-dashboard[data-home-layout="split"] .rf-router [data-connection="wan6"] { font-size: 13px; }
-.zen-console #zen-dashboard[data-home-layout="split"] .rf-router .zen-dash-connection-note { font-size: 11px; }
-.zen-console #zen-dashboard[data-home-layout="split"] .rf-copy { min-height: 28px; padding: 2px 9px; font-size: 11px; line-height: 20px; }
+/* Independent pure-white 4-column KPI micro-cards (left Router Status & right Live Traffic) */
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-health,
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-live .zen-dash-traffic-stats {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 0;
+  border: 0; border-radius: 0; background: transparent; overflow: visible;
+}
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-health > *,
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-live .zen-dash-stat {
+  display: flex; flex-direction: column; justify-content: space-between; align-items: stretch; gap: 4px;
+  grid-column: auto; grid-row: auto;
+  min-width: 0; min-height: 84px; padding: 11px 12px; margin: 0;
+  border: 1px solid var(--line); border-radius: var(--radius-micro);
+  background: var(--bg-panel); box-shadow: none; text-align: left; text-decoration: none; color: inherit;
+  transition: border-color .15s;
+}
+:root.zen-console #zen-dashboard[data-home-layout="split"] :is(.rf-health .rf-kpi-label, .rf-live .zen-dash-stat .k) {
+  display: flex; align-items: center; gap: 5px; margin: 0; font-size: 12px; font-weight: 500;
+  line-height: 1.3; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-live .zen-dash-stat.rx .k { color: var(--dl); }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-live .zen-dash-stat.tx .k { color: var(--ul); }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-health :is(b, strong[data-health]),
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-live .zen-dash-stat .v {
+  display: flex; align-items: baseline; gap: 4px; margin: 0; padding: 0;
+  font-size: 18px; font-weight: 650; line-height: 1.2; letter-spacing: -.02em;
+  color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-live .zen-dash-stat.rx .v { color: var(--text); }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-live .zen-dash-stat.tx .v { color: var(--text); }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-live .rf-number { font-size: 18px; font-weight: 650; letter-spacing: -.02em; line-height: 1.2; color: var(--text); }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-live .rf-unit { font-size: 12px !important; font-weight: 450; color: var(--text-secondary); }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-health .rf-health-track { display: block; width: 100%; height: 5px; margin: 4px 0 2px; border-radius: 999px; background: color-mix(in srgb, var(--line) 85%, transparent); overflow: hidden; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-health .rf-health-metric:first-child .rf-health-fill { background: var(--ul); }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-health .rf-health-metric:nth-child(2) .rf-health-fill { background: var(--dl); }
+:root.zen-console #zen-dashboard[data-home-layout="split"] :is([data-health-metric="temperature"], [data-health-metric="connections"]) .zen-dash-health-track { display: none; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] :is(.rf-kpi-sub, .rf-live .rf-peak) {
+  margin: 0; font-size: 11px; line-height: 1.3; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums;
+}
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-kpi-ok { color: var(--ok); }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-kpi-warn { color: var(--warn); font-weight: 600; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-today-dirs { display: flex; align-items: center; gap: 6px; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-today-dirs .rf-down { color: var(--dl); }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-today-dirs .rf-up { color: var(--ul); }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-kpi-p2p:hover {
+  background: var(--bg-panel); border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+}
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-kpi-p2p .rf-p2p-more { color: var(--accent-strong); font-weight: 500; }
+
+/* Independent pure-white 2x2 network micro-cards inside Router Status */
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-router .zen-dash-connections,
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-router .zen-dash-connections.rf-has-ipv6 {
+  flex: 1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 0; margin: 0;
+  border: 0; border-radius: 0; background: transparent; overflow: visible;
+}
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-router .zen-dash-connection {
+  padding: 12px 14px; gap: 6px; border: 1px solid var(--line); border-radius: var(--radius-micro); background: var(--bg-panel); box-shadow: none;
+}
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-router [data-connection-card="wan6"],
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-router [data-connection-card="uptime"] { order: 0; grid-column: auto; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-router .zen-dash-connection-label { font-size: 12px; color: var(--text-secondary); }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-router .zen-dash-connection strong { font-size: 14px; font-weight: 650; line-height: 1.35; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-router [data-connection="wan6"] { font-size: 13px; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-router .zen-dash-connection-note { font-size: 11px; margin-top: auto; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-copy { min-height: 26px; padding: 2px 8px; font-size: 11px; line-height: 18px; }
+
+/* Live traffic card header & chart */
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-live .zen-dash-traffic-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-live h3 { display: inline-flex; align-items: center; gap: 7px; font-size: 17px !important; font-weight: 650; line-height: 1.3; margin: 0; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-live-link { font-size: 12px; font-weight: 600; color: var(--accent-strong); text-decoration: none; white-space: nowrap; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-live-link:hover { text-decoration: underline; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-live .zen-dash-trend { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-live .zen-dash-chart { flex: 1; height: 140px !important; min-height: 140px !important; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-live .rf-chart-foot { margin-top: -6px; font-size: 11px; color: var(--text-muted); }
+
+/* Container folding inside top hero cards */
+@container (max-width: 460px) {
+  :root.zen-console #zen-dashboard[data-home-layout="split"] .rf-health,
+  :root.zen-console #zen-dashboard[data-home-layout="split"] .rf-live .zen-dash-traffic-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@container (max-width: 390px) {
+  :root.zen-console #zen-dashboard[data-home-layout="split"] .rf-router .zen-dash-connections,
+  :root.zen-console #zen-dashboard[data-home-layout="split"] .rf-router .zen-dash-connections.rf-has-ipv6 { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Connected Devices: single-row compact toolbar + aligned 5-column table */
+:root.zen-console #zen-dashboard[data-home-layout="split"] .zen-dash-devices { grid-column: 1 / -1; padding: 18px 20px; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .zen-dash-dev-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 14px; margin: 0 0 14px; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-dev-head-title { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-dev-head-title h3 { display: inline-flex; align-items: center; gap: 7px; font-size: 17px !important; font-weight: 650; margin: 0; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .zen-dash-dev-count { padding: 2px 9px; border-radius: 999px; background: var(--bg-nested); border: 1px solid var(--line); font-size: 12px; color: var(--text-secondary); white-space: nowrap; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .zen-device-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .zen-device-toolbar input { width: 220px; flex: 0 1 220px; min-width: 170px; max-width: 240px; height: 36px; min-height: 36px; padding: 0 12px; font-size: 12px; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .zen-device-toolbar .zen-picker { min-width: 120px; flex: 0 0 auto; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .zen-device-toolbar .zen-picker-trigger { height: 36px; min-height: 36px; font-size: 12px; padding: 0 10px; }
+
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-device-table { border: 1px solid var(--line); border-radius: var(--radius-micro); overflow: hidden; background: var(--bg-panel); }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .zen-dash-dev-columns,
+:root.zen-console #zen-dashboard[data-home-layout="split"] .zen-dash-dev-row {
+  display: grid; grid-template-columns: minmax(140px, 1.1fr) minmax(170px, 1.15fr) minmax(135px, 1fr) minmax(138px, .95fr) minmax(84px, .58fr) minmax(140px, .95fr);
+  gap: 12px; align-items: center;
+}
+:root.zen-console #zen-dashboard[data-home-layout="split"] .zen-dash-dev-columns {
+  padding: 9px 16px; margin: 0; background: var(--bg-nested); border-bottom: 1px solid var(--line);
+  font-size: 12px; font-weight: 500; color: var(--text-secondary); text-align: left;
+}
+:root.zen-console #zen-dashboard[data-home-layout="split"] .zen-dash-dev-columns > span { display: block; min-width: 0; text-align: left; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .zen-dash-dev-list { display: flex; flex-direction: column; gap: 0; margin: 0; padding: 0; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .zen-dash-dev-row {
+  min-height: 52px; padding: 10px 16px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0 !important;
+  background: var(--bg-panel); box-shadow: none; opacity: 1;
+}
+:root.zen-console #zen-dashboard[data-home-layout="split"] .zen-dash-dev-row:last-child { border-bottom: 0; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .zen-dash-dev-row:hover { background: color-mix(in srgb, var(--accent) 3.5%, var(--bg-panel)); }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .zen-dash-dev-row.is-offline { opacity: .72; color: var(--text-secondary); }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .zen-dash-dev-row.is-offline:hover { opacity: .92; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-device-identity { display: flex; align-items: center; gap: 10px; min-width: 0; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .zen-dash-dev-icon { flex: none; width: 34px !important; height: 34px !important; border-radius: 10px !important; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .zen-dash-dev-icon .zen-dash-ov-dot { display: none; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .zen-dash-dev-icon svg { width: 18px; height: 18px; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .zen-dash-dev-id { min-width: 0; display: block; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .zen-dash-dev-name-line { flex-wrap: nowrap; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .zen-dash-dev-name { font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-device-sub {
+  display: flex; align-items: center; gap: 5px; min-width: 0; overflow: hidden; white-space: nowrap;
+  font-size: 12px; color: var(--text-secondary); font-variant-numeric: tabular-nums;
+}
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-device-sub > span:last-child { overflow: hidden; text-overflow: ellipsis; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .zen-dash-dev-conn { grid-column: auto; grid-row: auto; display: flex; align-items: center; flex-wrap: nowrap; gap: 6px; font-size: 12px; min-width: 0; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .zen-dash-dev-conn > span:not(.rf-status-badge) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .zen-dash-dev-conn svg { display: none; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-device-today,
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-device-speeds {
+  display: flex; align-items: center; gap: 10px; justify-content: flex-start;
+  font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-device-today .rf-up { color: var(--ul); font-weight: 500; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-device-today .rf-down { color: var(--dl); font-weight: 500; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-device-total {
+  display: inline-flex; align-items: center; font-size: 12.5px; font-weight: 600;
+  color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-device-total.is-zero { color: var(--text-muted); font-weight: 400; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .zen-dash-dev-row .zen-dash-dev-rate {
+  grid-column: auto !important; grid-row: auto !important;
+  display: inline-flex; align-items: center; gap: 3px; justify-self: start;
+  background: transparent !important; border: 0 !important; border-radius: 0 !important; padding: 0 !important;
+  font-size: 12px; font-weight: 600;
+}
+:root.zen-console #zen-dashboard[data-home-layout="split"] .zen-dash-dev-row .zen-dash-dev-upload { color: var(--ul); }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .zen-dash-dev-row .zen-dash-dev-download { color: var(--dl); }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .zen-dash-dev-row .zen-dash-dev-rate.is-zero { color: var(--text-muted) !important; font-weight: 400; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .zen-dash-dev-row .zen-dash-dev-rate.is-zero .zen-dash-dev-rate-value { font-weight: 400; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .zen-dash-dev-rate-value { font-size: 12px; font-weight: inherit; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .rf-offline-dash { display: none; color: var(--text-muted); font-size: 12px; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .zen-dash-dev-row.is-offline .zen-dash-dev-rate { display: none; }
+:root.zen-console #zen-dashboard[data-home-layout="split"] .zen-dash-dev-row.is-offline .rf-offline-dash { display: inline; }
+
 .zen-console .zen-dash-dev-session { display: inline; width: auto; }
 .zen-console .zen-dash-dev-session:not(:empty)::before { content: '· '; color: var(--text-muted); }
-@media (max-width: 599px) {
-  .zen-console #zen-dashboard[data-home-layout="split"] .rf-copy { min-height: 40px; padding: 4px 10px; font-size: 12px; }
-}
+
 @media (min-width: 1080px) {
-  .zen-console #zen-dashboard[data-home-layout="split"] { grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr); align-items: stretch; }
-  .zen-console #zen-dashboard[data-home-layout="split"] > :not(.rf-router):not(.rf-live):not(.zen-wan-share) { grid-column: 1 / -1 !important; }
-  .zen-console #zen-dashboard[data-home-layout="split"] .rf-router { display: flex; flex-direction: column; }
-  .zen-console #zen-dashboard[data-home-layout="split"] .rf-router .zen-dash-connections,
-  .zen-console #zen-dashboard[data-home-layout="split"] .rf-router .zen-dash-connections.rf-has-ipv6 { flex: 1; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .zen-console #zen-dashboard[data-home-layout="split"] .rf-router [data-connection-card="wan6"],
-  .zen-console #zen-dashboard[data-home-layout="split"] .rf-router [data-connection-card="uptime"] { order: 0; grid-column: auto; }
-  .zen-console #zen-dashboard[data-home-layout="split"] .rf-live { display: flex; flex-direction: column; gap: 10px; }
-  .zen-console #zen-dashboard[data-home-layout="split"] .rf-live .zen-dash-traffic-head { margin: 0; }
-  .zen-console #zen-dashboard[data-home-layout="split"] .rf-live .zen-dash-traffic-stats { flex-direction: row; gap: 10px; }
-  .zen-console #zen-dashboard[data-home-layout="split"] .rf-live .zen-dash-stat { flex: 1; padding: 10px 14px; border-radius: var(--radius-micro); border: 1px solid var(--line); background: var(--bg-panel); }
-  .zen-console #zen-dashboard[data-home-layout="split"] .zu-legend { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 20px; }
-  .zen-console #zen-dashboard[data-home-layout="split"] .rf-live .rf-number { font-size: 26px; }
-  .zen-console #zen-dashboard[data-home-layout="split"] .rf-live .rf-peak { font-size: 11px; margin-top: 3px; }
-  .zen-console #zen-dashboard[data-home-layout="split"] .rf-live .zen-dash-trend { flex: 1; display: flex; flex-direction: column; }
-  .zen-console #zen-dashboard[data-home-layout="split"] .rf-live .zen-dash-chart { flex: 1; height: 145px !important; min-height: 145px !important; }
-  .zen-console #zen-dashboard[data-home-layout="split"] .zen-dash-dev-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-  .zen-console #zen-dashboard[data-home-layout="split"] .zen-dash-dev-row { grid-template-columns: 40px minmax(0, 1fr) auto; grid-template-rows: auto auto; gap: 3px 12px; min-height: 0; padding: 12px 16px; }
-  .zen-console #zen-dashboard[data-home-layout="split"] .zen-dash-dev-icon { grid-column: 1; grid-row: 1 / 3; width: 40px; height: 40px; }
-  .zen-console #zen-dashboard[data-home-layout="split"] .zen-dash-dev-id { grid-column: 2; grid-row: 1; }
-  .zen-console #zen-dashboard[data-home-layout="split"] .zen-dash-dev-conn { grid-column: 2; grid-row: 2; font-size: 12px; }
-  .zen-console #zen-dashboard[data-home-layout="split"] .rf-device-speeds { display: flex; grid-column: 3; grid-row: 1 / 3; align-self: center; align-items: flex-end; justify-content: center; flex-direction: column; gap: 5px; padding: 0; }
-  .zen-console #zen-dashboard[data-home-layout="split"] .zen-dash-dev-row .zen-dash-dev-rate { grid-column: auto; grid-row: auto; justify-self: auto; padding: 4px 10px; font-size: 12px; }
-  .zen-console #zen-dashboard[data-home-layout="split"] .zen-dash-dev-rate-value { font-size: 12px; }
+  :root.zen-console #zen-dashboard[data-home-layout="split"] { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: stretch; }
+  :root.zen-console #zen-dashboard[data-home-layout="split"] > :not(.rf-router):not(.rf-live) { grid-column: 1 / -1 !important; }
 }
-@media (max-width: 900px) {
-  .zen-console #zen-dashboard[data-home-layout] .rf-live { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'head' 'values' 'chart' 'foot'; gap: 10px; }
-  .zen-console #zen-dashboard[data-home-layout] .rf-live .zen-dash-traffic-stats { flex-direction: row; gap: 10px; }
-  .zen-console #zen-dashboard[data-home-layout] .rf-live .zen-dash-stat { flex: 1; }
+@media (max-width: 1023px) {
+  :root.zen-console #zen-dashboard[data-home-layout="split"] .zen-dash-dev-columns { display: none; }
+  :root.zen-console #zen-dashboard[data-home-layout="split"] .zen-dash-dev-row {
+    grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; gap: 6px; padding: 12px 14px;
+  }
+  :root.zen-console #zen-dashboard[data-home-layout="split"] .rf-device-identity { grid-column: 1; grid-row: auto; }
+  :root.zen-console #zen-dashboard[data-home-layout="split"] .rf-device-sub { grid-column: 1; grid-row: auto; padding-left: 44px; }
+  :root.zen-console #zen-dashboard[data-home-layout="split"] .zen-dash-dev-conn { grid-column: 1; grid-row: auto; padding-left: 44px; }
+  :root.zen-console #zen-dashboard[data-home-layout="split"] .rf-device-today,
+  :root.zen-console #zen-dashboard[data-home-layout="split"] .rf-device-total,
+  :root.zen-console #zen-dashboard[data-home-layout="split"] .rf-device-speeds {
+    grid-column: 1; grid-row: auto; padding-left: 44px; display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 4px 10px; font-size: 12px;
+  }
+  :root.zen-console #zen-dashboard[data-home-layout="split"] .rf-device-today::before { content: '今日'; color: var(--text-muted); margin-right: 2px; }
+  :root.zen-console #zen-dashboard[data-home-layout="split"] .rf-device-total::before { content: '总用量'; color: var(--text-muted); font-weight: 400; margin-right: 2px; }
+  :root.zen-console #zen-dashboard[data-home-layout="split"] .rf-device-speeds::before { content: '实时'; color: var(--text-muted); margin-right: 2px; }
+}
+@media (max-width: 767px) {
+  :root.zen-console #zen-dashboard[data-home-layout="split"] > :is(.rf-router, .rf-live) { padding: 16px; }
+  :root.zen-console #zen-dashboard[data-home-layout="split"] .rf-health,
+  :root.zen-console #zen-dashboard[data-home-layout="split"] .rf-live .zen-dash-traffic-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  :root.zen-console #zen-dashboard[data-home-layout="split"] .zen-dash-devices { padding: 16px; }
+  :root.zen-console #zen-dashboard[data-home-layout="split"] .zen-device-toolbar { width: 100%; }
+  :root.zen-console #zen-dashboard[data-home-layout="split"] .zen-device-toolbar input { width: 100%; flex: 1 1 100%; max-width: none; height: 42px; min-height: 42px; font-size: 14px; }
+  :root.zen-console #zen-dashboard[data-home-layout="split"] .zen-device-toolbar .zen-picker { flex: 1 1 0; min-width: 0; }
+  :root.zen-console #zen-dashboard[data-home-layout="split"] .zen-device-toolbar .zen-picker-trigger { height: 42px; min-height: 42px; font-size: 13px; }
+}
+@media (max-width: 599px) {
+  :root.zen-console #zen-dashboard[data-home-layout="split"] .rf-router .zen-dash-connections,
+  :root.zen-console #zen-dashboard[data-home-layout="split"] .rf-router .zen-dash-connections.rf-has-ipv6 { grid-template-columns: minmax(0, 1fr); }
+  :root.zen-console #zen-dashboard[data-home-layout="split"] .rf-copy { min-height: 40px; padding: 4px 10px; font-size: 12px; }
+}
+@media (max-width: 520px) {
+  :root.zen-console #zen-dashboard[data-home-layout="split"] .zen-dash-dev-row { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; }
+  :root.zen-console #zen-dashboard[data-home-layout="split"] .rf-device-today { grid-column: 1; grid-row: auto; justify-content: flex-start; padding-left: 44px; gap: 10px; }
+  :root.zen-console #zen-dashboard[data-home-layout="split"] .rf-device-speeds { grid-column: 1; grid-row: auto; flex-direction: row; justify-content: flex-start; flex-wrap: wrap; padding-left: 44px; padding-top: 2px; }
 }

@@ -7,8 +7,30 @@
 const callUsage = rpc.declare({ object: 'zen.traffic', method: 'getAppUsage', params: ['mac', 'date', 'hour'], reject: true });
 const callRates = rpc.declare({ object:'zen.traffic',method:'getAppRealtime',params:['mac'],reject:true });
 const callUnmatched = rpc.declare({ object: 'zen.traffic', method: 'getUnmatchedDomains', params: ['mac', 'limit'], reject: true });
+const callTopDomains = rpc.declare({ object: 'zen.traffic', method: 'getTopDomains', params: ['mac', 'limit'], reject: true });
 const callSetCustomRules = rpc.declare({ object: 'zen.traffic', method: 'setCustomDpiRules', params: ['json'], reject: true });
 const callClearUnmatched = rpc.declare({ object: 'zen.traffic', method: 'clearUnmatchedDomains', params: ['mac'], reject: true });
+const TWO_PART_SUFFIXES = new Set(['com.cn', 'net.cn', 'org.cn', 'gov.cn', 'edu.cn', 'ac.cn', 'com.hk', 'com.tw', 'co.uk', 'org.uk', 'net.uk', 'co.jp', 'ne.jp', 'or.jp', 'com.sg', 'com.au']);
+const AVATAR_TONES = ['a', 'b', 'c', 'd', 'e', 'f'];
+function rootDomainOf(host) {
+	const clean = String(host || '').trim().toLowerCase().replace(/\.$/, '');
+	if (!clean || /^\d{1,3}(?:\.\d{1,3}){3}$/.test(clean) || clean.includes(':')) return clean;
+	const parts = clean.split('.');
+	if (parts.length < 2) return clean;
+	const tail2 = parts.slice(-2).join('.');
+	const keep = parts.length >= 3 && TWO_PART_SUFFIXES.has(tail2) ? 3 : 2;
+	return parts.slice(-keep).join('.');
+}
+function domainAvatarTone(name) {
+	let h = 0;
+	for (const ch of String(name || '')) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+	return AVATAR_TONES[h % AVATAR_TONES.length];
+}
+function domainInitial(name) {
+	const clean = String(name || '').trim();
+	const m = clean.match(/[a-z0-9]/i);
+	return m ? m[0].toUpperCase() : '?';
+}
 const names = {
 	37: 'BT 下载 (BitTorrent)', 48: 'QQ', 49: '抖音 / TikTok', 54: '爱奇艺', 120: 'X / Twitter',
 	197: '微信', 285: '腾讯通用服务', 324: '腾讯视频', 395: '腾讯游戏',
@@ -70,10 +92,13 @@ return baseclass.extend({
 	render(status) {
 		this.supported = !!status?.app_usage;
 		this.hasRates=!!status?.app_realtime;this.hasUnmatched=!!status?.dpi_custom_rules;
+		this.hasTopDomains=!!status?.top_domains;
 		this.mode='all';this.expandedKey=null;this.rates=new Map();this.mac='';
 		this.showAll=false;this.expandedSections=new Set();
 		this.unmatchedReq=0;
 		this.unmatchedState={loading:false,saving:false,data:null,error:'',statusMsg:'',selected:new Set(),scopeMode:new Map(),targetApp:''};
+		this.domainReq=0;
+		this.domainState={loading:false,data:null,fallback:false,error:'',query:'',expanded:new Set()};
 		this.request = 0;
 		this.today = status?.timeline_today || '';
 		this.onUnpin = null;
@@ -122,6 +147,11 @@ return baseclass.extend({
 			this.unmatchedState.statusMsg = '';
 			this.unmatchedState.error = '';
 		}
+		if (this.mac !== nextMac && this.domainState) {
+			this.domainState.expanded.clear();
+			this.domainState.data = null;
+			this.domainState.error = '';
+		}
 		this.mac = nextMac;
 		this.lastQuery = { mac, date, row, onUnpin };
 		this.expandedKey=null;this.expandedSections=new Set();this.rates=new Map();this.onUnpin=onUnpin||null;
@@ -130,6 +160,11 @@ return baseclass.extend({
 		this.title.textContent = _('Application usage') + (row?.label ? ' · ' + row.label : '');
 		if (!this.supported) { this.notice.textContent = _('Update the traffic service to enable application usage.'); return; }
 		if (mac == null || !row?.available || row.future) {
+			if (this.mode === 'domains' && (this.hasTopDomains || this.hasUnmatched)) {
+				this.draw({ available: false });
+				this.loadDomains();
+				return;
+			}
 			if (this.hasUnmatched && this.mode === 'unmatched') {
 				this.draw({ available: false });
 				this.loadUnmatched();
@@ -157,8 +192,11 @@ return baseclass.extend({
 				try{const rate=rateReply?JSON.parse(rateReply.json):null;if((rate?.mac||'')===(mac||'')&&rate.age_ms<10000&&Array.isArray(rate.applications)&&rate.applications.length<=2048)for(const item of rate.applications)if([item.download,item.upload].every(n=>Number.isFinite(n)&&n>=0))this.rates.set(item.id,item);}catch(_error){}
 				const firstDraw = !this.body.children.length;
 				this.data=data;
-				if (this.mode !== 'unmatched' || firstDraw) {
+				if ((this.mode !== 'unmatched' && this.mode !== 'domains') || firstDraw) {
 					this.draw(data);
+				}
+				if (this.mode === 'domains' && (this.hasTopDomains || this.hasUnmatched) && !this.domainState.data && !this.domainState.loading) {
+					this.loadDomains();
 				}
 				if (this.mode === 'unmatched' && this.hasUnmatched && !this.unmatchedState.data && !this.unmatchedState.loading) {
 					this.loadUnmatched();
@@ -174,7 +212,9 @@ return baseclass.extend({
 	},
 
 	_filterModes() {
-		const modes = [['all', _('All applications')], ['video', _('Video ranking')], ['download', '网盘与下载'], ['social', '社交与购物'], ['game', '游戏与服务']];
+		const modes = [['all', _('All applications')]];
+		if (this.hasTopDomains || this.hasUnmatched) modes.push(['domains', '域名排行']);
+		modes.push(['video', _('Video ranking')], ['download', '网盘与下载'], ['social', '社交与购物'], ['game', '游戏与服务']);
 		if (this.hasUnmatched) modes.push(['unmatched', '未识别域名']);
 		return modes;
 	},
@@ -188,10 +228,11 @@ return baseclass.extend({
 				click: () => {
 					this.mode = mode;
 					this.draw(data || this.data || { available: false });
-					if (mode === 'unmatched') this.loadUnmatched();
+					if (mode === 'domains') this.loadDomains();
+					else if (mode === 'unmatched') this.loadUnmatched();
 				}
 			}, label)));
-		const canToggleCompact = this.mode !== 'unmatched' && (hiddenCount > 0 || this.showAll);
+		const canToggleCompact = this.mode !== 'unmatched' && this.mode !== 'domains' && (hiddenCount > 0 || this.showAll);
 		if (!canToggleCompact) {
 			this.body.appendChild(bar);
 			return;
@@ -492,9 +533,186 @@ return baseclass.extend({
 		this.body.appendChild(panel);
 	},
 
+	async loadDomains() {
+		if (!this.hasTopDomains && !this.hasUnmatched) return;
+		const req = ++this.domainReq;
+		const st = this.domainState;
+		st.loading = true;
+		st.error = '';
+		if (this.mode === 'domains') this.draw(this.data || { available: false });
+		try {
+			let data = null;
+			let fallback = false;
+			if (this.hasTopDomains) {
+				const res = decodedJson(await callTopDomains(this.mac || '', 50));
+				if (req !== this.domainReq || !this.container.isConnected) return;
+				if (!res || !Array.isArray(res.domains)) throw Error('response');
+				data = res;
+			} else {
+				const res = decodedJson(await callUnmatched(this.mac || '', 100));
+				if (req !== this.domainReq || !this.container.isConnected) return;
+				if (!res || !Array.isArray(res.domains)) throw Error('response');
+				const grouped = new Map();
+				for (const item of res.domains) {
+					const host = String(item.domain || '').toLowerCase();
+					if (!host) continue;
+					const root = rootDomainOf(host);
+					let entry = grouped.get(root);
+					if (!entry) {
+						entry = { domain: root, download: 0, upload: 0, connections: 0, devices: 0, app_id: 0, app_name: item.candidate_name || '', subs: [] };
+						grouped.set(root, entry);
+					}
+					const dl = Math.max(0, Number(item.download) || 0);
+					const ul = Math.max(0, Number(item.upload) || 0);
+					const conn = Math.max(0, Number(item.connections) || 0);
+					entry.download += dl;
+					entry.upload += ul;
+					entry.connections += conn;
+					entry.devices = Math.max(entry.devices, Number(item.devices) || 1);
+					if (host !== root) entry.subs.push({ host, download: dl, upload: ul, connections: conn });
+				}
+				data = { mac: this.mac || '', domains: [...grouped.values()] };
+				fallback = true;
+			}
+			st.data = data;
+			st.fallback = fallback;
+		} catch (_error) {
+			if (req === this.domainReq) st.error = '无法加载域名排行，请确认流量服务已运行。';
+		} finally {
+			if (req === this.domainReq) {
+				st.loading = false;
+				if (this.mode === 'domains') this.draw(this.data || { available: false });
+			}
+		}
+	},
+
+	_drawDomains() {
+		const st = this.domainState;
+		const panel = E('div', { class: 'zen-domain-panel' });
+		const search = E('input', {
+			type: 'search',
+			class: 'zen-domain-search',
+			value: st.query || '',
+			placeholder: '搜索域名、子域名或应用…',
+			'aria-label': '搜索域名排行'
+		});
+		const refreshBtn = E('button', { type: 'button', class: 'cbi-button', click: () => this.loadDomains() }, st.loading ? '刷新中…' : '刷新排行');
+		refreshBtn.disabled = !!st.loading;
+		panel.appendChild(E('div', { class: 'zen-domain-toolbar' }, [search, refreshBtn]));
+		panel.appendChild(E('span', { class: 'zen-app-muted' },
+			st.fallback
+				? '当前服务版本仅返回未归属域名，已按主域名（eTLD+1）本地合并。'
+				: '按主域名（eTLD+1）聚合 DNS / SNI 已观测流量（仅内存统计，不落盘）。'
+		));
+		if (st.error) panel.appendChild(E('p', { class: 'alert-message warning', role: 'status' }, st.error));
+
+		const listBox = E('div', { class: 'zen-domain-list' });
+		panel.appendChild(listBox);
+
+		const renderList = () => {
+			listBox.replaceChildren();
+			if (!st.data && st.loading) {
+				listBox.appendChild(E('p', { class: 'zen-app-muted' }, '正在加载域名流量排行…'));
+				return;
+			}
+			const q = (st.query || '').trim().toLowerCase();
+			const raw = Array.isArray(st.data?.domains) ? st.data.domains : [];
+			const filtered = raw
+				.filter(item => {
+					if (!q) return true;
+					if (String(item.domain || '').toLowerCase().includes(q)) return true;
+					if (String(item.app_name || '').toLowerCase().includes(q)) return true;
+					return Array.isArray(item.subs) && item.subs.some(s => String(s.host || '').toLowerCase().includes(q));
+				})
+				.sort((a, b) => ((Number(b.download) || 0) + (Number(b.upload) || 0)) - ((Number(a.download) || 0) + (Number(a.upload) || 0)));
+
+			if (!filtered.length) {
+				listBox.appendChild(E('p', { class: 'zen-app-muted' }, raw.length ? '没有匹配的域名记录。' : '暂无域名流量记录，产生 HTTPS / DNS 流量后将自动统计。'));
+				return;
+			}
+			const maxTotal = Math.max(1, ...filtered.map(d => (Number(d.download) || 0) + (Number(d.upload) || 0)));
+			for (const item of filtered) {
+				const dl = Math.max(0, Number(item.download) || 0);
+				const ul = Math.max(0, Number(item.upload) || 0);
+				const total = dl + ul;
+				const pct = Math.max(2, Math.min(100, (total / maxTotal) * 100)).toFixed(1) + '%';
+				const subs = Array.isArray(item.subs) ? [...item.subs].sort((a, b) => ((Number(b.download) || 0) + (Number(b.upload) || 0)) - ((Number(a.download) || 0) + (Number(a.upload) || 0))) : [];
+				const hasSubs = subs.length > 0;
+				const expanded = hasSubs && st.expanded.has(item.domain);
+
+				const iconImg = brandIcons.domain(item.domain, item.app_id, item.app_name, 22);
+				const badge = iconImg
+					? E('div', { class: 'zen-domain-icon' }, iconImg)
+					: E('div', { class: 'zen-domain-avatar', 'data-tone': domainAvatarTone(item.domain), 'aria-hidden': 'true' }, domainInitial(item.domain));
+
+				const appBadgeText = item.app_id ? (names[item.app_id] || nameAliases[String(item.app_name || '').toLowerCase()] || item.app_name || '') : (item.app_name || '');
+				const titleKids = [E('strong', {}, item.domain)];
+				if (appBadgeText && appBadgeText !== 'Unknown') titleKids.push(E('span', { class: 'zen-domain-subtoggle' }, appBadgeText));
+				if (hasSubs) titleKids.push(E('span', { class: 'zen-domain-subtoggle' }, subs.length + ' 个子域名 ' + (expanded ? '⌃' : '⌄')));
+
+				const metaParts = [
+					'↓ ' + bytes(dl) + ' · ↑ ' + bytes(ul),
+					(Number(item.connections) || 0) + ' 次连接'
+				];
+				if (!this.mac && Number(item.devices) > 0) metaParts.push(item.devices + ' 台设备');
+
+				const rowAttrs = { type: 'button', class: 'zen-domain-row' };
+				if (hasSubs) {
+					rowAttrs['aria-expanded'] = String(expanded);
+					rowAttrs.click = () => {
+						if (st.expanded.has(item.domain)) st.expanded.delete(item.domain);
+						else st.expanded.add(item.domain);
+						renderList();
+					};
+				}
+				const rowBtn = E('button', rowAttrs, [
+					badge,
+					E('div', { class: 'zen-domain-body' }, [
+						E('div', { class: 'zen-domain-head' }, [
+							E('span', { class: 'zen-domain-title' }, titleKids),
+							E('span', { class: 'zen-domain-total' }, bytes(total))
+						]),
+						E('div', { class: 'zen-domain-bar', 'aria-hidden': 'true' }, E('i', { style: 'width:' + pct })),
+						E('div', { class: 'zen-domain-meta' }, metaParts.join(' · '))
+					])
+				]);
+
+				const cardKids = [rowBtn];
+				if (expanded) {
+					const subMax = Math.max(1, total, ...subs.map(s => (Number(s.download) || 0) + (Number(s.upload) || 0)));
+					cardKids.push(E('div', { class: 'zen-domain-subs' }, subs.map(s => {
+						const sdl = Math.max(0, Number(s.download) || 0);
+						const sul = Math.max(0, Number(s.upload) || 0);
+						const stot = sdl + sul;
+						const spct = Math.max(2, Math.min(100, (stot / subMax) * 100)).toFixed(1) + '%';
+						return E('div', { class: 'zen-domain-sub' }, [
+							E('div', { class: 'zen-domain-sub-head' }, [E('span', {}, s.host), E('span', {}, bytes(stot))]),
+							E('div', { class: 'zen-domain-bar', 'aria-hidden': 'true' }, E('i', { style: 'width:' + spct })),
+							E('div', { class: 'zen-domain-sub-meta' }, '↓ ' + bytes(sdl) + ' · ↑ ' + bytes(sul) + (s.connections ? ' · ' + s.connections + ' 次连接' : ''))
+						]);
+					})));
+				}
+				listBox.appendChild(E('div', { class: 'zen-domain-item' }, cardKids));
+			}
+		};
+
+		search.addEventListener('input', ev => {
+			st.query = ev.target.value;
+			renderList();
+		});
+		renderList();
+		this.body.appendChild(panel);
+	},
+
 	draw(data) {
 		this.body.replaceChildren();
 		if (!data?.available) {
+			if (this.mode === 'domains' && (this.hasTopDomains || this.hasUnmatched)) {
+				this.notice.textContent = '';
+				this._renderFilterBar(data, 0);
+				this._drawDomains();
+				return;
+			}
 			if (this.hasUnmatched && this.mode === 'unmatched') {
 				this.notice.textContent = '';
 				this._renderFilterBar(data, 0);
@@ -502,7 +720,7 @@ return baseclass.extend({
 				return;
 			}
 			this.notice.textContent = data?.recognition?.failed ? _('Application recognition is currently unavailable.') : _('No application records for this hour.');
-			if (this.hasUnmatched) this._renderFilterBar(data, 0);
+			if (this.hasUnmatched || this.hasTopDomains) this._renderFilterBar(data, 0);
 			return;
 		}
 		const alerts = [];
@@ -580,6 +798,10 @@ return baseclass.extend({
 			]));
 		}
 		this._renderFilterBar(data, hiddenCount);
+		if (this.mode === 'domains' && (this.hasTopDomains || this.hasUnmatched)) {
+			this._drawDomains();
+			return;
+		}
 		if (this.mode === 'unmatched' && this.hasUnmatched) {
 			this._drawUnmatched();
 			return;

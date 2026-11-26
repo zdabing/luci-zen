@@ -46,6 +46,7 @@ function enhance(select) {
 	let options = [];
 	let listening = false;
 	let dialogHost = null;
+	let pointerInList = false;
 
 	function makeCheck() {
 		const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -75,14 +76,15 @@ function enhance(select) {
 				'class': 'zen-picker-option',
 				id: list.id + '-' + (idx++),
 				'data-value': opt.value,
+				title: opt.textContent,
 				'aria-selected': 'false',
 				'aria-disabled': disabled ? 'true' : null,
-				disabled,
 				tabindex: '-1'
 			}, [
 				E('span', { 'class': 'zen-picker-option-text' }, opt.textContent),
 				makeCheck()
 			]);
+			btn.disabled = disabled;
 			btn.addEventListener('click', () => {
 				if (disabled) return;
 				if (nativeValueDesc && nativeValueDesc.set) nativeValueDesc.set.call(select, opt.value);
@@ -99,7 +101,7 @@ function enhance(select) {
 		for (const child of Array.from(select.children)) {
 			if (child.tagName === 'OPTGROUP') {
 				if (child.label) {
-					nodes.push(E('div', { 'class': 'zen-picker-group-label', role: 'presentation' }, child.label));
+					nodes.push(E('div', { 'class': 'zen-picker-group-label', role: 'presentation', title: child.label }, child.label));
 				}
 				for (const opt of Array.from(child.children)) {
 					if (opt.tagName === 'OPTION') appendOption(opt, child.disabled);
@@ -114,6 +116,7 @@ function enhance(select) {
 	function sync() {
 		const selected = select.selectedOptions[0] || select.options[select.selectedIndex];
 		label.textContent = selected ? selected.textContent : '';
+		button.title = selected ? selected.textContent : '';
 		button.disabled = !!select.disabled;
 		const val = nativeValueDesc && nativeValueDesc.get ? nativeValueDesc.get.call(select) : select.value;
 		let activeId = null;
@@ -135,9 +138,11 @@ function enhance(select) {
 		const vy = vv ? vv.offsetTop : 0;
 		const vw = vv ? vv.width : document.documentElement.clientWidth;
 		const vh = vv ? vv.height : window.innerHeight;
-		const maxWidth = Math.max(140, vw - gutter * 2);
+		const viewportMax = Math.max(140, vw - gutter * 2);
+		const maxWidth = Math.min(viewportMax, Math.max(anchor.width, 200));
+		const minWidth = Math.min(Math.max(anchor.width, 96), maxWidth);
 
-		list.style.minWidth = Math.min(Math.max(anchor.width, 140), maxWidth) + 'px';
+		list.style.minWidth = minWidth + 'px';
 		list.style.maxWidth = maxWidth + 'px';
 		list.style.maxHeight = '260px';
 		list.style.left = '0px';
@@ -233,6 +238,7 @@ function enhance(select) {
 	}
 
 	function close(returnFocus) {
+		pointerInList = false;
 		if (list.hidden) return;
 		list.hidden = true;
 		list.classList.remove('flip-up');
@@ -294,11 +300,19 @@ function enhance(select) {
 		}
 	});
 
+	const clearPointerInList = () => setTimeout(() => { pointerInList = false; }, 0);
+	list.addEventListener('pointerdown', () => {
+		pointerInList = true;
+		window.addEventListener('pointerup', clearPointerInList, { once: true });
+		window.addEventListener('pointercancel', clearPointerInList, { once: true });
+	}, true);
+
 	const handleFocusOut = event => {
+		if (pointerInList) return;
 		const next = event.relatedTarget;
 		if (next && (wrapper.contains(next) || list.contains(next))) return;
 		requestAnimationFrame(() => {
-			if (!wrapper.contains(document.activeElement) && !list.contains(document.activeElement)) close(false);
+			if (!pointerInList && !wrapper.contains(document.activeElement) && !list.contains(document.activeElement)) close(false);
 		});
 	};
 	wrapper.addEventListener('focusout', handleFocusOut);

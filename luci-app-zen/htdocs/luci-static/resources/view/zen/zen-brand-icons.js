@@ -20,9 +20,24 @@ const NAMES = {
  twitter:'Twitter',tencent:'Tencent',tencentcloud:'TencentCloud',
  alibabacloud:'Aliyun',aliyun:'Aliyun',cloudflare:'Cloudflare',akamai:'Akamai',
  microsoftazure:'Azure',amazonaws:'Amazon',youtube:'YouTube',netflix:'Netflix',
- steam:'Steam',telegram:'Telegram',github:'GitHub'
+ steam:'Steam',telegram:'Telegram',github:'GitHub',google:'Google'
 };
-const ASSETS = new Set([...Object.values(BRANDS),...Object.values(IDS),...Object.values(NAMES)]);
+const DOMAIN_ICONS = {
+ 'google.com':'Google','googleapis.com':'Google','googlevideo.com':'YouTube','gstatic.com':'Google',
+ 'youtube.com':'YouTube','ytimg.com':'YouTube','github.com':'GitHub','githubusercontent.com':'GitHub',
+ 'apple.com':'Apple','icloud.com':'Apple','mzstatic.com':'Apple',
+ 'bilibili.com':'Bilibili','bilivideo.com':'Bilibili','hdslb.com':'Bilibili',
+ 'douyin.com':'Douyin','douyinvod.com':'Douyin','douyinpic.com':'Douyin','tiktok.com':'TikTok',
+ 'kuaishou.com':'Kuaishou','iqiyi.com':'iQIYI','iqiyipic.com':'iQIYI','youku.com':'Youku',
+ 'qq.com':'QQ','wechat.com':'WeChat','weixin.qq.com':'WeChat','tencent.com':'Tencent',
+ 'aliyuncs.com':'Aliyun','aliyun.com':'Aliyun','taobao.com':'Aliyun',
+ 'cloudflare.com':'Cloudflare','cloudflare.net':'Cloudflare','amazonaws.com':'Amazon',
+ 'xiaomi.com':'Xiaomi','mi.com':'Xiaomi','huawei.com':'Huawei',
+ 'netflix.com':'Netflix','steampowered.com':'Steam','telegram.org':'Telegram',
+ 'x.com':'Twitter','twitter.com':'Twitter','douyu.com':'Douyu','huya.com':'Huya',
+ 'synology.com':'Synology','qnap.com':'QNAP'
+};
+const ASSETS = new Set([...Object.values(BRANDS),...Object.values(IDS),...Object.values(NAMES),...Object.values(DOMAIN_ICONS)]);
 
 function image(name,size,onError) {
  if(!ASSETS.has(name))return null;
@@ -41,5 +56,10 @@ return baseclass.extend({
   // Recognition gaps and transport protocols have no application brand.
   if(app.kind==='protocol'||app.identified===false&&app.kind!=='infrastructure')return null;
   return image(IDS[app.id]||NAMES[String(app.name||'').toLowerCase()],size);
+ },
+ domain(rootDomain,appId,appName,size){
+  const key=String(rootDomain||'').toLowerCase();
+  const matched=DOMAIN_ICONS[key]||IDS[appId]||NAMES[String(appName||'').toLowerCase()];
+  return image(matched,size);
  }
 });

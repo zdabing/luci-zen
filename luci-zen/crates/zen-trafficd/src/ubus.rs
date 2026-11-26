@@ -40,7 +40,7 @@ const fn cs(s: &'static [u8]) -> *const c_char {
 // ubus 方法表
 // ---------------------------------------------------------------------------
 
-static METHODS: [ubus::ubus_method; 33] = [
+static METHODS: [ubus::ubus_method; 34] = [
     m(b"getStatus\0", handle_get_status),
     m(b"getDevices\0", handle_get_devices),
     m(b"getTotal\0", handle_get_total),
@@ -57,6 +57,7 @@ static METHODS: [ubus::ubus_method; 33] = [
     m(b"setDpiDns\0", handle_set_dpi_dns),
     m(b"setDpiFeedback\0", handle_set_dpi_feedback),
     m(b"getUnmatchedDomains\0", handle_get_unmatched_domains),
+    m(b"getTopDomains\0", handle_get_top_domains),
     m(b"setCustomDpiRules\0", handle_set_custom_dpi_rules),
     m(b"clearUnmatchedDomains\0", handle_clear_unmatched_domains),
     m(b"getAppRealtime\0", handle_get_app_realtime),
@@ -468,6 +469,35 @@ unsafe extern "C" fn handle_get_unmatched_domains(
     }
 }
 
+unsafe extern "C" fn handle_get_top_domains(
+    ctx: *mut ubus::ubus_context,
+    _obj: *mut ubus::ubus_object,
+    req: *mut ubus::ubus_request_data,
+    _method: *const c_char,
+    msg: *mut ubus::blob_attr,
+) -> c_int {
+    let (mut mac, mut limit) = (None, 50usize);
+    for field in dpi_fields(msg) {
+        match field.name {
+            Some("mac") => match field.as_str() {
+                Some(value) if value.is_empty() || parse_mac(value).is_some() => {
+                    mac = Some(value.to_ascii_lowercase());
+                }
+                _ => return ubus::UBUS_STATUS_INVALID_ARGUMENT,
+            },
+            Some("limit") => match field.as_u32() {
+                Some(n) if (1..=200).contains(&n) => limit = n as usize,
+                _ => return ubus::UBUS_STATUS_INVALID_ARGUMENT,
+            },
+            _ => return ubus::UBUS_STATUS_INVALID_ARGUMENT,
+        }
+    }
+    match with_daemon(|d| d.app_engine.top_domains(mac.as_deref(), limit)) {
+        Some(value) => send_json(ctx, req, value),
+        None => ubus::UBUS_STATUS_NOT_SUPPORTED,
+    }
+}
+
 unsafe extern "C" fn handle_set_custom_dpi_rules(
     ctx: *mut ubus::ubus_context,
     _obj: *mut ubus::ubus_object,
@@ -573,6 +603,7 @@ unsafe extern "C" fn handle_get_status(
     blobmsg_add_bool(&mut b, cs(b"wan_daily\0"), true);
     blobmsg_add_bool(&mut b, cs(b"device_timeline\0"), true);
     blobmsg_add_bool(&mut b, cs(b"app_usage\0"), true);
+    blobmsg_add_bool(&mut b, cs(b"top_domains\0"), true);
     blobmsg_add_bool(&mut b, cs(b"dpi_diagnostics\0"), true);
     blobmsg_add_bool(&mut b, cs(b"dpi_rules\0"), true);
     blobmsg_add_bool(&mut b, cs(b"dpi_custom_rules\0"), true);

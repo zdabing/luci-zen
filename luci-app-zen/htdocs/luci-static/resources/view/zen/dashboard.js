@@ -622,9 +622,10 @@ return baseclass.extend({
 
 	setLatency(latencyData) {
 		const latency = latencyData || {};
-		this.setText(this.dash, '[data-health="latency"]', latency.state === 'ok' ? (latency.lessThan ? '<' : '') + latency.ms + ' ms' : latency.state === 'timeout' ? _('Timeout') : fmt.MISSING);
+		const msText = Number.isFinite(latency.ms) ? (latency.ms < 10 ? latency.ms.toFixed(1) : String(Math.round(latency.ms))) : '';
+		this.setText(this.dash, '[data-health="latency"]', latency.state === 'ok' ? (latency.lessThan ? '<' : '') + msText + ' ms' : latency.state === 'timeout' ? _('Timeout') : fmt.MISSING);
 		const probe = this.dash.querySelector('[data-health="latency"]');
-		if (probe) { probe.title = 'ICMP · ' + (latency.target || '1.1.1.1'); probe.setAttribute('data-state', latency.state || 'unavailable'); }
+		if (probe) { probe.title = 'ICMP · ' + (latency.target || '119.29.29.29'); probe.setAttribute('data-state', latency.state || 'unavailable'); }
 	},
 
 	setDhcp(dhcp) {

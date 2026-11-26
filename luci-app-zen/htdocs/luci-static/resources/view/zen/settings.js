@@ -59,7 +59,7 @@ return view.extend({
 
   const root = E('div', { id: 'zen-settings', class: 'zen-settings-page' }, [
    E('h2', { class: 'zen-settings-title' }, _('Settings')),
-   E('div', { class: 'zc-settings-content' }, [panels.appearance, panels.notifications, panels.versions])
+   E('div', { class: 'zc-settings-content' }, [panels.appearance, panels.versions, panels.notifications])
   ]);
 
   requestAnimationFrame(() => {

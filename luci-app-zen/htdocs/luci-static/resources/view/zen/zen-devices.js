@@ -180,7 +180,7 @@ return baseclass.extend({
 		section.setAttribute('data-state', 'ok');
 		this.section = section;
 		this.count = section.querySelector('.zen-dash-dev-count');
-		this.sortKey = 'wan_rx_r';
+		this.sortKey = 'day_dl';
 		this.sortDescending = true;
 		this.sortButtons = [];
 		this.query = '';
@@ -270,16 +270,47 @@ return baseclass.extend({
 	},
 	enhanceSelect(select) { return picker.enhance(select); },
 
+	setSort(key, descending) {
+		this.sortKey = key || 'day_dl';
+		this.sortDescending = typeof descending === 'boolean' ? descending : true;
+		for (const entry of (this.sortButtons || [])) {
+			const active = entry.key === this.sortKey;
+			entry.button.setAttribute('aria-pressed', String(active));
+			entry.button.title = active && this.sortDescending ? _('Sort ascending') : _('Sort descending');
+			entry.arrow.textContent = active ? (this.sortDescending ? '↓' : '↑') : '↕';
+		}
+		this.render(this.devs || []);
+	},
+
+	sortValue(d, sortKey) {
+		if (!d) return null;
+		if (sortKey === 'day_dl') {
+			const usage = this.zenControlOptions?.getUsage?.(d.mac);
+			return usage ? (Number(usage.download) || 0) : null;
+		}
+		if (sortKey === 'day_ul') {
+			const usage = this.zenControlOptions?.getUsage?.(d.mac);
+			return usage ? (Number(usage.upload) || 0) : null;
+		}
+		if (sortKey === 'all_total') {
+			const usage = this.zenControlOptions?.getTotalUsage?.(d.mac);
+			return usage ? ((Number(usage.upload) || 0) + (Number(usage.download) || 0)) : null;
+		}
+		return scopedRate(d, sortKey);
+	},
+
 	render(devs) {
 		const keep = new Set();
 		this.devs = devs.slice();
 		devs = this.devs.slice();
 
-		/* Internet rates only; unavailable counters stay last in either direction. */
-		const sortKey = this.sortKey || 'wan_rx_r';
+		/* Default to today's download (stable order), falling back to live download while loading. */
+		const sortKey = this.sortKey || 'day_dl';
+		const dir = this.sortDescending ? -1 : 1;
 		devs.sort((a, b) => {
-			const av = scopedRate(a, sortKey), bv = scopedRate(b, sortKey);
-			return (av == null) - (bv == null) || ((av || 0) - (bv || 0)) * (this.sortDescending ? -1 : 1) ||
+			const av = this.sortValue(a, sortKey), bv = this.sortValue(b, sortKey);
+			return (av == null) - (bv == null) || ((av || 0) - (bv || 0)) * dir ||
+				((scopedRate(b, 'wan_rx_r') || 0) - (scopedRate(a, 'wan_rx_r') || 0)) ||
 				String(a.mac || '').localeCompare(String(b.mac || ''));
 		});
 
@@ -301,6 +332,7 @@ return baseclass.extend({
 			if (position !== ent.li) this.list.insertBefore(ent.li, position || null);
 
 			ent.d = d;
+			ent.li.dataset.mac = String(d.mac || '').toLowerCase();
 			const info = identity.identify(d);
 			const type = info.type;
 			const signature = type + ':' + info.brand;
@@ -328,8 +360,16 @@ return baseclass.extend({
 			ent.name.title = devName(d);
 			ent.ip.title = d.ip4 || d.ip6 || '';
 			setText(ent.conn, connText(d));
-			setText(ent.connStatus, connectionInfo.status(d));
-			ent.li.classList.toggle('is-offline',!d.online);
+			const statusRaw = connectionInfo.status(d);
+			setText(ent.connStatus, (statusRaw === _('Online') || statusRaw === _('Offline')) ? '' : statusRaw);
+			ent.li.classList.toggle('is-offline', !d.online);
+			ent.li.dataset.online = d.online ? '1' : '0';
+			const statusBadge = ent.li.querySelector('.rf-status-badge');
+			if (statusBadge) {
+				statusBadge.classList.toggle('is-online', !!d.online);
+				statusBadge.classList.toggle('is-offline', !d.online);
+				setText(statusBadge.querySelector('.rf-status-text'), d.online ? _('Online') : _('Offline'));
+			}
 			const connIcon = { wifi: 'zen-i-wifi', wired: 'zen-i-eth', router: 'zen-i-router' }[d.conn];
 			if (ent.connIconType !== connIcon) {
 				if (ent.connGlyph)
@@ -341,6 +381,8 @@ return baseclass.extend({
 			}
 			setText(ent.dl, rateText(d, 'wan_rx_r'));
 			setText(ent.ul, rateText(d, 'wan_tx_r'));
+			ent.dl.parentNode.classList.toggle('is-zero', !(scopedRate(d, 'wan_rx_r') > 0));
+			ent.ul.parentNode.classList.toggle('is-zero', !(scopedRate(d, 'wan_tx_r') > 0));
 			setText(ent.last, d.last > 0 ? new Date(d.last * 1000).toLocaleString() : fmt.MISSING);
 
 			if (this.activeDetail === ent && this.detailRates) {
@@ -385,8 +427,14 @@ return baseclass.extend({
 	matches(d) {
 		if (!d) return false;
 		const query = this.query || '';
-		return (!query || [d.host, d.mac, d.ip4, d.ip6].some(v => String(v || '').toLocaleLowerCase().includes(query))) &&
-			(!this.connection || this.connection === 'all' || (this.connection === 'offline' ? !d.online : d.conn === this.connection));
+		if (query && ![d.host, d.mac, d.ip4, d.ip6].some(v => String(v || '').toLocaleLowerCase().includes(query)))
+			return false;
+		const filter = this.connection || 'all';
+		if (filter === 'all') return true;
+		if (filter === 'online') return !!d.online;
+		if (filter === 'active') return ((scopedRate(d, 'wan_rx_r') || 0) + (scopedRate(d, 'wan_tx_r') || 0)) > 0;
+		if (filter === 'offline') return !d.online;
+		return d.conn === filter;
 	},
 
 	openDetail(ent) {

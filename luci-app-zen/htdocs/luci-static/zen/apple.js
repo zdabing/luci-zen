@@ -22,7 +22,7 @@
   box.append(svg);return box;
  }
  function add(doc,node,name,color,extra=''){
-  if(!node||node.querySelector('.apple-icon'))return;
+  if(!node||node.querySelector('.apple-icon,.rf-kpi-icon,.rf-head-icon'))return;
   node.classList.add('apple-icon-label');node.prepend(icon(doc,name,color,extra));
  }
  function decorate(doc){

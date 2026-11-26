@@ -13,11 +13,14 @@
 :root[data-skin="meridian"] :is(.nav > li.active > a, .slide-menu .active > a) { background: var(--accent-soft); color: var(--accent-strong); border-radius: var(--radius-control); }
 :root[data-skin="meridian"][data-layout="top"] #mainmenu .nav > li.active > a { background: var(--accent-soft); color: var(--accent-strong); border-radius: var(--radius-control); }
 :root[data-skin="meridian"] :is(.zen-mode-toggle, .zen-settings-link, .zen-appearance-trigger, .rf-system-button) { border-radius: var(--radius-control); }
-:root[data-skin="meridian"] :is(.zen-dash-panel, .cbi-section, .za-panel, .za-detail, .zen-updates, .zen-preferences, .rf-router, .rf-live, .rf-share-bounded, .zen-dash-devices) {
+:root[data-skin="meridian"] :is(.zen-dash-panel, .za-panel, .za-detail, .zen-updates, .rf-router, .rf-live, .rf-share-bounded, .zen-dash-devices) {
   background: var(--bg-panel); border: 1px solid var(--line); border-radius: var(--radius-card); box-shadow: var(--shadow-card);
 }
-:root[data-skin="meridian"] :is(.rf-router, .rf-live, .rf-share-bounded) { padding: 22px 24px; }
-:root[data-skin="meridian"] .zen-dash-devices { padding: 22px 24px; }
+:root[data-skin="meridian"] .cbi-section:not(#zen-notifications .cbi-section),
+:root[data-skin="meridian"] .zen-preferences:not(#zen-settings .zen-preferences) {
+  background: var(--bg-panel); border: 1px solid var(--line); border-radius: var(--radius-card); box-shadow: var(--shadow-card);
+}
+:root[data-skin="meridian"] #zen-dashboard:not([data-home-layout="split"]) :is(.rf-router, .rf-live, .rf-share-bounded, .zen-dash-devices) { padding: 22px 24px; }
 :root[data-skin="meridian"] .zen-dash-devices .zen-dash-dev-row { background: var(--bg-panel); border: 1px solid var(--line); border-radius: var(--radius-micro); }
 :root[data-skin="meridian"] .zen-dash-devices .zen-dash-dev-row:hover { background: var(--bg-panel); border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
 :root[data-skin="meridian"] .rf-health :is(.rf-health-metric, .zen-dash-health-metric) { background: var(--bg-panel); border: 1px solid var(--line); border-radius: var(--radius-micro); }

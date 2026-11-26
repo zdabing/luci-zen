@@ -2,9 +2,10 @@
 'require baseclass';
 'require fs';
 
-// Read-only router telemetry. Ping is deliberately fixed, never browser-supplied shell text.
-const PROBE = '1.1.1.1';
-const PROBE_ARGS = ['-n', '-c', '1', '-W', '1', PROBE];
+// Read-only router telemetry. Ping targets are deliberately fixed domestic DNS IPs, never browser-supplied shell text.
+const PROBES = ['119.29.29.29', '223.5.5.5'];
+const PROBE = PROBES[0];
+const probeArgs = target => ['-n', '-c', '1', '-W', '1', target];
 const INTERVAL = 30000;
 const safe = (fn, fallback = null) => Promise.resolve().then(fn).catch(() => fallback);
 const integer = value => /^\d+$/.test(String(value == null ? '' : value).trim()) ? Number(String(value).trim()) : null;
@@ -77,12 +78,12 @@ function dhcpUsage(config, leases, lan) {
 	return { state: 'ok', used: used.size, total: merged.reduce((sum, [low, high]) => sum + high - low + 1, 0) };
 }
 
-function pingResult(result) {
-	if (!result || result.code == null) return { state: 'unavailable', target: PROBE };
+function pingResult(result, target = PROBE) {
+	if (!result || result.code == null) return { state: 'unavailable', target };
 	const match = String(result.stdout || '').match(/time\s*([=<])\s*([\d.]+)\s*ms/i);
 	if (Number(result.code) === 0 && match && Number.isFinite(Number(match[2])))
-		return { state: 'ok', ms: Number(match[2]), lessThan: match[1] === '<', target: PROBE };
-	return { state: Number(result.code) === 1 ? 'timeout' : 'unavailable', target: PROBE };
+		return { state: 'ok', ms: Number(match[2]), lessThan: match[1] === '<', target };
+	return { state: Number(result.code) === 1 ? 'timeout' : 'unavailable', target };
 }
 
 return baseclass.extend({
@@ -163,8 +164,16 @@ return baseclass.extend({
 		if (!due) return this.latencyValue || { state: 'unavailable', target: PROBE };
 		this.lastLatency = now;
 		this.probedUp = true;
-		this.latencyPending = safe(() => fs.exec('/bin/ping', PROBE_ARGS))
-			.then(pingResult)
+		this.latencyPending = (async () => {
+			let last = null;
+			for (const target of PROBES) {
+				const raw = await safe(() => fs.exec('/bin/ping', probeArgs(target)));
+				const res = pingResult(raw, target);
+				last = res;
+				if (res.state === 'ok') return res;
+			}
+			return last || { state: 'unavailable', target: PROBE };
+		})()
 			.then(value => {
 				if (this.probedUp)
 					this.latencyValue = value || { state: 'unavailable', target: PROBE };

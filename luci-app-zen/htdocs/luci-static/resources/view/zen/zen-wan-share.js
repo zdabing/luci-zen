@@ -197,7 +197,8 @@ return baseclass.extend({
 				options.onUpdate({ period: selectedPeriod, ...usageTotals(snapshot[selectedPeriod]),
 					uploadBreakdown: breakdown(snapshot[selectedPeriod], 'upload', true),
 					downloadBreakdown: breakdown(snapshot[selectedPeriod], 'download', true),
-					dayDevices: snapshot.day?.dev || [] });
+					dayDevices: snapshot.day?.dev || [],
+					allDevices: snapshot.all?.dev || [] });
 		}
 		const buttons=PERIODS.map(([key,label])=>E('button',{type:'button','aria-pressed':String(key==='day'),click:()=>{selectedPeriod=key;upload.setPeriod(key);download.setPeriod(key);buttons.forEach((button,index)=>button.setAttribute('aria-pressed',String(PERIODS[index][0]===key)));publishTotals();}},label));
 		const range=E('div',{class:'zen-share-periods zen-segmented',role:'group','aria-label':_('Time range')},buttons);

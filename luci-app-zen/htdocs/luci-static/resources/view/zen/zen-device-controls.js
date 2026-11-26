@@ -29,12 +29,13 @@ const checkAccess=(object,method)=>{
  }
  return pending;
 };
-async function todayUsage(mac){
+async function usageSummary(mac){
  const raw=await calls.history('day',mac);
  const data=decode(raw);
  const today=typeof data?.today==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(data.today)?data.today:decode(await calls.clock())?.today;
- if(!Array.isArray(data?.days)||!today)throw Error('usage_unavailable');
- return data.days.filter(row=>row.date===today).reduce((sum,row)=>({upload:sum.upload+Math.max(0,Number(row.upload)||0),download:sum.download+Math.max(0,Number(row.download)||0)}),{upload:0,download:0});
+ if(!Array.isArray(data?.days))throw Error('usage_unavailable');
+ const sumRows=rows=>rows.reduce((sum,row)=>({upload:sum.upload+Math.max(0,Number(row.upload)||0),download:sum.download+Math.max(0,Number(row.download)||0)}),{upload:0,download:0});
+ return {today:today?sumRows(data.days.filter(row=>row.date===today)):null,total:sumRows(data.days)};
 }
 
  const el=(tag,cls,text)=>{const node=document.createElement(tag);if(cls)node.className=cls;if(text!=null)node.textContent=text;return node;};
@@ -57,24 +58,40 @@ async function todayUsage(mac){
    const policy=el('div','rf-detail-policy'),editor=el('section','rf-detail-editor');editor.hidden=true;editor.id='rf-device-editor';
    for(const button of buttons.values())button.setAttribute('aria-controls',editor.id);
    const message=el('p','rf-detail-message');message.setAttribute('role','status');message.hidden=true;
-   const usage=el('section','rf-detail-usage'),usageHead=el('div','rf-detail-section-head');usageHead.append(el('h3','',_('Internet usage today')));
+   const usage=el('section','rf-detail-usage'),usageHead=el('div','rf-detail-section-head');usageHead.append(el('h3','',_('Internet usage by device')));
    const history=footer.querySelector('a');if(history){history.className='rf-detail-history';history.textContent=_('History analysis ↗');usageHead.append(history);}
-   const amount=null,usageTotal=el('strong','rf-detail-total','—'),usageDirections=el('div','rf-detail-usage-directions');
-   usageDirections.append(el('span','rf-up',_('↑ Upload ')+(amount?fmt.fmtBytes(amount.upload):'—')),el('span','rf-down',_('↓ Download ')+(amount?fmt.fmtBytes(amount.download):'—')));
-   usage.append(usageHead,usageTotal,usageDirections);
+   const makeUsageCol=labelText=>{
+    const col=el('div','rf-detail-usage-col'),lbl=el('span','rf-detail-usage-label',labelText),tot=el('strong','rf-detail-total','—'),dirs=el('div','rf-detail-usage-directions');
+    const upEl=el('span','rf-up','↑ —'),dnEl=el('span','rf-down','↓ —');
+    dirs.append(upEl,dnEl);col.append(lbl,tot,dirs);
+    return {col,tot,upEl,dnEl};
+   };
+   const usageGrid=el('div','rf-detail-usage-grid'),todayBox=makeUsageCol(_('Today')),totalBox=makeUsageCol(_('Total'));
+   usageGrid.append(todayBox.col,totalBox.col);
+   usage.append(usageHead,usageGrid);
    const rates=body.querySelector('.zen-device-live'),facts=body.querySelector('.zen-device-facts');
    const rateNodes=new Map([...rates.querySelectorAll('[data-rate]')].map(node=>[node.dataset.rate,node]));
    rates.classList.add('rf-detail-rate-table');rates.replaceChildren(el('span','rf-detail-table-label',_('Current speed')),el('span','rf-up',_('↑ Upload')),el('span','rf-down',_('↓ Download')));
    for(const [label,up,down]of [[_('Internet'),'wan_tx_r','wan_rx_r'],[_('LAN'),'lan_tx_r','lan_rx_r']])rates.append(el('span','rf-detail-table-label',label),rateNodes.get(up),rateNodes.get(down));
    facts.classList.add('rf-detail-facts');
    const info=el('section','rf-detail-info');info.append(el('h3','',_('Connection details')),facts);
-   body.replaceChildren(actions,policy,editor,message,usage,rates,info);
-   p2pControls.mount(body,device.mac);
+   const columns=el('div','rf-detail-columns'),leftCol=el('div','rf-detail-col-left'),rightCol=el('div','rf-detail-col-right');
+   leftCol.append(usage,rates,info);columns.append(leftCol,rightCol);
+   const heading=dialog.querySelector('.zen-drawer-heading'),closeBtn=heading?.querySelector('.zen-drawer-close');
+   if(heading&&closeBtn)heading.insertBefore(actions,closeBtn);
+   else if(heading)heading.append(actions);
+   body.replaceChildren(policy,editor,message,columns);
+   p2pControls.mount(rightCol,device.mac);
+   const p2pDetails=rightCol.querySelector('.zen-p2p-settings');if(p2pDetails&&window.innerWidth>=768)p2pDetails.open=true;
    const identityButton=footer.querySelector('button');
    footer.replaceChildren(el('span','rf-detail-preview',document.body.dataset.previewReady==='true'?_('Example data'):_('Device management')));
    if(identityButton){identityButton.textContent=_('Device identity');footer.append(identityButton);}
    function sync(){
-    subtitle.textContent=(device.online?_('● Online'):_('Offline'))+' · '+(device.conn==='wifi'?_('Wi-Fi')+(device.band?' · '+device.band:''):device.conn==='wired'?_('Wired'):device.conn||'');
+    const badge=el('span','rf-status-badge '+(device.online?'is-online':'is-offline'));
+    badge.append(el('i','rf-status-dot'),el('span','rf-status-text',device.online?_('Online'):_('Offline')));
+    const medium=device.conn==='wifi'?_('Wi-Fi')+(device.band?' · '+device.band:''):device.conn==='wired'?_('Wired'):device.conn||'';
+    const parts=[badge];if(medium)parts.push(document.createTextNode(' '+medium));if(device.ip4)parts.push(document.createTextNode(' · '+device.ip4));
+    subtitle.replaceChildren(...parts);
     policy.replaceChildren();
     if(state.limit)policy.append(el('span','',_('Limit ↑ ')+(state.limit.upload||_('Unlimited'))+' / ↓ '+(state.limit.download||_('Unlimited'))+' Mbps'));
     if(state.fixedIP)policy.append(el('span','',_('Fixed IP ')+state.fixedIP));
@@ -109,7 +126,24 @@ async function todayUsage(mac){
      notify(_('Some device settings could not be loaded.'));const retry=el('button','rf-detail-retry',_('Retry'));retry.type='button';retry.addEventListener('click',()=>{retry.disabled=true;load();});message.append(' ',retry);
     }
    }
-   Promise.resolve(owner.zenControlOptions.getUsage?.(device.mac)).then(value=>value||todayUsage(device.mac)).then(value=>{if(!dialog.isConnected)return;usageTotal.textContent=fmt.fmtBytes(value.upload+value.download);usageDirections.replaceChildren(el('span','rf-up',_('↑ Upload ')+fmt.fmtBytes(value.upload)),el('span','rf-down',_('↓ Download ')+fmt.fmtBytes(value.download)));}).catch(()=>{usageTotal.textContent='—';});
+   const fillUsageBox=(box,val)=>{
+    if(!box||!val)return;
+    const ul=Math.max(0,Number(val.upload)||0),dl=Math.max(0,Number(val.download)||0);
+    box.tot.textContent=fmt.fmtBytes(ul+dl);
+    box.upEl.textContent='↑ '+fmt.fmtBytes(ul);
+    box.dnEl.textContent='↓ '+fmt.fmtBytes(dl);
+   };
+   const cachedToday=owner.zenControlOptions.getUsage?.(device.mac);
+   const cachedTotal=owner.zenControlOptions.getTotalUsage?.(device.mac);
+   if(cachedToday)fillUsageBox(todayBox,cachedToday);
+   if(cachedTotal)fillUsageBox(totalBox,cachedTotal);
+   if(!cachedToday||!cachedTotal){
+    usageSummary(device.mac).then(summary=>{
+     if(!dialog.isConnected)return;
+     if(!cachedToday&&summary.today)fillUsageBox(todayBox,summary.today);
+     if(!cachedTotal&&summary.total)fillUsageBox(totalBox,summary.total);
+    }).catch(()=>{});
+   }
    function edit(key){
     const trigger=buttons.get(key),wasOpen=trigger.getAttribute('aria-expanded')==='true';closeEditor();message.hidden=true;if(wasOpen)return;
     trigger.setAttribute('aria-expanded','true');editor.hidden=false;

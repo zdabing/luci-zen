@@ -30,12 +30,24 @@ return baseclass.extend({async render(data){
   const selectUI=await L.require('view.zen.zen-select');
   const root=E('div');root.id='za-workspace';root.classList.add('zen-traffic-page');
   const usage=E('section','za-usage-view');usage.id='za-usage';
-  const top=E('section','za-panel'),filters=E('div','za-filterbar'),topRange=E('div','za-date-range'),periods=E('div','zen-segmented zu-periods');periods.setAttribute('role','group');periods.setAttribute('aria-label','统计时间范围');
-  filters.append(topRange,periods);
-  const statLine=E('div','za-stat-line'),stat=E('div'),total=E('strong','za-total'),directions=E('div','za-totals-directions');
-  stat.append(E('span','za-total-label','互联网总用量'),total);statLine.append(stat,directions);
+  const top=E('section','za-panel'),filters=E('div','za-filterbar'),filterHead=E('div','za-filter-head'),filterMeta=E('span','za-meta'),filterControls=E('div','za-filter-controls'),periods=E('div','zen-segmented zu-periods');
+  periods.setAttribute('role','group');periods.setAttribute('aria-label','统计时间范围');
+  filterHead.append(E('h2','','流量与拦截概览'),filterMeta);
+  const stepper=E('div','za-date-stepper');
+  const prevPeriod=E('button','za-stepper-btn');prevPeriod.type='button';prevPeriod.textContent='‹';prevPeriod.setAttribute('aria-label','上一周期');
+  const topRange=E('div','za-date-range');
+  const nextPeriod=E('button','za-stepper-btn');nextPeriod.type='button';nextPeriod.textContent='›';nextPeriod.setAttribute('aria-label','下一周期');
+  stepper.append(prevPeriod,topRange,nextPeriod);
+  filterControls.append(periods,stepper);
+  filters.append(filterHead,filterControls);
+  const overview=E('div','za-overview-3col');
+  const totalCard=E('div','za-ov-card za-ov-total'),donutWrap=E('div','za-donut-wrap'),directions=E('div','za-overview-metrics');
+  totalCard.append(donutWrap,directions);
+  const shareCard=E('div','za-ov-card za-ov-share');
+  const p2pCard=E('div','za-ov-card za-ov-p2p');
+  overview.append(totalCard,shareCard,p2pCard);
   const trendHead=E('div','za-chart-head'),trendTitle=E('h3'),trendLegend=E('div','za-chart-legend');trendLegend.append(E('span','za-upload','↑ 上传'),E('span','za-download','↓ 下载'));trendHead.append(trendTitle,trendLegend);
-  const trend=E('div'),readout=E('div','za-chart-readout');readout.setAttribute('role','status');top.append(filters,statLine,trendHead,trend,readout);
+  const trend=E('div'),readout=E('div','za-chart-readout');readout.setAttribute('role','status');top.append(filters,overview,trendHead,trend,readout);
   const devicePanel=E('section','za-panel'),devicesHead=E('div','za-section-head za-devices-head');devicesHead.append(E('h2','','设备用量'),E('span','za-meta',records.devices.length+' 台设备'));
   const deviceLayout=E('div','za-device-layout'),tableArea=E('div','za-table-area'),tableTools=E('div','za-table-tools'),search=E('input','za-search');
   search.type='search';search.placeholder='搜索设备、IP 或 MAC';search.setAttribute('aria-label','搜索统计设备');
@@ -73,15 +85,42 @@ return baseclass.extend({async render(data){
   const timelineRoot=timeline.render(status);
   const earliestLedger=ledger.length?ledger[0].date:todayKey;
   let suppressTopDate=false;
-  function presetBounds(p){
-   if(p==='day')return [todayKey,todayKey];
-   if(p==='week')return [periodsModule.startDate(todayKey,'week'),todayKey];
-   if(p==='month')return [todayKey.slice(0,7)+'-01',todayKey];
+  function shiftMonthYM(ym,delta){
+   const [y,m]=ym.split('-').map(Number);
+   const d=new Date(Date.UTC(y,m-1+delta,1,12));
+   return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0');
+  }
+  function monthEndDate(ym){
+   const [y,m]=ym.split('-').map(Number);
+   return new Date(Date.UTC(y,m,0,12)).toISOString().slice(0,10);
+  }
+  const requestedDevice=(new URLSearchParams(location.search).get('mac')||'').toLowerCase();
+  let period='week',periodOffset=0,expanded=false,selected=deviceOptions.some(d=>d.key===requestedDevice)?requestedDevice:'',day=todayKey,snapshot=[];
+  let customStart=todayKey,customEnd=todayKey;
+  function presetBounds(p,offset=periodOffset){
+   if(p==='day'){
+    const d=picker.shift(todayKey,-offset);
+    const clamped=d<earliestLedger?earliestLedger:d;
+    return [clamped,clamped];
+   }
+   if(p==='week'){
+    const curStart=periodsModule.startDate(todayKey,'week');
+    const s=picker.shift(curStart,-offset*7);
+    const e=offset===0?todayKey:picker.shift(s,6);
+    return [s<earliestLedger?earliestLedger:s,e>todayKey?todayKey:e];
+   }
+   if(p==='month'){
+    const ym=shiftMonthYM(todayKey.slice(0,7),-offset);
+    const s=ym+'-01';
+    const e=offset===0?todayKey:monthEndDate(ym);
+    return [s<earliestLedger?earliestLedger:s,e>todayKey?todayKey:e];
+   }
    if(p==='all')return [earliestLedger,todayKey];
    return [customStart,customEnd];
   }
-  const topStartInput=E('input',{type:'date',value:todayKey,min:earliestLedger,max:todayKey});
-  const topEndInput=E('input',{type:'date',value:todayKey,min:earliestLedger,max:todayKey});
+  const mkDateInput=value=>{const input=E('input');input.type='date';input.value=value;input.min=earliestLedger;input.max=todayKey;return input;};
+  const topStartInput=mkDateInput(todayKey);
+  const topEndInput=mkDateInput(todayKey);
   const topStartCtrl=picker.create(topStartInput,{today:todayKey}),topEndCtrl=picker.create(topEndInput,{today:todayKey});
   topRange.append(topStartCtrl,E('span','za-date-sep','至'),topEndCtrl);
   function syncTopDates(s,e){
@@ -91,9 +130,7 @@ return baseclass.extend({async render(data){
     if(topEndInput.value!==e){topEndInput.value=e;topEndInput.dispatchEvent(new Event('change'));}
    }finally{suppressTopDate=false;}
   }
-  const requestedDevice=(new URLSearchParams(location.search).get('mac')||'').toLowerCase();
-  let period='week',expanded=false,selected=deviceOptions.some(d=>d.key===requestedDevice)?requestedDevice:'',day=todayKey,snapshot=[];
-  let [customStart,customEnd]=presetBounds(period);
+  [customStart,customEnd]=presetBounds(period,0);
   syncTopDates(customStart,customEnd);
   const detail=E('section','za-detail');detail.id='device-hourly';detail.tabIndex=-1;detail.setAttribute('aria-labelledby','za-hourly-title');
   const detailHead=E('div','za-detail-head'),detailIdentity=E('div'),detailName=E('h3','','每小时用量与 P2P 拦截'),detailMeta=E('div','za-detail-meta'),close=E('button','za-close','×');detailName.id='za-hourly-title';close.type='button';close.setAttribute('aria-label','切换回整机汇总');
@@ -139,22 +176,162 @@ return baseclass.extend({async render(data){
    }
    if(!all.length)rows.append(E('p','za-meta','没有匹配的设备'));listCount.textContent=all.filter(d=>d.key!=='unassigned').length+' 台设备';more.hidden=all.length<=8;more.textContent=expanded?'收起':'更多';more.setAttribute('aria-expanded',String(expanded));
   }
+  function drawDonut(dl,ul){
+   const total=dl+ul,parts=format(total).split(' ');
+   const R=46,C=2*Math.PI*R;
+   const svg=S('svg',{viewBox:'0 0 120 120',class:'za-donut','aria-hidden':'true'});
+   svg.append(S('circle',{cx:60,cy:60,r:R,fill:'none',stroke:'var(--progress-track,#eef1f6)','stroke-width':11}));
+   if(total>0){
+    const dlLen=(dl/total)*C,ulLen=C-dlLen;
+    if(dl>0)svg.append(S('circle',{cx:60,cy:60,r:R,fill:'none',stroke:'var(--dl,#2563eb)','stroke-width':11,'stroke-linecap':'butt','stroke-dasharray':dlLen.toFixed(2)+' '+C.toFixed(2),transform:'rotate(-90 60 60)'}));
+    if(ul>0)svg.append(S('circle',{cx:60,cy:60,r:R,fill:'none',stroke:'var(--ul,#f97316)','stroke-width':11,'stroke-linecap':'butt','stroke-dasharray':ulLen.toFixed(2)+' '+C.toFixed(2),'stroke-dashoffset':(-dlLen).toFixed(2),transform:'rotate(-90 60 60)'}));
+   }
+   const center=E('div','za-donut-center');
+   center.append(E('strong','za-total',parts[0]),E('small','',parts[1]));
+   donutWrap.replaceChildren(svg,center);
+  }
+  function addOverviewRow(cls,label,amount,pctText){
+   const row=E('div','za-metric-row '+cls);
+   const key=E('span','za-metric-key');key.append(E('i','za-metric-dot'),document.createTextNode(label));
+   row.append(key,E('span','za-metric-share',pctText),E('strong','',format(amount)));
+   directions.append(row);
+  }
+  function makeBarTrack(items,totalVal,colorOf){
+   const track=E('div','za-share-track');
+   if(totalVal<=0||!items.length)return track;
+   for(const item of items){
+    if(item.val<=0)continue;
+    const seg=E('span','za-share-seg');
+    seg.style.width=(item.val/totalVal*100).toFixed(2)+'%';
+    seg.style.background=colorOf(item);
+    seg.title=item.label+' · '+item.text;
+    track.append(seg);
+   }
+   return track;
+  }
+  function drawShareCard(dlBytes,ulBytes){
+   const colorMap=new Map();
+   const sorted=[...snapshot].sort((a,b)=>(b.upload+b.download)-(a.upload+a.download));
+   sorted.forEach((d,i)=>colorMap.set(d.key,d.key==='unassigned'?'var(--chart-unassigned)':colors[i%colors.length]));
+   const head=E('div','za-ov-head');head.append(E('strong','','设备流量占比'),E('span','za-meta',sorted.filter(d=>d.upload+d.download>0).length+' 台活跃'));
+   const dlRows=[...snapshot].filter(d=>d.download>0).sort((a,b)=>b.download-a.download).map(d=>({key:d.key,label:d.label,val:d.download,text:format(d.download)}));
+   const ulRows=[...snapshot].filter(d=>d.upload>0).sort((a,b)=>b.upload-a.upload).map(d=>({key:d.key,label:d.label,val:d.upload,text:format(d.upload)}));
+   const bars=E('div','za-share-bars');
+   const mkLine=(label,rows,tot)=>{
+    const line=E('div','za-share-line'),lh=E('div','za-share-line-head');
+    const topItem=rows[0],pct=tot>0&&topItem?(topItem.val/tot*100).toFixed(0)+'%':'';
+    lh.append(E('span','',label),E('span','',topItem?topItem.label+' '+pct:'暂无'));
+    line.append(lh,makeBarTrack(rows,tot,r=>colorMap.get(r.key)||colors[0]));
+    return line;
+   };
+   bars.append(mkLine('↓ 下载分布',dlRows,dlBytes),mkLine('↑ 上传分布',ulRows,ulBytes));
+   const legend=E('div','za-share-legend');
+   const sumAll=dlBytes+ulBytes;
+   for(const d of sorted.slice(0,4)){
+    const tot=d.upload+d.download;if(tot<=0)continue;
+    const chip=E('button','za-share-chip');chip.type='button';chip.disabled=d.key==='unassigned';
+    const dot=E('i');dot.style.background=colorMap.get(d.key);
+    chip.append(dot,E('span','',d.label),E('small','',sumAll>0?(tot/sumAll*100).toFixed(0)+'%':'0%'));
+    if(!chip.disabled)chip.addEventListener('click',()=>selectDevice(d.key));
+    legend.append(chip);
+   }
+   shareCard.replaceChildren(head,bars,legend);
+  }
+  function drawP2pCard(boundStart,boundEnd,fallbackDropped){
+   let dropped=0,conflicts=0,bypassed=0;
+   if(period==='all'&&p2pData?.total){
+    dropped=Math.max(0,Number(p2pData.total.dropped)||0);
+    conflicts=Math.max(0,Number(p2pData.total.conflicts)||0);
+    bypassed=Math.max(0,Number(p2pData.total.bypassed)||0);
+   }else{
+    for(const r of (p2pData?.days||[])){
+     if(r.date>=boundStart&&r.date<=boundEnd){
+      dropped+=Math.max(0,Number(r.dropped)||0);
+      conflicts+=Math.max(0,Number(r.conflicts)||0);
+      bypassed+=Math.max(0,Number(r.bypassed)||0);
+     }
+    }
+   }
+   if(!dropped&&fallbackDropped>0)dropped=fallbackDropped;
+   const devList=[];
+   for(const d of (p2pData?.devices||[])){
+    let val=0;
+    if(period==='all'&&d.total)val=Math.max(0,Number(d.total.dropped)||0);
+    else for(const r of (d.days||[]))if(r.date>=boundStart&&r.date<=boundEnd)val+=Math.max(0,Number(r.dropped)||0);
+    if(val>0)devList.push({key:d.mac,label:records.names.get(d.mac)||facts.get(d.mac)?.host||d.host||d.mac,val,text:fmtPkts(val)});
+   }
+   devList.sort((a,b)=>b.val-a.val);
+   const head=E('div','za-ov-head');head.append(E('strong','','P2P / PCDN 拦截'),E('strong','za-ov-stat za-p2p',fmtPkts(dropped)));
+   const meta=E('div','za-p2p-meta');
+   const confEl=E('span','','⚡ 冲突 ');confEl.append(E('strong','',conflicts.toLocaleString()+' 次'));
+   const passEl=E('span','','放行 ');passEl.append(E('strong','',bypassed.toLocaleString()+' 包'));
+   meta.append(confEl,passEl);
+   const devColors=new Map(devList.map((d,i)=>[d.key,colors[i%colors.length]]));
+   const track=makeBarTrack(devList,Math.max(dropped,devList.reduce((s,d)=>s+d.val,0)),r=>devColors.get(r.key));
+   const legend=E('div','za-share-legend');
+   if(!devList.length){
+    legend.append(E('span','za-meta',dropped>0?'已拦截 '+fmtPkts(dropped):'当前时段无拦截记录'));
+   }else{
+    for(const d of devList.slice(0,3)){
+     const chip=E('button','za-share-chip');chip.type='button';
+     const dot=E('i');dot.style.background=devColors.get(d.key);
+     chip.append(dot,E('span','',d.label),E('small','',dropped>0?(d.val/dropped*100).toFixed(1)+'%':'0%'));
+     chip.addEventListener('click',()=>selectDevice(d.key));
+     legend.append(chip);
+    }
+    if(devList.length>1)legend.append(E('span','za-meta',devList.length+' 台命中'));
+   }
+   p2pCard.replaceChildren(head,meta,track,legend);
+  }
   function refresh(syncRight=false){const dates=range();if(!dates.length)dates.push({date:todayKey,upload:0,download:0,p2p:0});const sums=new Map();for(const d of dates)for(const row of byDay.get(d.date)||deviceOptions.map(d=>({...d,ip:facts.get(d.key)?.ip4||'',upload:0,download:0,p2p:0}))){const sum=sums.get(row.key)||{...row,upload:0,download:0,p2p:0};sum.upload+=row.upload;sum.download+=row.download;sum.p2p+=(row.p2p||0);sums.set(row.key,sum);}snapshot=[...sums.values()];const t=snapshot.reduce((t,d)=>({upload:t.upload+d.upload,download:t.download+d.download,p2p:t.p2p+(d.p2p||0)}),{upload:0,download:0,p2p:0});
    const p2pTotal=period==='all'?Math.max(t.p2p,Number(p2pData?.total?.dropped)||0):t.p2p;
-   const [boundStart,boundEnd]=presetBounds(period);syncTopDates(boundStart,boundEnd);
-   const parts=format(t.upload+t.download).split(' ');total.replaceChildren(document.createTextNode(parts[0]),E('small','',parts[1]));directions.replaceChildren();addMetric(directions,'↓ 下载',t.download,'za-download');addMetric(directions,'↑ 上传',t.upload,'za-upload');addMetric(directions,'🛡 P2P 拦截',p2pTotal,'za-p2p',fmtPkts(p2pTotal));
+   const [boundStart,boundEnd]=presetBounds(period,periodOffset);syncTopDates(boundStart,boundEnd);
+   filterMeta.textContent=(dates.length===1?'单日':dates.length+' 天汇总')+' · '+deviceOptions.length+' 台设备';
+   prevPeriod.disabled=period==='all'||boundStart<=earliestLedger;
+   nextPeriod.disabled=period==='all'||(period==='custom'?boundEnd>=todayKey:periodOffset===0);
+   drawDonut(t.download,t.upload);
+   const sumBytes=t.download+t.upload;
+   const dlPct=sumBytes>0?(t.download/sumBytes*100).toFixed(1)+'%':'0.0%';
+   const ulPct=sumBytes>0?(t.upload/sumBytes*100).toFixed(1)+'%':'0.0%';
+   directions.replaceChildren();
+   addOverviewRow('za-download','下载',t.download,dlPct);
+   addOverviewRow('za-upload','上传',t.upload,ulPct);
+   drawShareCard(t.download,t.upload);
+   drawP2pCard(boundStart,boundEnd,p2pTotal);
    trendTitle.textContent='每日用量与拦截趋势';readout.textContent='';for(const part of [trendHead,trend,readout])part.hidden=dates.length===1;drawBars(trend,dates,'互联网每日用量',false,r=>{if(r.date){day=r.date;timeline.setRange(r.date,r.date);timelineKey=(selected||'')+'|'+date.value+'|'+endDate.value;showDetail(true);}},readout);
    renderRows();
    if(syncRight){timeline.setRange(boundStart,boundEnd);timelineKey=(selected||'')+'|'+date.value+'|'+endDate.value;}
    showDetail();
   }
-  for(const [value,label]of [['day','本日'],['week','本周'],['month','本月'],['all','全部']]){const b=E('button','',label);b.type='button';b.dataset.period=value;b.setAttribute('aria-pressed',String(value===period));b.addEventListener('click',()=>{period=value;expanded=false;for(const button of periods.children)button.setAttribute('aria-pressed',String(button===b));refresh(true);});periods.append(b);}
+  function shiftCustomRange(dir){
+   const sDate=picker.parse(customStart),eDate=picker.parse(customEnd);
+   if(!sDate||!eDate)return;
+   const span=Math.max(1,Math.round((eDate-sDate)/86400000)+1);
+   if(dir<0){
+    let e=picker.shift(customStart,-1);
+    if(!e||e<earliestLedger)e=earliestLedger;
+    let s=picker.shift(e,-(span-1));
+    if(!s||s<earliestLedger)s=earliestLedger;
+    customStart=s;customEnd=e;
+   }else{
+    let s=picker.shift(customEnd,1);
+    if(!s||s>todayKey)s=todayKey;
+    let e=picker.shift(s,span-1);
+    if(!e||e>todayKey)e=todayKey;
+    customStart=s;customEnd=e;
+   }
+  }
+  for(const [value,label]of [['day','今日'],['week','本周'],['month','本月'],['all','全部']]){const b=E('button','',label);b.type='button';b.dataset.period=value;b.setAttribute('aria-pressed',String(value===period));b.addEventListener('click',()=>{period=value;periodOffset=0;expanded=false;for(const button of periods.children)button.setAttribute('aria-pressed',String(button===b));refresh(true);});periods.append(b);}
+  prevPeriod.addEventListener('click',()=>{if(period==='all')return;if(period==='custom')shiftCustomRange(-1);else periodOffset++;expanded=false;refresh(true);});
+  nextPeriod.addEventListener('click',()=>{if(period==='all')return;if(period==='custom'){if(customEnd>=todayKey)return;shiftCustomRange(1);}else{if(periodOffset<=0)return;periodOffset--;}expanded=false;refresh(true);});
   const onTopDateChange=which=>{
    if(suppressTopDate)return;
    let s=topStartInput.value,e=topEndInput.value;
    if(!s||!e)return;
+   if(s<earliestLedger)s=earliestLedger;
+   if(e>todayKey)e=todayKey;
    if(s>e){if(which==='start')e=s;else s=e;}
-   customStart=s;customEnd=e;period='custom';expanded=false;
+   customStart=s;customEnd=e;period='custom';periodOffset=0;expanded=false;
    for(const button of periods.children)button.setAttribute('aria-pressed','false');
    refresh(true);
   };

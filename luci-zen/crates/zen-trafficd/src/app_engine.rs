@@ -14,6 +14,9 @@ const RESULT_BATCH: usize = 4096;
 const FLOW_TCP_CLOSED: u64 = 1;
 const UNMATCHED_DOMAIN_LIMIT: usize = 256;
 const UNMATCHED_DEVICE_LIMIT: usize = 32;
+const OBSERVED_DOMAIN_LIMIT: usize = 256;
+const OBSERVED_SUB_LIMIT: usize = 20;
+const OBSERVED_DEVICE_LIMIT: usize = 32;
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -42,6 +45,149 @@ struct Flow {
     classification: Option<Classification>, pending: Vec<(u64, Bytes)>,
     provisional: Vec<(u64, Bytes)>, diagnostic_host: Option<String>,feature_candidate:Option<String>,
     unmatched_host: Option<String>,
+    observed_host: Option<String>,
+}
+
+#[derive(Clone, Default)]
+struct ObservedSub {
+    bytes: Bytes,
+    connections: u64,
+    last_seen: u64,
+    devices: HashMap<[u8; 6], Bytes>,
+}
+
+#[derive(Clone, Default)]
+struct ObservedDomain {
+    bytes: Bytes,
+    connections: u64,
+    last_seen: u64,
+    app_id: u32,
+    app_name: String,
+    devices: HashMap<[u8; 6], Bytes>,
+    subs: HashMap<String, ObservedSub>,
+}
+
+fn trim_observed_domains(domains: &mut HashMap<String, ObservedDomain>, root: &str) {
+    if domains.contains_key(root) || domains.len() < OBSERVED_DOMAIN_LIMIT {
+        return;
+    }
+    if let Some(evict) = domains
+        .iter()
+        .min_by_key(|(_, entry)| (entry.bytes.download.saturating_add(entry.bytes.upload), entry.last_seen, entry.connections))
+        .map(|(k, _)| k.clone())
+    {
+        domains.remove(&evict);
+    }
+}
+
+fn trim_observed_subs(subs: &mut HashMap<String, ObservedSub>, host: &str) {
+    if subs.contains_key(host) || subs.len() < OBSERVED_SUB_LIMIT {
+        return;
+    }
+    if let Some(evict) = subs
+        .iter()
+        .min_by_key(|(_, entry)| (entry.bytes.download.saturating_add(entry.bytes.upload), entry.last_seen, entry.connections))
+        .map(|(k, _)| k.clone())
+    {
+        subs.remove(&evict);
+    }
+}
+
+fn add_observed_domain_bytes(
+    domains: &mut HashMap<String, ObservedDomain>,
+    since: &mut u64,
+    host: &str,
+    mac: [u8; 6],
+    bytes: Bytes,
+    now_epoch: u64,
+) {
+    if bytes == Bytes::default() {
+        return;
+    }
+    let root = crate::app_rule_store::registrable_domain(host);
+    if root.is_empty() {
+        return;
+    }
+    if *since == 0 && now_epoch != 0 {
+        *since = now_epoch;
+    }
+    trim_observed_domains(domains, &root);
+    let entry = domains.entry(root.clone()).or_default();
+    entry.bytes.download = entry.bytes.download.saturating_add(bytes.download);
+    entry.bytes.upload = entry.bytes.upload.saturating_add(bytes.upload);
+    if now_epoch != 0 {
+        entry.last_seen = entry.last_seen.max(now_epoch);
+    }
+    if entry.devices.contains_key(&mac) || entry.devices.len() < OBSERVED_DEVICE_LIMIT {
+        let dev = entry.devices.entry(mac).or_default();
+        dev.download = dev.download.saturating_add(bytes.download);
+        dev.upload = dev.upload.saturating_add(bytes.upload);
+    }
+    if host != root {
+        trim_observed_subs(&mut entry.subs, host);
+        let sub = entry.subs.entry(host.to_owned()).or_default();
+        sub.bytes.download = sub.bytes.download.saturating_add(bytes.download);
+        sub.bytes.upload = sub.bytes.upload.saturating_add(bytes.upload);
+        if now_epoch != 0 {
+            sub.last_seen = sub.last_seen.max(now_epoch);
+        }
+        if sub.devices.contains_key(&mac) || sub.devices.len() < OBSERVED_DEVICE_LIMIT {
+            let dev = sub.devices.entry(mac).or_default();
+            dev.download = dev.download.saturating_add(bytes.download);
+            dev.upload = dev.upload.saturating_add(bytes.upload);
+        }
+    }
+}
+
+fn record_observed_domain(
+    domains: &mut HashMap<String, ObservedDomain>,
+    since: &mut u64,
+    host: &str,
+    mac: [u8; 6],
+    bytes: Bytes,
+    now_epoch: u64,
+    app_id: u32,
+    app_name: &str,
+) {
+    let root = crate::app_rule_store::registrable_domain(host);
+    if root.is_empty() {
+        return;
+    }
+    if *since == 0 && now_epoch != 0 {
+        *since = now_epoch;
+    }
+    trim_observed_domains(domains, &root);
+    let entry = domains.entry(root.clone()).or_default();
+    entry.connections = entry.connections.saturating_add(1);
+    entry.bytes.download = entry.bytes.download.saturating_add(bytes.download);
+    entry.bytes.upload = entry.bytes.upload.saturating_add(bytes.upload);
+    if now_epoch != 0 {
+        entry.last_seen = entry.last_seen.max(now_epoch);
+    }
+    if app_id != 0 && !app_name.is_empty() && (entry.app_id == 0 || entry.app_name.is_empty()) {
+        entry.app_id = app_id;
+        entry.app_name = app_name.to_owned();
+    }
+    if entry.devices.contains_key(&mac) || entry.devices.len() < OBSERVED_DEVICE_LIMIT {
+        let dev = entry.devices.entry(mac).or_default();
+        dev.download = dev.download.saturating_add(bytes.download);
+        dev.upload = dev.upload.saturating_add(bytes.upload);
+    }
+    if host != root {
+        trim_observed_subs(&mut entry.subs, host);
+        let sub = entry.subs.entry(host.to_owned()).or_default();
+        sub.connections = sub.connections.saturating_add(1);
+        sub.bytes.download = sub.bytes.download.saturating_add(bytes.download);
+        sub.bytes.upload = sub.bytes.upload.saturating_add(bytes.upload);
+        if now_epoch != 0 {
+            sub.last_seen = sub.last_seen.max(now_epoch);
+        }
+        if sub.devices.contains_key(&mac) || sub.devices.len() < OBSERVED_DEVICE_LIMIT {
+            let dev = sub.devices.entry(mac).or_default();
+            dev.download = dev.download.saturating_add(bytes.download);
+            dev.upload = dev.upload.saturating_add(bytes.upload);
+        }
+    }
 }
 
 #[derive(Clone, Default)]
@@ -326,6 +472,8 @@ pub struct AppEngine {
     pub rules:Store,pub dns:crate::app_dns::Cache,dns_ring:Option<RingBuf<MapData>>,pub dns_active:bool,dns_drops:[u64;2],dns_since:u64,
     realtime:HashMap<([u8;6],u32),Bytes>,realtime_at:u64,realtime_interval:u64,
     unmatched: HashMap<String, UnmatchedDomain>,
+    observed_domains: HashMap<String, ObservedDomain>,
+    observed_domains_since: u64,
 }
 impl AppEngine {
     pub fn start(bpf: &mut Ebpf) -> Self {
@@ -339,7 +487,9 @@ impl AppEngine {
             rules:Store::load(std::path::Path::new("/etc/zen-traffic/app-rules.json")),dns:Default::default(),
             dns_ring:bpf.take_map("dns_samples").and_then(|map|RingBuf::try_from(map).ok()),dns_active:false,dns_drops:[0;2],dns_since:0,
             realtime:HashMap::new(),realtime_at:0,realtime_interval:1000,
-            unmatched: HashMap::new() };
+            unmatched: HashMap::new(),
+            observed_domains: HashMap::new(),
+            observed_domains_since: 0 };
         // This process also holds transient samples. Never include them in
         // daemon core files, regardless of the system-wide dump policy.
         let core=libc::rlimit {rlim_cur:0,rlim_max:0};
@@ -373,7 +523,8 @@ impl AppEngine {
             self.ids.insert(id, key);
             self.flows.insert(key, Flow { id, first_seen, previous: Bytes::default(), last_seen: first_seen,
                 classification: None, pending: Vec::new(), provisional:Vec::new(),diagnostic_host:None,feature_candidate:None,
-                unmatched_host: None });
+                unmatched_host: None,
+                observed_host: None });
         }
         self.flows.get_mut(&key)
     }
@@ -595,6 +746,88 @@ impl AppEngine {
             self.unmatched.clear();
         }
     }
+
+    pub fn top_domains(&self, mac: Option<&str>, limit: usize) -> serde_json::Value {
+        let mac_filter = mac
+            .filter(|s| !s.is_empty())
+            .and_then(crate::daemon::parse_mac)
+            .map(|m| m.b);
+        let mut items: Vec<_> = self
+            .observed_domains
+            .iter()
+            .filter_map(|(domain, stats)| {
+                let bytes = match mac_filter {
+                    Some(m) => stats.devices.get(&m).copied()?,
+                    None => stats.bytes,
+                };
+                if bytes == Bytes::default() && stats.connections == 0 {
+                    return None;
+                }
+                let mut sub_items: Vec<_> = stats
+                    .subs
+                    .iter()
+                    .filter_map(|(host, sub)| {
+                        let sub_bytes = match mac_filter {
+                            Some(m) => sub.devices.get(&m).copied()?,
+                            None => sub.bytes,
+                        };
+                        if sub_bytes == Bytes::default() && sub.connections == 0 {
+                            return None;
+                        }
+                        Some((
+                            sub_bytes.download.saturating_add(sub_bytes.upload),
+                            sub.connections,
+                            host.clone(),
+                            serde_json::json!({
+                                "host": host,
+                                "download": sub_bytes.download,
+                                "upload": sub_bytes.upload,
+                                "connections": sub.connections,
+                            }),
+                        ))
+                    })
+                    .collect();
+                sub_items.sort_unstable_by(|a, b| {
+                    b.0.cmp(&a.0)
+                        .then_with(|| b.1.cmp(&a.1))
+                        .then_with(|| a.2.cmp(&b.2))
+                });
+                let subs: Vec<_> = sub_items.into_iter().take(10).map(|(_, _, _, v)| v).collect();
+                Some((
+                    bytes.download.saturating_add(bytes.upload),
+                    stats.connections,
+                    domain.clone(),
+                    serde_json::json!({
+                        "domain": domain,
+                        "download": bytes.download,
+                        "upload": bytes.upload,
+                        "connections": stats.connections,
+                        "devices": stats.devices.len(),
+                        "last_seen": stats.last_seen,
+                        "app_id": stats.app_id,
+                        "app_name": stats.app_name,
+                        "subs": subs,
+                    }),
+                ))
+            })
+            .collect();
+        items.sort_unstable_by(|a, b| {
+            b.0.cmp(&a.0)
+                .then_with(|| b.1.cmp(&a.1))
+                .then_with(|| a.2.cmp(&b.2))
+        });
+        let domains: Vec<_> = items
+            .into_iter()
+            .take(limit.clamp(1, 200))
+            .map(|(_, _, _, v)| v)
+            .collect();
+        serde_json::json!({
+            "mac": mac.unwrap_or(""),
+            "since": self.observed_domains_since,
+            "total_tracked": self.observed_domains.len(),
+            "domains": domains,
+        })
+    }
     pub fn set_dns(&mut self,bpf:&mut Ebpf,enabled:bool)->Result<(),String>{
         if enabled&&self.dns_ring.is_none(){return Err("dns_capture_unavailable".into());}
         let mut map=bpf.map_mut("dns_enabled").and_then(|map|Array::<_,u32>::try_from(map).ok()).ok_or("dns_capture_unavailable")?;
@@ -692,9 +925,14 @@ impl AppEngine {
                 ResultMessage::Detection(id, mut app, done) => if done {
                     if let Some(key) = self.ids.get(&id).copied() {
                         self.attribute(&key,&mut app);
-                        let is_infra = crate::app_catalog::is_infrastructure(app.app, &app.name);
-                        let unmatched_host = if !app.evidence.hostname.is_empty() && (!app.identified || is_infra) {
+                        let observed_host = if app.evidence.hostname.is_empty() {
+                            None
+                        } else {
                             app_rules::normalize_peer_hostname(&app.evidence.hostname)
+                        };
+                        let is_infra = crate::app_catalog::is_infrastructure(app.app, &app.name);
+                        let unmatched_host = if observed_host.is_some() && (!app.identified || is_infra) {
+                            observed_host.clone()
                         } else {
                             None
                         };
@@ -708,12 +946,15 @@ impl AppEngine {
                             .and_then(crate::app_catalog::by_key)
                             .map(|entry| entry.name.to_owned());
                         let protocol_label = app.name.clone();
+                        let observed_app_id = app.app;
+                        let observed_app_name = app.name.clone();
                         let mut epoch=None;
                         let mut seed_bytes = Bytes::default();
                         if let Some(flow) = self.flows.get_mut(&key) {
                             if flow.classification.is_none() {
                                 if detail_enabled && app.evidence.has_hostname {flow.diagnostic_host=Some(app.evidence.hostname.clone());}
                                 flow.unmatched_host = unmatched_host.clone();
+                                flow.observed_host = observed_host.clone();
                                 seed_bytes = flow.previous;
                                 // Classification retains only metadata by default. Short-lived
                                 // host details are held separately and never reach SQLite.
@@ -723,6 +964,18 @@ impl AppEngine {
                                 epoch=Some(flow.first_seen);
                                 self.releases.push_back(id);
                             }
+                        }
+                        if let (Some(_), Some(host)) = (epoch, observed_host) {
+                            record_observed_domain(
+                                &mut self.observed_domains,
+                                &mut self.observed_domains_since,
+                                &host,
+                                key.mac,
+                                seed_bytes,
+                                crate::state::now_epoch(),
+                                observed_app_id,
+                                &observed_app_name,
+                            );
                         }
                         if let (Some(_), Some(host)) = (epoch, unmatched_host) {
                             record_unmatched_connection(
@@ -792,6 +1045,7 @@ impl AppEngine {
             let bytes = Bytes { download:stats.download.saturating_sub(flow.previous.download), upload:stats.upload.saturating_sub(flow.previous.upload) };
             flow.previous = Bytes { download:stats.download,upload:stats.upload };
             let unmatched = if bytes != Bytes::default() { flow.unmatched_host.clone() } else { None };
+            let observed = if bytes != Bytes::default() { flow.observed_host.clone() } else { None };
             if bytes != Bytes::default() { Flow::accumulate(&mut flow.pending,now,bytes); }
             if flow.classification.is_none() && failed {
                 flow.decide(Classification::default(),&crate::persistence::mac_str(&key.mac),usage);
@@ -818,6 +1072,16 @@ impl AppEngine {
                 flow.account(&crate::persistence::mac_str(&key.mac),usage,true);
             }
             if expired_flow { expired.push(key); }
+            if let Some(host) = observed {
+                add_observed_domain_bytes(
+                    &mut self.observed_domains,
+                    &mut self.observed_domains_since,
+                    &host,
+                    key.mac,
+                    bytes,
+                    now,
+                );
+            }
             if let Some(host) = unmatched {
                 add_unmatched_bytes(&mut self.unmatched, &host, key.mac, bytes, now);
             }
@@ -854,6 +1118,15 @@ impl AppEngine {
     pub fn remove_device(&mut self, bpf: &mut Ebpf, mac: &str) {
         self.realtime.retain(|(device,_),_|crate::persistence::mac_str(device)!=mac);
         self.clear_unmatched(Some(mac));
+        if let Some(m) = crate::daemon::parse_mac(mac).map(|k| k.b) {
+            self.observed_domains.retain(|_, stats| {
+                stats.devices.remove(&m);
+                for sub in stats.subs.values_mut() {
+                    sub.devices.remove(&m);
+                }
+                !stats.devices.is_empty()
+            });
+        }
         // Preserve absolute-flow baselines: deleting them would replay all
         // pre-reset connection bytes on the next BPF map read.
         let rows: Vec<_> = bpf.map_mut("app_flows").and_then(|map| BpfHashMap::<_,FlowKey,FlowStats>::try_from(map).ok())
@@ -1077,6 +1350,65 @@ mod tests {
         assert_eq!(heavy.connections, 1);
         assert_eq!(heavy.bytes.upload, 9_002_000);
         assert_eq!(heavy.bytes.download, 5_001_000);
+    }
+
+    #[test]
+    fn observed_domains_groups_by_etld_filters_mac_and_bounds_entries() {
+        let mut map = HashMap::new();
+        let mut since = 0u64;
+        let mac_a = [0x6c, 0x1f, 0xf7, 0x0c, 0xf2, 0x75];
+        let mac_b = [0x80, 0xa0, 0x36, 0xc9, 0x07, 0x0a];
+        record_observed_domain(
+            &mut map,
+            &mut since,
+            "storage.googleapis.com",
+            mac_a,
+            Bytes { download: 1_000_000, upload: 100_000 },
+            100,
+            0,
+            "TLS",
+        );
+        record_observed_domain(
+            &mut map,
+            &mut since,
+            "daily-cloudcode-pa.googleapis.com",
+            mac_b,
+            Bytes { download: 500_000, upload: 50_000 },
+            105,
+            0,
+            "TLS",
+        );
+        add_observed_domain_bytes(
+            &mut map,
+            &mut since,
+            "storage.googleapis.com",
+            mac_a,
+            Bytes { download: 2_000_000, upload: 200_000 },
+            110,
+        );
+        assert_eq!(since, 100);
+        let root = map.get("googleapis.com").expect("grouped under eTLD+1");
+        assert_eq!(root.connections, 2);
+        assert_eq!(root.bytes.download, 3_500_000);
+        assert_eq!(root.subs.len(), 2);
+        assert_eq!(root.devices.get(&mac_a).unwrap().download, 3_000_000);
+        assert_eq!(root.devices.get(&mac_b).unwrap().download, 500_000);
+
+        for i in 0..OBSERVED_DOMAIN_LIMIT + 10 {
+            let host = format!("sub.noise-{i}.example");
+            record_observed_domain(
+                &mut map,
+                &mut since,
+                &host,
+                mac_b,
+                Bytes { download: 100, upload: (i as u64) + 1 },
+                200 + i as u64,
+                0,
+                "QUIC",
+            );
+        }
+        assert_eq!(map.len(), OBSERVED_DOMAIN_LIMIT);
+        assert!(map.contains_key("googleapis.com"), "high-traffic domain kept");
     }
 
     #[test]

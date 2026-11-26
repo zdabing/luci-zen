@@ -155,34 +155,52 @@
 		return el;
 	}
 	function choices(group, title, options) {
-		const field = node('fieldset', 'zen-pref-field'); field.appendChild(node('legend', '', title));
+		const isMode = group === 'mode';
+		const wrap = node('div', 'zen-pref-group' + (isMode ? ' wide' : ''));
+		wrap.appendChild(node('div', 'zen-pref-label', title));
 		const list = node('div', 'zen-pref-options zen-pref-' + group);
-		for (const [value, label, description] of options) {
-			const button = node('button', 'zen-pref-choice'); button.type = 'button';
-			button.dataset.prefGroup = group; button.dataset.prefValue = value;
-			const mark = node('span', 'zen-pref-mark'); mark.setAttribute('aria-hidden', 'true');
-			const words = node('span'); words.appendChild(node('strong', '', label));
-			if (description) words.appendChild(node('small', '', description));
-			button.append(mark, words); button.addEventListener('click', () => set({ [group]: value })); list.appendChild(button);
+		list.setAttribute('role', 'group');
+		list.setAttribute('aria-label', tr(title));
+		for (const [value, label] of options) {
+			const button = node('button', 'zen-pref-choice' + (isMode ? ' zen-mode-btn' : ' zen-style-card'));
+			button.type = 'button';
+			button.dataset.prefGroup = group;
+			button.dataset.prefValue = value;
+			if (!isMode) {
+				const mark = node('span', 'zen-pref-mark');
+				mark.setAttribute('aria-hidden', 'true');
+				button.append(mark);
+			}
+			button.append(node('span', 'zen-pref-text', label));
+			button.addEventListener('click', () => set({ [group]: value }));
+			list.appendChild(button);
 		}
-		field.appendChild(list); return field;
+		wrap.appendChild(list);
+		return wrap;
 	}
 	function accentChoices() {
-		const field = node('fieldset', 'zen-pref-field');
-		field.appendChild(node('legend', '', 'Accent color'));
+		const wrap = node('div', 'zen-pref-group wide');
+		wrap.appendChild(node('div', 'zen-pref-label', 'Accent color'));
 		const list = node('div', 'zen-pref-options zen-pref-accent zen-accent-grid');
+		list.setAttribute('role', 'group');
+		list.setAttribute('aria-label', tr('Accent color'));
 		const isDark = root.dataset.theme === 'dark';
 		for (const [value, label, lightHex, darkHex] of ACCENTS) {
-			const button = node('button', 'zen-pref-choice zen-accent-btn'); button.type = 'button';
-			button.dataset.prefGroup = 'accent'; button.dataset.prefValue = value;
-			const dot = node('span', 'zen-accent-dot'); dot.setAttribute('aria-hidden', 'true');
-			dot.dataset.lightColor = lightHex; dot.dataset.darkColor = darkHex;
+			const button = node('button', 'zen-pref-choice zen-accent-btn');
+			button.type = 'button';
+			button.dataset.prefGroup = 'accent';
+			button.dataset.prefValue = value;
+			const dot = node('span', 'zen-accent-dot');
+			dot.setAttribute('aria-hidden', 'true');
+			dot.dataset.lightColor = lightHex;
+			dot.dataset.darkColor = darkHex;
 			dot.style.backgroundColor = isDark ? darkHex : lightHex;
 			button.append(dot, node('span', 'zen-accent-label', label));
 			button.addEventListener('click', () => set({ accent: value }));
 			list.appendChild(button);
 		}
-		field.appendChild(list); return field;
+		wrap.appendChild(list);
+		return wrap;
 	}
 	function render(options) {
 		const inDialog = !!(options && options.inDialog);
@@ -191,13 +209,10 @@
 		intro.append(node('span', 'zen-pref-eyebrow', 'Theme settings'), node('h2', '', 'A quieter view of your network.'), node('p', '', 'Changes apply immediately.'));
 		const controls = node('div', 'zen-pref-controls');
 		controls.append(
-			choices('skin', 'Visual theme', [
-				['meridian', 'Meridian', 'Snow-white canvas, pure white cards and soft elevation.'],
-				['apple', 'Apple', 'Crisp light-blue canvas, flat white cards and tinted icons.']
-			]),
-			accentChoices(),
+			choices('skin', 'Visual theme', [['meridian', 'Meridian'], ['apple', 'Apple']]),
+			choices('layout', 'Navigation layout', [['sidebar', 'Left navigation'], ['top', 'Top navigation']]),
 			choices('mode', 'Display mode', [['auto', 'Follow system'], ['light', 'Light mode'], ['dark', 'Dark mode']]),
-			choices('layout', 'Navigation layout', [['sidebar', 'Left navigation', 'Keep pages within reach in the sidebar.'], ['top', 'Top navigation', 'Use the full width with navigation above.']])
+			accentChoices()
 		);
 		if (inDialog) {
 			form.append(controls);

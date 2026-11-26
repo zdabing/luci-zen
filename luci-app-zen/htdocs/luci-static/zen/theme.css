@@ -442,23 +442,30 @@ body > header .zen-mode-toggle, .zen-login-topbar .zen-mode-toggle { width: auto
 .zen-pref-eyebrow { display: block; font-size: 12px; font-weight: 600; color: var(--accent-strong); margin-bottom: 8px; }
 .zen-pref-intro h2 { padding: 0; border: 0; margin: 0 0 8px; font-size: clamp(22px, 2.2vw, 28px); line-height: 1.3; font-weight: 650; letter-spacing: -.03em; }
 .zen-pref-intro p { margin: 0; color: var(--text-secondary); font-size: 13px; }
-.zen-pref-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: stretch; min-width: 0; }
-.zen-pref-field { min-width: 0; padding: 18px 20px; margin: 0; border: 1px solid var(--line); border-radius: var(--radius-micro); background: var(--bg-panel); box-shadow: none; }
-.zen-pref-field legend { padding: 0; margin-bottom: 12px; font-size: 14px; font-weight: 650; color: var(--text); }
-.zen-pref-options { display: grid; gap: 10px; }
+.zen-pref-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 16px; align-items: start; min-width: 0; }
+.zen-pref-group { min-width: 0; display: grid; gap: 8px; }
+.zen-pref-group.wide { grid-column: 1 / -1; }
+.zen-pref-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); line-height: 1.4; }
+.zen-pref-field { min-width: 0; padding: 0; margin: 0; border: 0; background: transparent; box-shadow: none; }
+.zen-pref-field legend { padding: 0; margin-bottom: 8px; font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+.zen-pref-options { display: grid; gap: 8px; }
 .zen-pref-skin, .zen-pref-layout { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.zen-pref-mode { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.zen-pref-choice { display: flex; align-items: flex-start; gap: 10px; width: 100%; min-width: 0; min-height: 46px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-control); color: var(--text-secondary); background: var(--bg-panel); font: inherit; text-align: left; cursor: pointer; transition: background .15s, border-color .15s, color .15s; }
-.zen-pref-choice[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-strong); border-color: var(--accent); }
-.zen-pref-choice:hover { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); color: var(--text); }
+.zen-pref-mode { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: var(--radius-control); background: var(--bg-nested); }
+.zen-pref-choice { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-width: 0; min-height: 42px; padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--radius-control); color: var(--text-secondary); background: var(--bg-panel); font: inherit; font-size: 13px; font-weight: 550; text-align: left; cursor: pointer; transition: background-color .15s, border-color .15s, color .15s, box-shadow .15s; }
+.zen-pref-choice[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-strong); border-color: var(--accent); font-weight: 600; }
+.zen-pref-choice:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); color: var(--text); }
 .zen-pref-choice[aria-pressed="true"]:hover { color: var(--accent-strong); border-color: var(--accent); }
 .zen-pref-choice:active { transform: translateY(1px); }
 .zen-pref-choice:focus-visible, .zen-pref-retry:focus-visible, .zen-pref-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.zen-pref-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .zen-pref-choice strong { display: block; font-size: 13px; font-weight: 600; line-height: 1.4; color: inherit; }
 .zen-pref-choice small { display: block; margin-top: 4px; color: var(--text-secondary); font-size: 12px; line-height: 1.45; font-weight: 400; }
-.zen-pref-mark { display: block; flex: 0 0 15px; height: 15px; margin-top: 2px; border: 1.5px solid var(--line-strong); border-radius: 50%; background: var(--bg-panel); }
-.zen-pref-choice[aria-pressed="true"] .zen-pref-mark { border: 4.5px solid var(--accent); background: var(--bg-panel); }
-.zen-pref-mode .zen-pref-choice { align-items: center; justify-content: center; padding: 10px 8px; gap: 6px; text-align: center; }
+.zen-pref-mark { display: block; flex: 0 0 15px; height: 15px; border: 1.5px solid var(--line-strong); border-radius: 50%; background: var(--bg-panel); transition: border-color .15s, box-shadow .15s, background-color .15s; }
+.zen-pref-choice[aria-pressed="true"] .zen-pref-mark { border-color: var(--accent); background: var(--accent); box-shadow: inset 0 0 0 3px var(--bg-panel); }
+.zen-pref-mode .zen-pref-choice { min-height: 34px; padding: 6px 8px; gap: 6px; border: 0; border-radius: 9px; background: transparent; color: var(--text-secondary); font-size: 12px; font-weight: 500; text-align: center; box-shadow: none; }
+.zen-pref-mode .zen-pref-choice:hover { color: var(--text); border-color: transparent; background: color-mix(in srgb, var(--bg-panel) 55%, transparent); }
+.zen-pref-mode .zen-pref-choice[aria-pressed="true"] { background: var(--bg-panel); color: var(--accent-strong); font-weight: 600; box-shadow: 0 1px 4px rgba(16, 24, 40, 0.08); }
+:root[data-theme="dark"] .zen-pref-mode .zen-pref-choice[aria-pressed="true"] { box-shadow: 0 1px 4px rgba(0, 0, 0, 0.32); }
 .zen-pref-mode .zen-pref-mark { display: none; }
 
 /* 5-Color Accent Swatch Grid */
@@ -529,11 +536,10 @@ dialog.zen-preferences-dialog::backdrop { background: var(--modal-mask); }
   .zen-settings-tabs { gap: 16px; margin-bottom: 18px; }
   .zen-preferences { padding: 18px; }
   .zen-pref-intro { margin-bottom: 20px; }
-  .zen-pref-controls { grid-template-columns: minmax(0, 1fr); gap: 14px; }
-  .zen-pref-field { padding: 16px; }
+  .zen-pref-controls { grid-template-columns: minmax(0, 1fr); gap: 12px; }
   .zen-pref-footer { margin-top: 16px; }
-  .zen-pref-mode .zen-pref-choice { padding-inline: 5px; }
-  .zen-pref-choice strong { font-size: 13px; }
+  .zen-pref-mode .zen-pref-choice { min-height: 40px; padding-inline: 5px; }
+  .zen-accent-btn { min-height: 40px; }
   .zen-dash-gauges .zen-dash-card + .zen-dash-card { border-left: 0; border-top: 1px solid var(--line); }
   input, select, textarea { font-size: 16px; }
   dialog.zen-preferences-dialog { width: calc(100% - 24px); max-height: calc(100dvh - 24px); }

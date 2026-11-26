@@ -17,14 +17,6 @@
   document.documentElement.classList.add('zen-console');
   const title=({dashboard:'网络概览',history:'流量分析',settings:'设置'})[page];
   document.title='Zen · '+title;
-  const nav=document.createElement('nav');nav.className='zc-app-nav';nav.setAttribute('aria-label','Zen 页面');
-  for(const [key,label,route] of [['dashboard','网络概览','realtime'],['history','流量分析','analysis'],['settings','设置','settings']]){
-   const link=document.createElement('a');link.textContent=label;
-   link.href=window.L?.url?L.url('admin','zen',route):'/cgi-bin/luci/admin/zen/'+route;
-   if(key===page)link.setAttribute('aria-current','page');nav.append(link);
-  }
-  view.before(nav);
-  // The active nav tab already names the page; keep the heading for screen readers only.
   if(page!=='dashboard'){
    const h1=document.createElement('h1');h1.textContent=title;h1.className='zc-sr-only';
    view.before(h1);

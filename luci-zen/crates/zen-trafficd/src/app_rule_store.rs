@@ -120,6 +120,33 @@ fn validate_overlaps(
     Ok(())
 }
 
+const TWO_PART_PUBLIC_SUFFIXES: &[&str] = &[
+    "com.cn", "net.cn", "org.cn", "gov.cn", "edu.cn", "ac.cn", "com.hk", "com.tw", "co.uk",
+    "org.uk", "net.uk", "co.jp", "ne.jp", "or.jp", "com.sg", "com.au",
+];
+
+/// Extract eTLD+1 registrable domain (or preserve IPv4/IPv6/single-label hostnames).
+pub fn registrable_domain(host: &str) -> String {
+    let trimmed = host.trim().trim_end_matches('.').to_ascii_lowercase();
+    if trimmed.is_empty() || trimmed.parse::<std::net::IpAddr>().is_ok() {
+        return trimmed;
+    }
+    let Some(norm) = app_rules::normalize_hostname(&trimmed) else {
+        return trimmed;
+    };
+    let labels: Vec<&str> = norm.split('.').collect();
+    if labels.len() < 2 {
+        return norm;
+    }
+    let tail2 = format!("{}.{}", labels[labels.len() - 2], labels[labels.len() - 1]);
+    let base_len = if labels.len() >= 3 && TWO_PART_PUBLIC_SUFFIXES.contains(&tail2.as_str()) {
+        3
+    } else {
+        2
+    };
+    labels[labels.len() - base_len..].join(".")
+}
+
 pub fn suggested_rule(host: &str, rules: &RuleSet) -> (String, &'static str) {
     let Some(host) = app_rules::normalize_hostname(host) else {
         return (String::new(), "exact");
@@ -128,10 +155,6 @@ pub fn suggested_rule(host: &str, rules: &RuleSet) -> (String, &'static str) {
     if labels.len() < 2 {
         return (host, "exact");
     }
-    let two_part_public = [
-        "com.cn", "net.cn", "org.cn", "gov.cn", "edu.cn", "ac.cn", "com.hk", "com.tw", "co.uk",
-        "org.uk", "net.uk", "co.jp", "ne.jp", "or.jp", "com.sg", "com.au",
-    ];
     let multi_tenant = [
         "github.io",
         "githubusercontent.com",
@@ -153,13 +176,7 @@ pub fn suggested_rule(host: &str, rules: &RuleSet) -> (String, &'static str) {
         "vercel.app",
         "netlify.app",
     ];
-    let tail2 = format!("{}.{}", labels[labels.len() - 2], labels[labels.len() - 1]);
-    let base_len = if labels.len() >= 3 && two_part_public.contains(&tail2.as_str()) {
-        3
-    } else {
-        2
-    };
-    let parent = labels[labels.len() - base_len..].join(".");
+    let parent = registrable_domain(&host);
     let parent_is_shared = is_forbidden_dedicated(&parent)
         || multi_tenant.contains(&parent.as_str())
         || rules
@@ -580,6 +597,15 @@ mod tests {
             added_at: 100,
         }];
         assert!(RuleSet::parse_with_custom(base, &bad).is_err());
+    }
+
+    #[test]
+    fn registrable_domain_groups_standard_public_suffix_and_ip_hosts() {
+        assert_eq!(registrable_domain("storage.googleapis.com"), "googleapis.com");
+        assert_eq!(registrable_domain("googlevideo.com"), "googlevideo.com");
+        assert_eq!(registrable_domain("cdn1.my-nas-demo.com.cn."), "my-nas-demo.com.cn");
+        assert_eq!(registrable_domain("1.1.1.1"), "1.1.1.1");
+        assert_eq!(registrable_domain("localhost"), "localhost");
     }
 
     #[test]

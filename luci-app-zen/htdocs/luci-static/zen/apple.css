@@ -5,8 +5,8 @@
 .apple-head-actions { display: contents; }
 
 :root[data-skin="apple"] body { background: var(--bg-base); color: var(--text); font-variant-numeric: tabular-nums; }
-:root[data-skin="apple"] :is(body > header, .rf-router, .rf-live, .zen-wan-share, .zen-dash-devices, .za-panel, .za-detail, #zen-notifications, .zen-preferences, .cbi-section, .zen-updates) {
-  backdrop-filter: none !important; -webkit-backdrop-filter: none !important; box-shadow: none !important;
+:root[data-skin="apple"] :is(body > header, .rf-router, .rf-live, .zen-wan-share, .zen-dash-devices, .za-panel, .za-detail, #zen-settings-appearance, #zen-settings-notifications, #zen-notifications, .zen-preferences, .cbi-section, .zen-updates) {
+  backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: none;
 }
 :root[data-skin="apple"] body > header { background: var(--bg-panel); border-bottom: 1px solid var(--line); }
 :root[data-skin="apple"] .zc-app-nav { padding-block: 12px; background: var(--bg-base); gap: 8px; border-bottom: 0; }
@@ -31,55 +31,55 @@
 :root:is([data-skin="apple"], [data-skin="meridian"]) .apple-nav-icon svg { width: 17px; height: 17px; }
 :root[data-skin="apple"] .zc-app-nav a[aria-current="page"] .apple-nav-icon { color: var(--on-accent); }
 
-:root[data-skin="apple"] #zen-dashboard .rf-router { background: transparent !important; border: 0 !important; padding: 0 !important; box-shadow: none !important; }
-:root[data-skin="apple"] .rf-router-head { margin: 4px 0 18px; gap: 16px; }
-:root[data-skin="apple"] .rf-router-title { font-size: 26px; font-weight: 650; letter-spacing: -.6px; }
-:root[data-skin="apple"] .apple-head-actions { display: flex; align-items: center; gap: 16px; margin-left: auto; }
+:root[data-skin="apple"] #zen-dashboard:not([data-home-layout="split"]) .rf-router { background: transparent; border: 0; padding: 0; box-shadow: none; }
+:root[data-skin="apple"] #zen-dashboard:not([data-home-layout="split"]) .rf-router-head { margin: 4px 0 18px; gap: 16px; }
+:root[data-skin="apple"] #zen-dashboard:not([data-home-layout="split"]) .rf-router-title { font-size: 26px; font-weight: 650; letter-spacing: -.6px; }
+:root[data-skin="apple"] .apple-head-actions { display: flex; align-items: center; gap: 12px; margin-left: auto; }
 :root[data-skin="apple"] .rf-wan-pill { font-size: 12px; background: transparent; padding: 6px 0; color: var(--text-secondary); }
 :root[data-skin="apple"] .rf-wan-status:has([data-state="connected"])::before { background: var(--ok); box-shadow: none; width: 7px; height: 7px; }
 :root[data-skin="apple"] .rf-wan-pill [data-health="latency"] { color: var(--text-secondary); }
 :root[data-skin="apple"] .apple-primary-button {
-  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
-  min-height: 40px; padding: 8px 15px; background: var(--accent); border: 1px solid var(--accent);
-  border-radius: var(--radius-control); color: var(--on-accent); font-size: 13px; font-weight: 600; white-space: nowrap;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 36px; padding: 6px 12px; background: var(--accent); border: 1px solid var(--accent);
+  border-radius: var(--radius-control); color: var(--on-accent); font-size: 12px; font-weight: 600; white-space: nowrap;
 }
 :root[data-skin="apple"] .apple-primary-button:hover { background: var(--accent-press); border-color: var(--accent-press); color: var(--on-accent); }
 :root[data-skin="apple"] .apple-primary-button:active { transform: translateY(1px); }
-:root[data-skin="apple"] .apple-action-arrow { background: none; color: var(--on-accent); width: 17px; height: 17px; }
-:root[data-skin="apple"] .apple-action-arrow svg { width: 17px; height: 17px; }
+:root[data-skin="apple"] .apple-action-arrow { background: none; color: var(--on-accent); width: 15px; height: 15px; }
+:root[data-skin="apple"] .apple-action-arrow svg { width: 15px; height: 15px; }
 
-:root[data-skin="apple"] .rf-health { gap: 14px; margin-bottom: 14px; }
-:root[data-skin="apple"] .rf-health :is(.rf-health-metric, .zen-dash-health-metric) {
+:root[data-skin="apple"] #zen-dashboard:not([data-home-layout="split"]) .rf-health { gap: 14px; margin-bottom: 14px; }
+:root[data-skin="apple"] #zen-dashboard:not([data-home-layout="split"]) .rf-health :is(.rf-health-metric, .zen-dash-health-metric) {
   grid-template-columns: 1fr; gap: 10px; padding: 16px 18px 14px;
   background: var(--bg-panel); border: 1px solid var(--line); border-radius: var(--radius-card);
   color: var(--text-secondary); font-size: 12px;
 }
-:root[data-skin="apple"] .rf-health :is(.rf-health-metric b, .zen-dash-health-metric strong) { font-size: 28px; line-height: 1.1; font-weight: 600; letter-spacing: -.7px; color: var(--text); }
+:root[data-skin="apple"] #zen-dashboard:not([data-home-layout="split"]) .rf-health :is(.rf-health-metric b, .zen-dash-health-metric strong) { font-size: 28px; line-height: 1.1; font-weight: 600; letter-spacing: -.7px; color: var(--text); }
 :root[data-skin="apple"] .rf-health :is(.rf-health-track, .zen-dash-health-track) { height: 4px; border-radius: 3px; margin-top: 2px; background: var(--progress-track); }
 :root[data-skin="apple"] .rf-health > :nth-child(2) :is(.rf-health-fill, .zen-dash-health-track i) { background: var(--ok); }
 :root[data-skin="apple"] .rf-health > :nth-child(3) :is(.rf-health-fill, .zen-dash-health-track i) { background: var(--warn); }
 :root[data-skin="apple"] .rf-health > :nth-child(4) :is(.rf-health-fill, .zen-dash-health-track i) { background: var(--ul); }
 
-:root[data-skin="apple"] .rf-router .zen-dash-connections { gap: 14px; }
-:root[data-skin="apple"] .rf-router .zen-dash-connection {
+:root[data-skin="apple"] #zen-dashboard:not([data-home-layout="split"]) .rf-router .zen-dash-connections { gap: 14px; }
+:root[data-skin="apple"] #zen-dashboard:not([data-home-layout="split"]) .rf-router .zen-dash-connection {
   background: var(--bg-panel); border: 1px solid var(--line); border-radius: var(--radius-card);
   padding: 16px 18px 18px; gap: 14px;
 }
 :root[data-skin="apple"] .rf-router .zen-dash-connection-label { font-size: 12px; color: var(--text-secondary); }
-:root[data-skin="apple"] .rf-router .zen-dash-connection strong { font-weight: 600; font-size: 17px; }
+:root[data-skin="apple"] #zen-dashboard:not([data-home-layout="split"]) .rf-router .zen-dash-connection strong { font-weight: 600; font-size: 17px; }
 :root[data-skin="apple"] .rf-router .zen-dash-connection-note { font-size: 11px; color: var(--text-muted); }
 :root[data-skin="apple"] .rf-copy {
   background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--line));
-  color: var(--accent-strong); border-radius: var(--radius-control); min-height: 32px; padding: 3px 10px; font-size: 12px;
+  color: var(--accent-strong); border-radius: var(--radius-control); min-height: 28px; padding: 2px 9px; font-size: 11.5px;
 }
 :root[data-skin="apple"] .rf-copy:hover { border-color: var(--accent); color: var(--accent-strong); }
 
-:root[data-skin="apple"] :is(.rf-live, .zen-wan-share, .za-panel, .za-detail, .zen-preferences, .cbi-section) {
+:root[data-skin="apple"] :is(.rf-live, .zen-wan-share, .za-panel, .za-detail, .cbi-section:not(#zen-notifications .cbi-section)) {
   background: var(--bg-panel); border: 1px solid var(--line); border-radius: var(--radius-card); box-shadow: none;
 }
-:root[data-skin="apple"] :is(.rf-live, .zen-wan-share) { padding: 22px; }
-:root[data-skin="apple"] .rf-live h3, :root[data-skin="apple"] .zen-dash-devices h3, :root[data-skin="apple"] .zu-usage h2 { font-size: 17px; font-weight: 600; }
-:root[data-skin="apple"] .rf-live .rf-number { font-weight: 550; }
+:root[data-skin="apple"] #zen-dashboard:not([data-home-layout="split"]) :is(.rf-live, .zen-wan-share) { padding: 22px; }
+:root[data-skin="apple"] #zen-dashboard:not([data-home-layout="split"]) .rf-live h3, :root[data-skin="apple"] .zen-dash-devices h3, :root[data-skin="apple"] .zu-usage h2 { font-size: 17px; font-weight: 600; }
+:root[data-skin="apple"] #zen-dashboard:not([data-home-layout="split"]) .rf-live .rf-number { font-weight: 550; }
 :root[data-skin="apple"] .rf-live .zen-dash-stat { background: var(--bg-panel); border: 1px solid var(--line); border-radius: var(--radius-micro); }
 :root[data-skin="apple"] .rf-live .zen-dash-stat.tx :is(.k, .v) { color: var(--ul); }
 :root[data-skin="apple"] .rf-live .zen-dash-stat.rx :is(.k, .v) { color: var(--dl); }
@@ -107,24 +107,24 @@
   :root[data-skin="apple"] .zc-app-nav a { font-size: 12px; padding: 7px 10px; min-height: 44px; gap: 5px; }
   :root[data-skin="apple"] .apple-nav-icon { width: 18px; height: 20px; }
   :root[data-skin="apple"] .apple-nav-icon svg { width: 16px; height: 16px; }
-  :root[data-skin="apple"] .rf-router-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 4px 0 14px; }
-  :root[data-skin="apple"] .rf-router-title { font-size: 22px; }
+  :root[data-skin="apple"] #zen-dashboard:not([data-home-layout="split"]) .rf-router-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 4px 0 14px; }
+  :root[data-skin="apple"] #zen-dashboard:not([data-home-layout="split"]) .rf-router-title { font-size: 22px; }
   :root[data-skin="apple"] .apple-head-actions { display: contents; }
   :root[data-skin="apple"] .rf-wan-pill { order: 2; flex-basis: 100%; font-size: 12px; padding: 0 0 2px; }
   :root[data-skin="apple"] .apple-primary-button { margin-left: auto; min-height: 40px; font-size: 12px; gap: 6px; padding: 8px 12px; border-radius: var(--radius-control); }
-  :root[data-skin="apple"] .rf-health { gap: 10px; margin-bottom: 10px; }
-  :root[data-skin="apple"] .rf-health :is(.rf-health-metric, .zen-dash-health-metric) { padding: 13px 14px 12px; gap: 8px; border-radius: var(--radius-micro); font-size: 12px; }
-  :root[data-skin="apple"] .rf-health :is(.rf-health-metric b, .zen-dash-health-metric strong) { font-size: 25px; }
-  :root[data-skin="apple"] .rf-health .apple-icon { width: 28px; height: 28px; border-radius: 9px; }
-  :root[data-skin="apple"] .rf-health .apple-icon svg { width: 16px; height: 16px; }
-  :root[data-skin="apple"] .apple-icon-label { gap: 7px; }
-  :root[data-skin="apple"] .rf-router .zen-dash-connections { gap: 10px; }
-  :root[data-skin="apple"] .rf-router .zen-dash-connection { padding: 14px 12px; gap: 10px; border-radius: var(--radius-micro); }
-  :root[data-skin="apple"] .rf-router .zen-dash-connection strong { font-size: 14px; }
+  :root[data-skin="apple"] #zen-dashboard:not([data-home-layout="split"]) .rf-health { gap: 10px; margin-bottom: 10px; }
+  :root[data-skin="apple"] #zen-dashboard:not([data-home-layout="split"]) .rf-health :is(.rf-health-metric, .zen-dash-health-metric) { padding: 13px 14px 12px; gap: 8px; border-radius: var(--radius-micro); font-size: 12px; }
+  :root[data-skin="apple"] #zen-dashboard:not([data-home-layout="split"]) .rf-health :is(.rf-health-metric b, .zen-dash-health-metric strong) { font-size: 25px; }
+  :root[data-skin="apple"] .rf-health .apple-icon { width: 24px; height: 24px; border-radius: 7px; }
+  :root[data-skin="apple"] .rf-health .apple-icon svg { width: 14px; height: 14px; }
+  :root[data-skin="apple"] .apple-icon-label { gap: 6px; }
+  :root[data-skin="apple"] #zen-dashboard:not([data-home-layout="split"]) .rf-router .zen-dash-connections { gap: 10px; }
+  :root[data-skin="apple"] #zen-dashboard:not([data-home-layout="split"]) .rf-router .zen-dash-connection { padding: 14px 12px; gap: 10px; border-radius: var(--radius-micro); }
+  :root[data-skin="apple"] #zen-dashboard:not([data-home-layout="split"]) .rf-router .zen-dash-connection strong { font-size: 14px; }
   :root[data-skin="apple"] .rf-router .zen-dash-connection-label { font-size: 11px; }
   :root[data-skin="apple"] .rf-router .zen-dash-connection-note { font-size: 11px; }
-  :root[data-skin="apple"] .apple-small-icon { width: 24px; height: 24px; border-radius: 8px; }
+  :root[data-skin="apple"] .apple-small-icon { width: 22px; height: 22px; border-radius: 7px; }
   :root[data-skin="apple"] .rf-copy { font-size: 11px; min-height: 40px; padding: 4px 10px; }
-  :root[data-skin="apple"] :is(.rf-live, .zen-wan-share) { padding: 16px; }
+  :root[data-skin="apple"] #zen-dashboard:not([data-home-layout="split"]) :is(.rf-live, .zen-wan-share) { padding: 16px; }
   :root[data-skin="apple"] :is(.btn, .cbi-button) { min-height: 44px; }
 }
